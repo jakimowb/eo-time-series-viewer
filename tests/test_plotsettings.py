@@ -158,7 +158,7 @@ class PlotSettingsTests(TestCase):
         if False and FORCE_CUBE and FORCE_CUBE.is_dir():
             files = file_search(FORCE_CUBE, re.compile('.*BOA.tif$'), recursive=True)
             ts = TimeSeries()
-            files = list(files)[:50]
+            files = list(files)[:25]
             ts.addSources(files, runAsync=False)
             s = ""
         else:

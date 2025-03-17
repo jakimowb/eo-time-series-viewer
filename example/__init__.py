@@ -5,9 +5,8 @@ thisDir = Path(__file__).parent
 images = thisDir / 'Images'
 # File path attributes:
 # Vector files:
-exampleGPKG = thisDir / r'exampleEvents.gpkg'
-exampleEvents = exampleGPKG.as_posix() + '|layername=exampleEvents'
-examplePoints = exampleGPKG.as_posix() + '|layername=pointsOfInterest'
+exampleEvents = thisDir / 'example_events.geojson'
+examplePoints = thisDir / 'example_points.geojson'
 exampleTimeSeries = thisDir / 'ExampleTimeSeries.csv'
 exampleNoDataImage = thisDir / '20140108_no_data.tif'
 exampleRapidEye = images / 're_2014-06-25.tif'

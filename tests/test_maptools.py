@@ -21,13 +21,14 @@
 import unittest
 
 from eotimeseriesviewer.main import EOTimeSeriesViewer
-from eotimeseriesviewer.qgispluginsupport.qps.maptools import MapTools, MapToolCenter, \
-    FullExtentMapTool, PixelScaleExtentMapTool, QgsMapToolAddFeature, CursorLocationMapTool, QgsMapToolSelect
+from eotimeseriesviewer.qgispluginsupport.qps.maptools import CursorLocationMapTool, FullExtentMapTool, MapToolCenter, \
+    MapTools, PixelScaleExtentMapTool, QgsMapToolAddFeature, QgsMapToolSelect
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
-from qgis.core import QgsVectorLayer, QgsProject
-from qgis.gui import QgsMapToolZoom, QgsMapToolPan
+from qgis.core import QgsProject, QgsVectorLayer
+from qgis.gui import QgsMapToolPan, QgsMapToolZoom
 
 start_app()
+
 
 class TestMapTools(EOTSVTestCase):
     """Test that the plugin init is usable for QGIS.
@@ -41,13 +42,11 @@ class TestMapTools(EOTSVTestCase):
     """
 
     def test_TimeSeriesViewer(self):
-
-
         TSV = EOTimeSeriesViewer()
         TSV.show()
         TSV.loadExampleTimeSeries(loadAsync=False)
         from example import exampleEvents
-        lyr = QgsVectorLayer(exampleEvents)
+        lyr = QgsVectorLayer(exampleEvents.as_posix())
         QgsProject.instance().addMapLayer(lyr)
 
         TSV.setMapTool(MapTools.ZoomIn)

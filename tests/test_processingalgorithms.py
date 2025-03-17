@@ -116,7 +116,7 @@ class ProcessingAlgorithmTests(TestCase):
         self.assertTrue(TemporalProfileUtils.isProfileField(field))
 
     def test_read_temporal_profiles(self):
-        lyr = QgsVectorLayer(examplePoints)
+        lyr = QgsVectorLayer(examplePoints.as_posix())
 
         tsv = EOTimeSeriesViewer()
         tsv.loadExampleTimeSeries(loadAsync=False)

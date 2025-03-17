@@ -250,7 +250,7 @@ class TestTemporalProfilesV2(EOTSVTestCase):
         eotsv = EOTimeSeriesViewer()
         if True and FORCE_CUBE:
             files = self.allFORCEFiles()
-            # files = files[0:50]
+            files = files[0:100]
             eotsv.addTimeSeriesImages(files)
         else:
             eotsv.loadExampleTimeSeries(loadAsync=False)

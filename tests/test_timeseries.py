@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Tests QGIS plugin init."""
 import os
-import re
 import unittest
 
 import numpy as np
@@ -21,8 +20,8 @@ import example
 import example.Images
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
-from eotimeseriesviewer.timeseries import registerDataProvider, sensorID, SensorInstrument, SensorMatching, \
-    SensorMockupDataProvider, TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, \
+from eotimeseriesviewer.timeseries import registerDataProvider, sensorID, SensorInstrument, SensorMockupDataProvider, \
+    TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, \
     TimeSeriesLoadingTask, TimeSeriesSource
 
 start_app()
@@ -206,34 +205,6 @@ class TestTimeSeries(EOTSVTestCase):
             self.assertIsInstance(tss3, TimeSeriesSource)
             self.assertEqual(tss, tss3)
             self.assertEqual(tss.dtg(), tss3.dtg())
-
-    def test_sensorMatching(self):
-
-        testDir = r'Q:\Processing_BJ\99_EOTSV_RapidEye'
-        if os.path.isdir(testDir):
-            sensors = set()
-            files = list(file_search(testDir, re.compile(r'.*RE.*\d+\.tif$'), recursive=True))
-            tssList = []
-            for file in files:
-                tss = TimeSeriesSource.create(file)
-                self.assertIsInstance(tss, TimeSeriesSource)
-                sid = tss.sid()
-                sensor = SensorInstrument(sid)
-                self.assertIsInstance(sensor, SensorInstrument)
-                sensors.add(sensor)
-                tssList.append(tss)
-
-            TS = TimeSeries()
-            TS.setSensorMatching(SensorMatching.PX_DIMS)
-            TS.addSources(files, runAsync=False)
-            self.assertTrue(len(TS.sensors()) == 1)
-
-            TS = TimeSeries()
-            TS.setSensorMatching(SensorMatching.PX_DIMS | SensorMatching.NAME | SensorMatching.WL)
-            TS.addSources(files, runAsync=False)
-            self.assertTrue(len(TS.sensors()) == len(sensors))
-
-            s = ""
 
     def test_datetimeprecision(self):
 

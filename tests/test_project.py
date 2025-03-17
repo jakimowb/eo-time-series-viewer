@@ -23,9 +23,9 @@ from typing import List, Optional
 
 from PyQt5.QtCore import QSize
 from qgis._core import QgsApplication, QgsVectorLayer
+
 from qgis.core import QgsCoordinateReferenceSystem, QgsProject
 from qgis.gui import QgsMapCanvas
-
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapvisualization import MapView, MapWidget
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
@@ -164,7 +164,7 @@ class TestProjectIO(EOTSVTestCase):
             TSV.setCurrentDate(tsd)
 
         from example import exampleEvents
-        lyr = QgsVectorLayer(exampleEvents)
+        lyr = QgsVectorLayer(exampleEvents.as_posix())
         lyr.setName('MyTestLayer')
         TSV.mapViews()[0].setName('True Color')
         TSV.addMapLayers([lyr])

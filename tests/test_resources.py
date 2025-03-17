@@ -64,8 +64,8 @@ class TestResources(EOTSVTestCase):
 
     def test_example_vectors(self):
 
-        from example import exampleEvents, exampleGPKG
-        sources = [exampleEvents, exampleGPKG]
+        from example import exampleEvents, examplePoints
+        sources = [exampleEvents, examplePoints]
 
         for src in sources:
             for slyr in subLayers(src):
