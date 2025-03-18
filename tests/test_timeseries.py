@@ -7,13 +7,13 @@ import numpy as np
 from PyQt5.QtCore import QDateTime
 from qgis._core import QgsDateTimeRange
 from osgeo import gdal
-
 from qgis.gui import QgsTaskManagerWidget
 from qgis.core import Qgis, QgsApplication, QgsMimeDataUtils, QgsProject, QgsRasterLayer
 from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QMimeData, QPointF, QSortFilterProxyModel, Qt, \
     QUrl
 from qgis.PyQt.QtGui import QDropEvent
 from qgis.PyQt.QtWidgets import QTableView, QTreeView
+
 import example.Images
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 import example
@@ -471,7 +471,7 @@ class TestTimeSeries(EOTSVTestCase):
         pos = QPointF()
         event = QDropEvent(pos, Qt.CopyAction, md, Qt.LeftButton, Qt.NoModifier)
         dock.timeSeriesWidget().timeSeriesTreeView().dropEvent(event)
-
+        self.taskManagerProcessEvents()
         self.showGui(dock)
 
 

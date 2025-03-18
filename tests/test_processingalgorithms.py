@@ -6,13 +6,14 @@ from qgis.PyQt.QtCore import QMetaType
 from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsField, QgsGeometry, QgsProcessingAlgorithm, \
     QgsProcessingAlgRunnerTask, QgsProcessingProvider, QgsProcessingRegistry, QgsProcessingUtils, QgsProject, \
     QgsRasterLayer, QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
+
 from eotimeseriesviewer.forceinputs import FindFORCEProductsTask
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.processingalgorithms import AddTemporalProfileField, CreateEmptyTemporalProfileLayer, \
     EOTSVProcessingProvider, ReadTemporalProfiles
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
-from eotimeseriesviewer.tests import FORCE_CUBE, start_app, TestCase, TestObjects
+from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app, TestObjects
 from eotimeseriesviewer import initAll
 from example import examplePoints
 
@@ -20,7 +21,7 @@ start_app()
 initAll()
 
 
-class ProcessingAlgorithmTests(TestCase):
+class ProcessingAlgorithmTests(EOTSVTestCase):
 
     def test_provider(self):
         ID = EOTSVProcessingProvider.id()
@@ -162,6 +163,7 @@ class ProcessingAlgorithmTests(TestCase):
         tplyr = QgsProcessingUtils.mapLayerFromString(results[alg.OUTPUT], context)
         field = tplyr.fields().field('tp')
         self.assertTrue(TemporalProfileUtils.isProfileField(field))
+        tsv.close()
 
     @unittest.skipIf(FORCE_CUBE is None, 'Missing FORCE_CUBE')
     def test_read_temporal_profiles_force(self):

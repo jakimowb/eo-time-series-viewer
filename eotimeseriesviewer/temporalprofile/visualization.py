@@ -26,7 +26,6 @@ from itertools import chain
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
-
 from qgis.core import QgsApplication, QgsCoordinateTransform, QgsExpression, QgsExpressionContext, \
     QgsExpressionContextUtils, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsProject, \
     QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
@@ -35,6 +34,7 @@ from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QItemSelectionModel
 from qgis.PyQt.QtWidgets import QAction, QMenu, QProgressBar, QSlider, QTableView, QToolButton, QWidgetAction
 from qgis.gui import QgsDockWidget, QgsFilterLineEdit
 from qgis.PyQt.QtGui import QColor
+
 from eotimeseriesviewer import DIR_UI
 from .datetimeplot import DateTimePlotDataItem, DateTimePlotWidget
 from .plotsettings import PlotSettingsProxyModel, PlotSettingsTreeModel, PlotSettingsTreeView, \
@@ -234,9 +234,9 @@ class TemporalProfileVisualization(QObject):
         if isinstance(field, QgsField):
             field = field.name()
 
-        if not (isinstance(layer, QgsVectorLayer) and
-                field in layer.fields().names() and
-                TemporalProfileUtils.isProfileField(layer.fields()[field])):
+        if not (isinstance(layer, QgsVectorLayer)
+                and field in layer.fields().names()
+                and TemporalProfileUtils.isProfileField(layer.fields()[field])):
             return False
 
         trans = QgsCoordinateTransform(point.crs(), layer.crs(), QgsProject.instance())

@@ -4,14 +4,14 @@ from pathlib import Path
 
 from eotimeseriesviewer.forceinputs import find_tile_folders, FindFORCEProductsTask, FORCEProductImportDialog, \
     read_tileids, rx_FORCE_TILEFOLDER
-from eotimeseriesviewer.tests import start_app, TestCase
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 
 start_app()
 
 FORCE_ROOT = Path(os.environ.get('FORCE_ROOT', r'D:\EOTSV\FORCE_CUBE'))
 
 
-class FORCEImportTestCases(TestCase):
+class FORCEImportTestCases(EOTSVTestCase):
 
     def test_dialog(self):
         d = FORCEProductImportDialog()

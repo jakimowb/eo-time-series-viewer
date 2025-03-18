@@ -8,12 +8,12 @@ from qgis._core import QgsFeature
 from eotimeseriesviewer.temporalprofile.spectralindices import SpectralIndexBandIdentifierModel, \
     SpectralIndexConstantModel
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
-from eotimeseriesviewer.tests import start_app, TestCase, TestObjects
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 
 start_app()
 
 
-class ProfileFunctionTestCases(TestCase):
+class ProfileFunctionTestCases(EOTSVTestCase):
 
     def test_constantModel(self):
 

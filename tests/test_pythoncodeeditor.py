@@ -1,12 +1,12 @@
 import unittest
 
 from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget, PythonExpressionDialog
-from eotimeseriesviewer.tests import start_app, TestCase, TestObjects
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 
 start_app()
 
 
-class PythonCodeEditorTestCases(TestCase):
+class PythonCodeEditorTestCases(EOTSVTestCase):
 
     def test_dialog(self):
         lyr = TestObjects.createProfileLayer()

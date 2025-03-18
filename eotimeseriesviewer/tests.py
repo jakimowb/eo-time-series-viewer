@@ -28,10 +28,10 @@ from typing import Any, Dict, List, Match, Pattern, Union
 
 import numpy as np
 from osgeo import gdal, osr
-
 from qgis.core import edit, QgsApplication, QgsError, QgsFeature, QgsFields, QgsGeometry, QgsMapToPixel, QgsPointXY, \
     QgsRasterLayer, QgsVectorLayer
 from qgis.PyQt.QtWidgets import QWidget
+
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
@@ -61,6 +61,10 @@ class EOTSVTestCase(TestCase):
             'eotsv_resources_rc.py not compiled. run python scripts/compile_resourcefiles.py first.'
         initAll()
 
+    @classmethod
+    def tearDownClass(cls):
+        cls.assertTrue(EOTimeSeriesViewer.instance() is None, 'EOTimeSeriesViewer instance was not closed')
+
     @staticmethod
     def taskManagerProcessEvents() -> bool:
         tm = QgsApplication.taskManager()
@@ -74,6 +78,7 @@ class EOTSVTestCase(TestCase):
         return has_active_tasks
 
     def tearDown(self):
+        self.taskManagerProcessEvents()
         self.assertTrue(EOTimeSeriesViewer.instance() is None)
         super().tearDown()
 
