@@ -41,7 +41,8 @@ from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit,
 from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
     QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
 
-from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, layerStyleString, setLayerStyleString
+from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, layerStyleString, \
+    setFontButtonPreviewBackgroundColor, setLayerStyleString
 from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem, STYLE_CATEGORIES
 from eotimeseriesviewer import debugLog, DIR_UI
 from .maplayerproject import EOTimeSeriesViewerProject
@@ -49,7 +50,9 @@ from .qgispluginsupport.qps.crosshair.crosshair import CrosshairMapCanvasItem, C
 from .qgispluginsupport.qps.layerproperties import VectorLayerTools
 from .qgispluginsupport.qps.maptools import MapTools
 from .qgispluginsupport.qps.utils import loadUi, SpatialExtent, SpatialPoint
-from .timeseries import has_sensor_id, sensor_id, SensorInstrument, SensorMockupDataProvider, TimeSeries, TimeSeriesDate
+from .settings.settings import EOTSVSettingsManager
+from .timeseries import TimeSeries, TimeSeriesDate
+from .sensors import has_sensor_id, sensor_id, SensorInstrument, SensorMockupDataProvider
 
 KEY_LOCKED_LAYER = 'eotsv/locked'
 KEY_SENSOR_GROUP = 'eotsv/sensorgroup'
@@ -108,13 +111,9 @@ class MapView(QFrame):
         loadUi(DIR_UI / 'mapview.ui', self)
         # self.setupUi(self)
 
-        from eotimeseriesviewer.settings import Keys, defaultValues, value
-
-        DEFAULT_VALUES = defaultValues()
-        self.mMapBackgroundColor: QColor = value(Keys.MapBackgroundColor,
-                                                 default=DEFAULT_VALUES.get(Keys.MapBackgroundColor, QColor('black')))
-        self.mMapTextFormat: QgsTextFormat = value(Keys.MapTextFormat,
-                                                   default=DEFAULT_VALUES.get(Keys.MapTextFormat, QgsTextFormat()))
+        settings = EOTSVSettingsManager.settings()
+        self.mMapBackgroundColor: QColor = settings.mapBackgroundColor
+        self.mMapTextFormat: QgsTextFormat = QgsTextFormat(settings.mapTextFormat)
         self.mMapWidget = None
 
         # self.mLayerStyleInitialized: Dict[str, bool] = dict()
@@ -1179,10 +1178,8 @@ class MapWidget(QFrame):
         self.mCrosshairPosition: SpatialPoint = None
 
         self.mMapSize = QSize(200, 200)
-        from eotimeseriesviewer.settings import defaultValues, Keys
 
-        DEFAULT_VALUES = defaultValues()
-        self.mMapTextFormat = DEFAULT_VALUES[Keys.MapTextFormat]
+        self.mMapTextFormat = EOTSVSettingsManager.settings().mapTextFormat
         self.mMapRefreshTimer = QTimer(self)
         self.mMapRefreshTimer.timeout.connect(self.timedRefresh)
         self.mMapRefreshTimer.setInterval(500)
@@ -2529,8 +2526,10 @@ class MapViewDock(QgsDockWidget):
         # self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.CrsNotSet, True)
 
         self.btnCrs.crsChanged.connect(self.sigCrsChanged)
-        self.btnMapCanvasColor.colorChanged.connect(self.onMapCanvasColorChanged)
-        self.onMapCanvasColorChanged(self.btnMapCanvasColor.color())
+        self.btnMapCanvasColor.colorChanged.connect(
+            lambda c: setFontButtonPreviewBackgroundColor(c, self.btnTextFormat))
+        self.btnMapCanvasColor.colorChanged.connect(self.sigMapCanvasColorChanged.emit)
+        setFontButtonPreviewBackgroundColor(self.btnMapCanvasColor.color(), self.btnTextFormat)
 
         self.btnTextFormat.changed.connect(lambda *args: self.sigMapTextFormatChanged.emit(self.mapTextFormat()))
         self.btnApplySizeChanges.clicked.connect(self.onApplyButtonClicked)
@@ -2565,30 +2564,6 @@ class MapViewDock(QgsDockWidget):
             if i < 0:
                 i = len(mapViews) - 1
             self.setCurrentMapView(mapViews[i])
-
-    def onMapCanvasColorChanged(self, color: QColor):
-        fmt = self.btnTextFormat.textFormat()
-        fmt.setPreviewBackgroundColor(color)
-        self.btnTextFormat.setTextFormat(fmt)
-        on = self.btnTextFormat.objectName()
-        css = f"""
-        QgsFontButton#{on} {{
-            background-color: {fmt.previewBackgroundColor().name()};
-        }}
-        QgsFontButton#{on}::menu-button {{
-            background-color: palette(window);
-            border: 1px solid gray;
-            width: 16px;
-        }}
-        QgsFontButton#{on}::menu-indicator {{
-            color: palette(window);
-        }}
-        QgsFontButton#{on}::menu-arrow  {{
-            color: palette(window);
-        }}"""
-
-        self.btnTextFormat.setStyleSheet(css)
-        self.sigMapCanvasColorChanged.emit(color)
 
     def onApplyButtonClicked(self):
         self.sigMapSizeChanged.emit(QSize(self.spinBoxMapSizeX.value(), self.spinBoxMapSizeY.value()))

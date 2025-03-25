@@ -1,12 +1,11 @@
 #
-from qgis.core import *
 from qgis.PyQt.QtWidgets import *
+
 from eotimeseriesviewer.tests import start_app
 
 app = start_app()
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapvisualization import *
-from eotimeseriesviewer.profilevisualization import *
 from eotimeseriesviewer.timeseries import *
 from eotimeseriesviewer import DIR_REPO
 

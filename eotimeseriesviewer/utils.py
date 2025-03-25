@@ -21,12 +21,13 @@
 import sys
 from typing import List, Union
 
+from qgis.PyQt.QtGui import QColor
+from qgis.gui import QgisInterface, QgsFontButton
 from qgis.core import QgsFeature, QgsFeatureSink, QgsMapLayer, QgsMapLayerStyle, QgsVectorLayer
 from qgis.core.additions.edit import edit
 from qgis.PyQt.QtCore import QByteArray, QSettings, QTextStream
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.PyQt.QtWidgets import QAction, QMenu, QToolButton, QWidget
-from qgis.gui import QgisInterface
 import qgis.utils
 
 
@@ -54,6 +55,30 @@ def fixMenuButtons(w: QWidget):
         if isinstance(toolButton.defaultAction(), QAction) and isinstance(toolButton.defaultAction().menu(), QMenu) \
                 or isinstance(toolButton.menu(), QMenu):
             toolButton.setPopupMode(QToolButton.MenuButtonPopup)
+
+
+def setFontButtonPreviewBackgroundColor(color: QColor, btn: QgsFontButton):
+    fmt = btn.textFormat()
+    fmt.setPreviewBackgroundColor(color)
+    btn.setTextFormat(fmt)
+    on = btn.objectName()
+    css = f"""
+    QgsFontButton#{on} {{
+        background-color: {fmt.previewBackgroundColor().name()};
+    }}
+    QgsFontButton#{on}::menu-button {{
+        background-color: palette(window);
+        border: 1px solid gray;
+        width: 16px;
+    }}
+    QgsFontButton#{on}::menu-indicator {{
+        color: palette(window);
+    }}
+    QgsFontButton#{on}::menu-arrow  {{
+        color: palette(window);
+    }}"""
+
+    btn.setStyleSheet(css)
 
 
 def copyMapLayerStyle(styleXml: Union[QgsMapLayer, str],

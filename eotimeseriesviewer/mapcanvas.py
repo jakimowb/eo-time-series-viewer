@@ -26,6 +26,7 @@ import sys
 # noinspection PyPep8Naming
 import time
 import warnings
+from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 from qgis.core import Qgis, QgsApplication, QgsContrastEnhancement, QgsCoordinateReferenceSystem, QgsDateTimeRange, \
@@ -41,7 +42,7 @@ from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QDir, QMimeData, QObject, QP
     QTime, QTimer
 from qgis.PyQt.QtGui import QColor, QFont, QIcon, QMouseEvent, QPainter
 from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QMenu, QSizePolicy, QStyle, QStyleOptionProgressBar
-import eotimeseriesviewer.settings
+
 from .labeling import quickLabelLayers, setQuickTSDLabelsForRegisteredLayers
 from .qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairDialog, CrosshairMapCanvasItem, CrosshairStyle
@@ -50,7 +51,9 @@ from .qgispluginsupport.qps.maptools import CursorLocationMapTool, FullExtentMap
     PixelScaleExtentMapTool, QgsMapToolAddFeature, QgsMapToolSelect, QgsMapToolSelectionHandler
 from .qgispluginsupport.qps.qgisenums import QGIS_RASTERBANDSTATISTIC
 from .qgispluginsupport.qps.utils import filenameFromString, findParent, SpatialExtent, SpatialPoint
-from .timeseries import has_sensor_id, sensor_id, SensorMockupDataProvider, TimeSeriesDate
+from .settings.settings import EOTSVSettingsManager
+from .timeseries import TimeSeriesDate
+from .sensors import has_sensor_id, sensor_id, SensorMockupDataProvider
 from .utils import copyMapLayerStyle, layerStyleString, setLayerStyleString
 
 KEY_LAST_CLICKED = 'LAST_CLICKED'
@@ -433,8 +436,7 @@ class MapCanvas(QgsMapCanvas):
         self.mapCanvasRefreshed.connect(onMapCanvasRefreshed)
 
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        bg = eotimeseriesviewer.settings.value(
-            eotimeseriesviewer.settings.Keys.MapBackgroundColor, default=QColor(0, 0, 0))
+        bg = EOTSVSettingsManager.settings().mapBackgroundColor
         self.setCanvasColor(bg)
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
 
@@ -677,7 +679,7 @@ class MapCanvas(QgsMapCanvas):
         existing: List[QgsMapLayer] = self.layers()
         existingSources = [l.source() for l in existing]
         from .mapvisualization import MapView
-        from .timeseries import SensorInstrument
+        from .sensors import SensorInstrument
 
         mapView: MapView = self.mapView()
 
@@ -1437,9 +1439,8 @@ class MapCanvas(QgsMapCanvas):
         :param fileType:
         :return:
         """
-        import eotimeseriesviewer.settings
-        lastDir = eotimeseriesviewer.settings.value(eotimeseriesviewer.settings.Keys.ScreenShotDirectory,
-                                                    os.path.expanduser('~'))
+
+        lastDir = EOTSVSettingsManager.settings().dirScreenShots
         from eotimeseriesviewer.mapvisualization import MapView
         if isinstance(self.mTSD, TimeSeriesDate) and isinstance(self.mMapView, MapView):
             path = filenameFromString('{}.{}'.format(self.mTSD.date(), self.mMapView.title()))
@@ -1449,8 +1450,9 @@ class MapCanvas(QgsMapCanvas):
         path, _ = QFileDialog.getSaveFileName(self, 'Save map as {}'.format(fileType), path)
         if len(path) > 0:
             self.saveAsImage(path, None, fileType)
-            eotimeseriesviewer.settings.setValue(eotimeseriesviewer.settings.Keys.ScreenShotDirectory,
-                                                 os.path.dirname(path))
+            settings = EOTSVSettingsManager.settings()
+            settings.dirScreenShots = Path(path)
+            EOTSVSettingsManager.saveSettings(settings)
 
     def setSpatialExtent(self, spatialExtent: SpatialExtent):
         """

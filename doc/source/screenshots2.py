@@ -5,13 +5,13 @@ from pathlib import Path
 import re
 
 import numpy as np
-
 from qgis.core import QgsApplication, QgsFillSymbolLayer, QgsMultiBandColorRenderer, QgsProject, QgsRasterLayer, \
     QgsVectorLayer
 from qgis.gui import QgsMapCanvas, QgsRasterLayerProperties
 from qgis.PyQt.QtCore import QSize, Qt
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QWidget
+
 from eotimeseriesviewer import DIR_REPO
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapcanvas import MapCanvas
@@ -19,7 +19,8 @@ from eotimeseriesviewer.mapvisualization import MapViewDock
 from eotimeseriesviewer.profilevisualization import ProfileViewDock, TemporalProfilePlotStyle
 from eotimeseriesviewer.qgispluginsupport.qps.testing import start_app
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
-from eotimeseriesviewer.timeseries import SensorInstrument, SensorProxyLayer, TimeSeriesDate
+from eotimeseriesviewer.timeseries import SensorProxyLayer, TimeSeriesDate
+from eotimeseriesviewer.sensors import SensorInstrument
 
 app = start_app()
 

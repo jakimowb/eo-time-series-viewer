@@ -5,11 +5,13 @@ from qgis.PyQt.QtGui import QContextMenuEvent, QCursor, QPainter, QPalette
 from qgis.PyQt.QtWidgets import QLabel, QMenu, QStyledItemDelegate, QStyleOptionViewItem, QTableView
 from qgis.core import QgsExpression, QgsVectorLayer
 from qgis.gui import QgsFieldExpressionWidget
+
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, PlotStyleDialog
 from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
 from eotimeseriesviewer.temporalprofile.plotsettings import PlotSettingsContextGenerator
 from eotimeseriesviewer.temporalprofile.plotstyle import TemporalProfilePlotStyle
-from eotimeseriesviewer.timeseries import SensorInstrument, TimeSeries
+from eotimeseriesviewer.timeseries import TimeSeries
+from eotimeseriesviewer.sensors import SensorInstrument
 
 
 class PlotSettingsTableModel(QAbstractTableModel):

@@ -11,6 +11,7 @@ from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QHeaderView, Q
     QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
 from qgis.gui import QgsFieldExpressionWidget
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
+
 from eotimeseriesviewer.temporalprofile.spectralindices import spectral_indices
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileLayerFieldComboBox, TemporalProfileUtils
 from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
@@ -20,7 +21,8 @@ from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.graphicsItems.
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibraryplotmodelitems import PlotStyleItem, \
     PropertyItem, PropertyItemBase, PropertyItemGroup, PropertyLabel, QgsPropertyItem
 from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
-from eotimeseriesviewer.timeseries import SensorInstrument, TimeSeries
+from eotimeseriesviewer.timeseries import TimeSeries
+from eotimeseriesviewer.sensors import SensorInstrument
 
 
 class StyleItem(PlotStyleItem):

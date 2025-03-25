@@ -46,7 +46,8 @@ from ..qgispluginsupport.qps.pyqtgraph.pyqtgraph import mkBrush, mkPen, PlotCurv
 from ..qgispluginsupport.qps.pyqtgraph.pyqtgraph.GraphicsScene.mouseEvents import MouseClickEvent
 from ..qgispluginsupport.qps.utils import loadUi, SpatialPoint
 from ..qgispluginsupport.qps.vectorlayertools import VectorLayerTools
-from ..timeseries import SensorInstrument, TimeSeries
+from ..timeseries import TimeSeries
+from ..sensors import SensorInstrument
 from ..utils import addFeatures, doEdit
 
 DEBUG = False

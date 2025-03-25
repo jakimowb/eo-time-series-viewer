@@ -8,31 +8,31 @@ from pathlib import Path
 from typing import Any, List
 
 from osgeo import gdal
-
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractTableModel, QItemSelection, QItemSelectionModel, QModelIndex, \
     QSortFilterProxyModel, Qt
 from qgis.PyQt.QtGui import QColor, QDesktopServices, QIcon
 from qgis.gui import QgsColorButton, QgsFileWidget, QgsOptionsPageWidget, QgsOptionsWidgetFactory
-from eotimeseriesviewer import __version__, HOMEPAGE, icon, ISSUE_TRACKER, TITLE
-from eotimeseriesviewer.dateparser import DateTimePrecision
-from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi
-from eotimeseriesviewer.settings.settings import EOTSVSettings, EOTSVSettingsManager
-from eotimeseriesviewer.timeseries import SensorInstrument, SensorMatching
-from eotimeseriesviewer.utils import setFontButtonPreviewBackgroundColor
-from processing.gui.ConfigDialog import ConfigOptionsPage
 # PyQGIS
 from qgis.core import QgsApplication
 from qgis.PyQt.Qt import QUrl
 
+from eotimeseriesviewer import __version__, HOMEPAGE, icon, ISSUE_TRACKER, TITLE
+from eotimeseriesviewer.dateparser import DateTimePrecision
+from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi
+from eotimeseriesviewer.settings.settings import EOTSVSettings, EOTSVSettingsManager
+from eotimeseriesviewer.sensors import SensorInstrument, SensorMatching
+from eotimeseriesviewer.utils import setFontButtonPreviewBackgroundColor
+
 # standard
 
-path_ui = Path(__file__).parent / f"settings.ui"
+path_ui = Path(__file__).parent / "settings.ui"
 
 
 class EOTSVSettingsWidget(QgsOptionsPageWidget):
     """Settings form embedded into QGIS 'options' menu."""
 
     configChanged = pyqtSignal()
+    defaultObjectName = 'mOptionsPageEOTimeSeriesViewerSettings'
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -42,7 +42,7 @@ class EOTSVSettingsWidget(QgsOptionsPageWidget):
 
         # load UI and set objectName
 
-        self.setObjectName(f"mOptionsPageEOTimeSeriesViewerSettings")
+        self.setObjectName(self.defaultObjectName)
 
         # header
         self.tbTitle.setText(f"{TITLE} - Version {__version__}")

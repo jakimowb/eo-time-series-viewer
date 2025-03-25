@@ -20,12 +20,13 @@ import os
 import unittest
 
 import numpy as np
-
-from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, example_raster_files, start_app
 from qgis.PyQt.QtCore import QSize
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QApplication, QGridLayout, QLabel, QSpinBox, QWidget
 from qgis.PyQt.QtXml import QDomDocument, QDomNode
+
+from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
+from eotimeseriesviewer.tests import EOTSVTestCase, example_raster_files, start_app, TestObjects
 
 start_app()
 
@@ -35,7 +36,7 @@ from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import rendererToX
 from eotimeseriesviewer.qgispluginsupport.qps.maptools import MapTools
 from eotimeseriesviewer.qgispluginsupport.qps.utils import parseWavelength, bandClosestToWavelength, file_search, \
     UnitLookup, SpatialExtent
-from eotimeseriesviewer.timeseries import SensorInstrument
+from eotimeseriesviewer.sensors import SensorInstrument
 from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
 from qgis.PyQt.QtWidgets import QPushButton
 from qgis.core import QgsProject, QgsRasterLayer, QgsVectorLayer, QgsMultiBandColorRenderer, QgsSingleBandGrayRenderer, \
@@ -133,11 +134,10 @@ class TestMapVisualization(EOTSVTestCase):
     def test_mapWidget(self):
 
         TS = TestObjects.createTimeSeries()
-        from eotimeseriesviewer.settings import Keys, defaultValues
         w = MapWidget()
         w.setTimeSeries(TS)
 
-        w.setMapTextFormat(defaultValues()[Keys.MapTextFormat])
+        w.setMapTextFormat(EOTSVSettingsManager.settings().mapTextFormat)
         w.mMapViewColumns = 1
         w.show()
 

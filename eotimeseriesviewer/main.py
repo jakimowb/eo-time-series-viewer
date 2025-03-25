@@ -24,32 +24,33 @@ import pathlib
 import re
 import sys
 import webbrowser
+from pathlib import Path
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
 from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, \
     QgsExpressionContext, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, \
     QgsPointXY, QgsProcessingContext, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProcessingUtils, \
     QgsProject, QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, QgsTask, \
-    QgsTaskManager, QgsTextFormat, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
+    QgsTaskManager, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
 from processing import AlgorithmDialog
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
 import qgis.utils
-from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
+from qgis.PyQt.QtGui import QCloseEvent, QIcon
 from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
     QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
 from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
 from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
     QgsStatusBar, QgsTaskManagerWidget
+
 import eotimeseriesviewer
-import eotimeseriesviewer.settings as eotsv_settings
 from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
 from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
-from eotimeseriesviewer.settings import defaultValues, Keys as SettingKeys, setValue, value as SettingValue
-from eotimeseriesviewer.timeseries import has_sensor_id, SensorInstrument, SensorMatching, \
-    SensorMockupDataProvider, TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesSource, TimeSeriesTreeView, \
+from eotimeseriesviewer.timeseries import TimeSeries, \
+    TimeSeriesDate, TimeSeriesDock, TimeSeriesSource, TimeSeriesTreeView, \
     TimeSeriesWidget
+from .sensors import has_sensor_id, SensorInstrument, SensorMockupDataProvider
 from .dateparser import DateTimePrecision
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 from .about import AboutDialogUI
@@ -66,6 +67,7 @@ from .qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLib
 from .qgispluginsupport.qps.speclib.gui.spectralprofilesources import StandardLayerProfileSource
 from .qgispluginsupport.qps.subdatasets import subLayers
 from .qgispluginsupport.qps.utils import file_search, loadUi, SpatialExtent, SpatialPoint
+from .settings.settings import EOTSVSettingsManager
 from .tasks import EOTSVTask
 from .temporalprofile.temporalprofile import TemporalProfileUtils
 from .temporalprofile.visualization import TemporalProfileDock
@@ -922,7 +924,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 assert isinstance(vl, QgsVectorLayer)
                 vl.removeSelection()
 
-    def exportMapsToImages(self, path=None, format='PNG'):
+    def exportMapsToImages(self,
+                           path: Union[None, str, Path] = None,
+                           format: str = 'PNG'):
         """
         Exports the map canvases to local images.
         :param path: directory to save the images in
@@ -933,7 +937,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if path is None:
             d = SaveAllMapsDialog()
 
-            path = SettingValue(SettingKeys.MapImageExportDirectory, default=None)
+            path = EOTSVSettingsManager.settings().dirScreenShots
             if isinstance(path, str):
                 d.setDirectory(path)
 
@@ -946,6 +950,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         else:
             format = format.lower()
+
+        path = Path(path)
 
         mapCanvases = self.mapCanvases()
         n = len(mapCanvases)
@@ -979,7 +985,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             if progressDialog.wasCanceled():
                 return
 
-        setValue(SettingKeys.MapImageExportDirectory, path)
+        settings = EOTSVSettingsManager.settings()
+        if settings.dirScreenShots != path:
+            settings.dirScreenShots = path
+            EOTSVSettingsManager.saveSettings(settings)
 
     def onMapViewAdded(self, mapView: MapView):
         """
@@ -1265,67 +1274,35 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                                       useQGISDialog=False, modal=True)
 
     def onShowSettingsDialog(self):
-        from eotimeseriesviewer.settings import SettingsDialog
-        d = SettingsDialog(self.ui)
-        r = d.exec_()
-
-        if r == QDialog.Accepted:
-            self.applySettings()
-            s = ""
-        else:
-            pass
-            s = ""
+        from eotimeseriesviewer.settings.widget import EOTSVSettingsWidget
+        d = EOTSVSettingsWidget()
+        d.show()
 
     def applySettings(self):
         """
-        Reads the QSettings object and applies its values to related widget components
+        Reads the EOTSVSettings object and applies its values to related widgets
         """
 
         # the default values
-        defaults = defaultValues()
-        for key in list(SettingKeys):
-            if SettingValue(key) is None and key in defaults.keys():
-                setValue(key, defaults[key])
+        settings = EOTSVSettingsManager.settings()
+        self.mTimeSeries.setDateTimePrecision(settings.dateTimePrecision)
+        self.mTimeSeries.setSensorMatching(settings.sensorMatching)
 
-        v = SettingValue(SettingKeys.DateTimePrecision)
-        if isinstance(v, DateTimePrecision):
-            self.mTimeSeries.setDateTimePrecision(v)
+        sensorSpecs = settings.sensorSpecifications
+        sensors = dict()
+        for s in self.sensors():
+            sensors[s.id()] = s
 
-        v = SettingValue(SettingKeys.SensorMatching)
-        if isinstance(v, SensorMatching):
-            self.mTimeSeries.setSensorMatching(v)
+        for sid, specs in sensorSpecs.items():
+            assert isinstance(sid, str)
+            assert isinstance(specs, dict)
+            sensor = sensors.get(sid)
+            if isinstance(sensor, SensorInstrument):
+                if 'name' in specs.keys():
+                    sensor.setName(specs['name'])
 
-        v = SettingValue(SettingKeys.SensorSpecs)
-        if isinstance(v, dict):
-            sensors = dict()
-            for s in self.sensors():
-                sensors[s.id()] = s
-
-            for sid, specs in v.items():
-                assert isinstance(sid, str)
-                assert isinstance(specs, dict)
-                sensor = sensors.get(sid)
-                if isinstance(sensor, SensorInstrument):
-                    if 'name' in specs.keys():
-                        sensor.setName(specs['name'])
-
-        v = SettingValue(SettingKeys.MapUpdateInterval)
-        if isinstance(v, int) and v > 0:
-            self.ui.mMapWidget.mMapRefreshTimer.start(v)
-
-        if False:
-            # defaults only, used in 1st initialization
-            v = SettingValue(SettingKeys.MapBackgroundColor)
-            if isinstance(v, QColor):
-                self.ui.dockMapViews.setMapBackgroundColor(v)
-
-            v = SettingValue(SettingKeys.MapTextFormat)
-            if isinstance(v, QgsTextFormat):
-                self.ui.dockMapViews.setMapTextFormat(v)
-
-            v = SettingValue(SettingKeys.MapSize)
-            if isinstance(v, QSize):
-                self.ui.mMapWidget.setMapSize(v)
+        if settings.mapUpdateInterval > 0:
+            self.ui.mMapWidget.mMapRefreshTimer.start(settings.mapUpdateInterval)
 
     # def processingToolbox(self) -> processing.gui.ProcessingToolbox.ProcessingToolbox:
     #    return self.ui.dockProcessingToolbox
@@ -1482,7 +1459,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             self.createSpectralLibrary()
             widgets = self.spectralLibraryWidgets()
 
-        style = settings.value(settings.Keys.ProfileStyleCurrent)
+        style = EOTSVSettingsManager.settings().profileStyleCurrent
 
         for w in widgets:
 
@@ -1711,10 +1688,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             self.messageBar().pushMessage(tag, lines[0], message, level, duration)
 
     def onSensorAdded(self, sensor: SensorInstrument):
-
-        knownName = eotsv_settings.sensorName(sensor.id())
         sensor.sigNameChanged.connect(lambda *args, s=sensor: self.onSensorNameChanged(sensor))
 
+        knownName = EOTSVSettingsManager.sensorName(sensor)
         if isinstance(knownName, str) and len(knownName) > 0:
             sensor.setName(knownName)
         else:
@@ -1722,9 +1698,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     def onSensorNameChanged(self, sensor: SensorInstrument):
         # save changed names to settings
-        from eotimeseriesviewer.settings import saveSensorName
+
         if sensor in self.sensors():
-            saveSensorName(sensor)
+            EOTSVSettingsManager.saveSensorName(sensor)
 
     def onTimeSeriesChanged(self, *args):
         if not self.mSpatialMapExtentInitialized:
@@ -1774,15 +1750,20 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     def loadFORCEProducts(self):
 
+        settings = EOTSVSettingsManager.settings()
+
         d = FORCEProductImportDialog(parent=self.ui)
-        if force_root := eotsv_settings.settings().value('force_root'):
+        if force_root := settings.forceRootDir:
             d.setRootFolder(force_root)
-        if force_product := eotsv_settings.settings().value('force_product'):
+        if force_product := settings.forceProduct:
             d.setProductType(force_product)
 
         if d.exec_() == QDialog.Accepted:
-            eotsv_settings.settings().setValue('force_root', str(d.rootFolder()))
-            eotsv_settings.settings().setValue('force_product', d.productType())
+            settings = EOTSVSettingsManager.settings()
+
+            settings.forceRootDir = Path(d.rootFolder())
+            settings.forceProduct = d.productType()
+            EOTSVSettingsManager.saveSettings(settings)
 
             search_results = d.files()
             if not isinstance(search_results, list):

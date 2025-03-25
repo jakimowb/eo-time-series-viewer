@@ -2,13 +2,13 @@ import enum
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-from PyQt5.QtCore import QMimeData, QSize
-from PyQt5.QtGui import QPen
-from qgis._core import QgsSettings, QgsTextBufferSettings, QgsTextFormat, QgsUnitTypes
+from qgis.PyQt.QtCore import QMimeData, QSize
+from qgis.PyQt.QtGui import QPen
+from qgis.core import QgsSettings, QgsTextBufferSettings, QgsTextFormat, QgsUnitTypes
 
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.examples.ExampleApp import QColor, QFont
-from eotimeseriesviewer.timeseries import SensorInstrument, SensorMatching
+from eotimeseriesviewer.sensors import SensorInstrument, SensorMatching
 from eotimeseriesviewer import __version__, TITLE
 from eotimeseriesviewer.dateparser import DateTimePrecision
 
@@ -111,7 +111,7 @@ class EOTSVSettings(object):
             defaultValue = getattr(self, k)
 
             # Convert provided values into values used by EOTSVSettings class = same type as defined by defaults
-            if type(newValue) != type(defaultValue):
+            if type(newValue) is not type(defaultValue):
 
                 if isinstance(defaultValue, Path):
                     newValue = Path(newValue)
@@ -139,7 +139,7 @@ class EOTSVSettings(object):
                             if flag.value == newValue:
                                 newValue = flag
 
-            if type(newValue) == type(defaultValue):
+            if type(newValue) is type(defaultValue):
                 setattr(self, k, newValue)
             else:
                 raise NotImplementedError(f'Unable to update {k} from {type(newValue)} {newValue}')

@@ -20,9 +20,10 @@ import example
 import example.Images
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
-from eotimeseriesviewer.timeseries import registerDataProvider, sensorID, SensorInstrument, SensorMockupDataProvider, \
-    TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, \
+from eotimeseriesviewer.timeseries import registerDataProvider, TimeSeries, TimeSeriesDate, TimeSeriesDock, \
+    TimeSeriesFindOverlapTask, \
     TimeSeriesLoadingTask, TimeSeriesSource
+from eotimeseriesviewer.sensors import sensorID, SensorInstrument, SensorMockupDataProvider
 
 start_app()
 

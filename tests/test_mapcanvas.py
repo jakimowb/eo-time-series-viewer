@@ -19,14 +19,16 @@
 # noinspection PyPep8Naming
 import unittest
 
-from eotimeseriesviewer.mapcanvas import MapCanvas, MapCanvasInfoItem
-from eotimeseriesviewer.qgispluginsupport.qps.maptools import SpectralProfileMapTool
-from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
-from eotimeseriesviewer.tests import EOTSVTestCase, example_raster_files, start_app, TestObjects
 from qgis.PyQt.QtCore import QPoint
 from qgis.PyQt.QtWidgets import QMenu
 from qgis.core import QgsProject, QgsRasterLayer, QgsWkbTypes
 from qgis.gui import QgsFontButton, QgsMapCanvas
+
+from eotimeseriesviewer.mapcanvas import MapCanvas, MapCanvasInfoItem
+from eotimeseriesviewer.qgispluginsupport.qps.maptools import SpectralProfileMapTool
+from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
+from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
+from eotimeseriesviewer.tests import EOTSVTestCase, example_raster_files, start_app, TestObjects
 
 start_app()
 
@@ -102,8 +104,7 @@ class TestMapCanvas(EOTSVTestCase):
         mc.setDestinationCrs(vl.crs())
         mc.setExtent(mc.fullExtent())
 
-        from eotimeseriesviewer.settings import Keys, defaultValues
-        mc.mInfoItem.setTextFormat(defaultValues()[Keys.MapTextFormat])
+        mc.mInfoItem.setTextFormat(EOTSVSettingsManager.settings().mapTextFormat)
         mc.mInfoItem.setUpperLeft('Upper\nLeft')
         if True:
             mc.mInfoItem.setMiddleLeft('Middle\nLeft')

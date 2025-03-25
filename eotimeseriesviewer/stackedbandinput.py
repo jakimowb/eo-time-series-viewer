@@ -40,6 +40,7 @@ from qgis.core import QgsProject, QgsProviderRegistry, QgsRasterLayer
 import qgis.utils
 
 from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi, read_vsimem
+from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
 from eotimeseriesviewer.virtualrasters import VRTRaster, VRTRasterBand, VRTRasterInputSourceBand, write_vsimem
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.dateparser import extractDateTimeGroup
@@ -828,15 +829,17 @@ class StackedBandInputDialog(QDialog):
         """
         Reacts on new added datasets
         """
-        import eotimeseriesviewer.settings
-        defDir = eotimeseriesviewer.settings.value(eotimeseriesviewer.settings.Keys.RasterSourceDirectory)
+
+        defDir = EOTSVSettingsManager.settings().dirRasterSources
         filters = QgsProviderRegistry.instance().fileVectorFilters()
         files, filter = QFileDialog.getOpenFileNames(directory=defDir, filter=filters)
 
         if len(files) > 0:
             self.tableModelInputStacks.insertSources(files)
             defDir = os.path.dirname(files[0])
-            eotimeseriesviewer.settings.setValue(eotimeseriesviewer.settings.Keys.RasterSourceDirectory, defDir)
+            settings = EOTSVSettingsManager.settings()
+            settings.dirRasterSources = Path(os.path.dirname(files[0]))
+            EOTSVSettingsManager.saveSettings(settings)
 
     def addSources(self, paths):
         """

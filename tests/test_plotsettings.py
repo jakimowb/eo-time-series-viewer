@@ -19,7 +19,8 @@ from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileEd
 from eotimeseriesviewer.temporalprofile.visualization import TemporalProfileDock, TemporalProfileVisualization
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from eotimeseriesviewer import initResources
-from eotimeseriesviewer.timeseries import SensorInstrument, TimeSeries
+from eotimeseriesviewer.timeseries import TimeSeries
+from eotimeseriesviewer.sensors import SensorInstrument
 
 start_app()
 initResources()

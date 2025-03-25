@@ -1,6 +1,6 @@
 from eotimeseriesviewer.dateparser import DateTimePrecision
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
-from eotimeseriesviewer.timeseries import has_sensor_id
+from eotimeseriesviewer.sensors import has_sensor_id
 
 start_app()
 
