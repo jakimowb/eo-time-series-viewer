@@ -16,7 +16,6 @@
 *                                                                         *
 ***************************************************************************
 """
-# noinspection PyPep8Naming
 import unittest
 
 from qgis.PyQt.QtCore import QPoint

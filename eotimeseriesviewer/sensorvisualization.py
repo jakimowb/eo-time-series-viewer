@@ -28,9 +28,6 @@ from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDate
 from eotimeseriesviewer.sensors import SensorInstrument
 
 
-# noinspection PyPep8Naming
-
-
 class SensorDockUI(QgsDockWidget):
     def __init__(self, parent=None):
         super(SensorDockUI, self).__init__(parent)

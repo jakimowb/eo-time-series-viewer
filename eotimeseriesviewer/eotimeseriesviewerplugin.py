@@ -18,8 +18,6 @@
  *                                                                         *
  ***************************************************************************/
 """
-# noinspection PyPep8Naming
-
 import os
 import sys
 import site

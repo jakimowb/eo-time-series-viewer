@@ -50,13 +50,6 @@ from qgis.gui import QgsFontButton
 start_app()
 
 
-# noinspection PyPep8Naming
-
-
-# from eotimeseriesviewer import initResources
-# initResources()
-
-
 def getChildElements(node):
     assert isinstance(node, QDomNode)
     childs = node.childNodes()

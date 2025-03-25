@@ -18,17 +18,15 @@
  *                                                                         *
  ***************************************************************************/
 """
-# noinspection PyPep8Naming
-
 import os
 import re
 from collections import OrderedDict
 
 import numpy as np
-from qgis.PyQt.QtCore import Qt, QAbstractTableModel, QModelIndex
+from qgis.PyQt.QtCore import QAbstractTableModel, QModelIndex, Qt
 from qgis.PyQt.QtGui import QCursor
-from qgis.PyQt.QtWidgets import QTableView, QMenu, QApplication, QFileDialog
-from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsProject
+from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QMenu, QTableView
+from qgis.core import QgsMapLayer, QgsProject, QgsRasterLayer, QgsVectorLayer
 from qgis.gui import QgsDockWidget
 
 from eotimeseriesviewer import DIR_UI
@@ -237,11 +235,11 @@ class DataLoadingModel(QAbstractTableModel):
         elif columnName == self.cSamples:
             sortedNames = sorted(self.mLoadingTimes.keys(), key=lambda n: len(self.mLoadingTimes[n]), reverse=rev)
         elif columnName == self.cAvgAll:
-            sortedNames = sorted(self.mLoadingTimes.keys(), key=lambda name:
-                                 np.asarray(self.mLoadingTimes[name]).mean(), reverse=rev)
+            sortedNames = sorted(self.mLoadingTimes.keys(),
+                                 key=lambda name: np.asarray(self.mLoadingTimes[name]).mean(), reverse=rev)
         elif columnName == self.cAvg10:
-            sortedNames = sorted(self.mLoadingTimes.keys(), key=lambda name:
-                                 np.asarray(self.mLoadingTimes[name][-10:]).mean(), reverse=rev)
+            sortedNames = sorted(self.mLoadingTimes.keys(),
+                                 key=lambda name: np.asarray(self.mLoadingTimes[name][-10:]).mean(), reverse=rev)
 
         if sortedNames is not None:
             tmp = OrderedDict([(name, self.mLoadingTimes[name]) for name in sortedNames])

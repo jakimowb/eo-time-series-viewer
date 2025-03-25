@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# noinspection PyPep8Naming
 """
 /***************************************************************************
                               EO Time Series Viewer

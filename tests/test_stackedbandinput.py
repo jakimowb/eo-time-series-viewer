@@ -16,7 +16,6 @@
 *                                                                         *
 ***************************************************************************
 """
-# noinspection PyPep8Naming
 import os
 import unittest
 import uuid

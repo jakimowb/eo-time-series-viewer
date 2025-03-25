@@ -16,16 +16,15 @@
 *                                                                         *
 ***************************************************************************
 """
-# noinspection PyPep8Naming
-
 import unittest
+
+from qgis.core import QgsProject, QgsVectorLayer
+from qgis.gui import QgsMapToolPan, QgsMapToolZoom
 
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.maptools import CursorLocationMapTool, FullExtentMapTool, MapToolCenter, \
     MapTools, PixelScaleExtentMapTool, QgsMapToolAddFeature, QgsMapToolSelect
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
-from qgis.core import QgsProject, QgsVectorLayer
-from qgis.gui import QgsMapToolPan, QgsMapToolZoom
 
 start_app()
 

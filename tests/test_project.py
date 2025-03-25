@@ -32,8 +32,6 @@ from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 from eotimeseriesviewer.timeseries import TimeSeriesDate, TimeSeriesSource
 
-# noinspection PyPep8Naming
-
 start_app()
 
 

@@ -16,13 +16,12 @@
 *                                                                         *
 ***************************************************************************
 """
-# noinspection PyPep8Naming
-
 import unittest
 
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsMapToPixel, QgsProject, QgsRectangle, \
     QgsVectorLayer
 from qgis.gui import QgisInterface, QgsMapCanvas
+
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent, SpatialPoint
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app

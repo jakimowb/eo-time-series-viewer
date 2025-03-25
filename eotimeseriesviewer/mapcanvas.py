@@ -23,7 +23,6 @@ import math
 import os
 import re
 import sys
-# noinspection PyPep8Naming
 import time
 import warnings
 from pathlib import Path

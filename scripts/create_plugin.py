@@ -18,8 +18,6 @@
 *                                                                         *
 ***************************************************************************
 """
-# noinspection PyPep8Naming
-
 import argparse
 import os
 import re

@@ -18,8 +18,6 @@
  *                                                                         *
  ***************************************************************************/
 """
-# noinspection PyPep8Naming
-
 import os
 import pathlib
 import uuid
