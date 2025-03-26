@@ -4,15 +4,17 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Union
 
+from PyQt5.QtCore import QDate
+from qgis.PyQt.QtCore import pyqtSignal, Qt
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QComboBox, QDialog, QDialogButtonBox, QLabel
 from qgis.core import QgsApplication, QgsTask
+from qgis.gui import QgsFileWidget
+
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.models import Option, OptionListModel
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, loadUi
 from eotimeseriesviewer.tasks import EOTSVTask
-from qgis.PyQt.QtCore import pyqtSignal, Qt
-from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import QComboBox, QDialog, QDialogButtonBox, QLabel
-from qgis.gui import QgsFileWidget
 
 FORCE_PRODUCTS = {
     'BOA': (r'.*_BOA\.(vrt|tif|dat|hdr)$', 'Bottom of Atmosphere (BOA)'),
@@ -27,6 +29,8 @@ FORCE_PRODUCTS = {
 
 rx_FORCE_TILEID = re.compile(r'(X\d+)_(Y\d+)', re.MULTILINE)
 rx_FORCE_TILEFOLDER = re.compile(f'^{rx_FORCE_TILEID.pattern}$')
+rx_FORCE_L2_Product = re.compile(
+    r'(?P<date>\d{8})_LEVEL2_(?P<sensor>[^_. ]+)_(?P<product>[^_. ]+)\.(?P<ext>tif|bsq|bil|bip|cog|vrt)$')
 
 
 def read_tileids(text: str) -> List[str]:
@@ -59,7 +63,13 @@ def find_tile_folders(root: Union[str, Path]) -> List[Path]:
 class FindFORCEProductsTask(EOTSVTask):
     taskInfo = pyqtSignal(str)
 
-    def __init__(self, product: str, path, *args, tile_ids: List[str] = None, **kwds):
+    def __init__(self,
+                 product: str, path,
+                 *args,
+                 tile_ids: List[str] = None,
+                 dateMin: Optional[QDate] = None,
+                 dateMax: Optional[QDate] = None,
+                 **kwds):
         super().__init__(
             *args,
             flags=QgsTask.Silent | QgsTask.CanCancel | QgsTask.CancelWithoutPrompt,
@@ -76,13 +86,15 @@ class FindFORCEProductsTask(EOTSVTask):
 
         self.mProduct = product
         self.mPath = path
+        self.mDateMin = dateMin
+        self.mDateMax = dateMax
         self.mRxProduct = re.compile(FORCE_PRODUCTS[product][0])
         self.setDescription(f'Search {self.mProduct} in "../{self.mPath.name}"')
         self.mFiles: List[Path] = []
         self.mFileTiles: Set[str] = set()
 
     def searchId(self) -> str:
-        return f'{self.mProduct}:{self.mPath}:{self.mTileIDs}'
+        return f'{self.mProduct}:{self.mPath}:{self.mTileIDs}:{self.mDateMin}:{self.mDateMax}'
 
     def canCancel(self) -> bool:
         return True
@@ -128,9 +140,21 @@ class FindFORCEProductsTask(EOTSVTask):
 
             for i, file in enumerate(file_search(folder, self.mRxProduct, recursive=False)):
                 file = Path(file)
-                if i == 0:
-                    if rx_FORCE_TILEFOLDER.match(file.parent.name):
-                        self.mFileTiles.add(file.parent.name)
+
+                if isinstance(self.mDateMin, QDate) or isinstance(self.mDateMax, QDate):
+                    match = rx_FORCE_L2_Product.match(file.name)
+                    if not match:
+                        continue
+
+                    image_date = QDate.fromString(match.group('date'), 'yyyyMMdd')
+                    if self.mDateMin and image_date < self.mDateMin:
+                        continue
+                    if self.mDateMax and image_date > self.mDateMax:
+                        continue
+
+                if rx_FORCE_TILEFOLDER.match(file.parent.name) and file.parent.name not in self.mFileTiles:
+                    self.mFileTiles.add(file.parent.name)
+
                 self.mFiles.append(file)
                 if i % 100:
                     if self.isCanceled():
@@ -165,6 +189,8 @@ class FORCEProductImportDialog(QDialog):
         self.mProductType.currentIndexChanged.connect(self.updateInfo)
         self.mFileWidget.fileChanged.connect(self.updateInfo)
         self.mTileIdWidget.fileChanged.connect(self.updateInfo)
+        self.mDateMin.dateChanged.connect(self.updateInfo)
+        self.mDateMax.dateChanged.connect(self.updateInfo)
         self.mTasks: List[FindFORCEProductsTask] = []
 
         widgets = [self.fileWidget(), self.productTypeComboBox(), self.tileIdWidget()]
@@ -175,6 +201,19 @@ class FORCEProductImportDialog(QDialog):
 
         self.finished.connect(self.onFinished)
         self.updateInfo()
+
+    def minDate(self) -> Optional[QDate]:
+
+        if self.mDateMin.isEnabled():
+            return self.mDateMin.date()
+        else:
+            return None
+
+    def maxDate(self) -> Optional[QDate]:
+        if self.mDateMax.isEnabled():
+            return self.mDateMax.date()
+        else:
+            return None
 
     def buttonBox(self) -> QDialogButtonBox:
         return self.mButtonBox
@@ -232,6 +271,9 @@ class FORCEProductImportDialog(QDialog):
         path = self.rootFolder()
         tileIDs = self.tileIds()
 
+        dateMin = self.minDate()
+        dateMax = self.maxDate()
+
         errors = []
         fw = self.fileWidget()
 
@@ -273,7 +315,7 @@ class FORCEProductImportDialog(QDialog):
             for t in self.mTasks:
                 t.cancel()
             self.mTasks.clear()
-            task = FindFORCEProductsTask(product, path, tile_ids=tileIDs)
+            task = FindFORCEProductsTask(product, path, tile_ids=tileIDs, dateMin=dateMin, dateMax=dateMax)
             task.taskInfo.connect(lambda info: self.setInfoText(f'<i>{info}</i>'))
             task.taskCompleted.connect(self.onTaskCompleted)
             task.taskTerminated.connect(self.onTaskTerminated)

@@ -2,6 +2,8 @@ import os
 import unittest
 from pathlib import Path
 
+from PyQt5.QtCore import QDate
+
 from eotimeseriesviewer.forceinputs import find_tile_folders, FindFORCEProductsTask, FORCEProductImportDialog, \
     read_tileids, rx_FORCE_TILEFOLDER
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
@@ -33,11 +35,15 @@ class FORCEImportTestCases(EOTSVTestCase):
         ids = d.tileIds()
         self.assertEqual(set(tile_ids), set(ids))
 
-    @unittest.skipIf(True or not FORCE_ROOT.is_dir(), 'Missing FORCE_ROOT')
+    @unittest.skipIf(not FORCE_ROOT.is_dir(), 'Missing FORCE_ROOT')
     def test_read_files(self):
 
         tile_ids = ['X0044_Y0052', 'X0045_Y0050']
-        task = FindFORCEProductsTask('BOA', FORCE_ROOT, tile_ids=tile_ids)
+        dateMin = QDate(2019, 1, 1)
+        dateMax = QDate(2020, 1, 3)
+        task = FindFORCEProductsTask('BOA', FORCE_ROOT,
+                                     tile_ids=tile_ids,
+                                     dateMin=dateMin, dateMax=dateMax)
         task.run()
 
         self.assertTrue(len(task.files()) > 0)

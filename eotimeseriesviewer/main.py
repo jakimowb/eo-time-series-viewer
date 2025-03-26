@@ -27,20 +27,21 @@ import webbrowser
 from pathlib import Path
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
+import qgis.utils
+from processing import AlgorithmDialog
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
+from qgis.PyQt.QtGui import QCloseEvent, QIcon
+from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
+    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
+from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
 from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, \
     QgsExpressionContext, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, \
     QgsPointXY, QgsProcessingContext, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProcessingUtils, \
     QgsProject, QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, QgsTask, \
     QgsTaskManager, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
-from processing import AlgorithmDialog
-from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
-import qgis.utils
-from qgis.PyQt.QtGui import QCloseEvent, QIcon
-from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
-    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
-from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
 from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
     QgsStatusBar, QgsTaskManagerWidget
+
 import eotimeseriesviewer
 from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
 from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
@@ -49,10 +50,9 @@ from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
 from eotimeseriesviewer.timeseries import TimeSeries, \
     TimeSeriesDate, TimeSeriesDock, TimeSeriesSource, TimeSeriesTreeView, \
     TimeSeriesWidget
-from .sensors import has_sensor_id, SensorInstrument, SensorMockupDataProvider
-from .dateparser import DateTimePrecision
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 from .about import AboutDialogUI
+from .dateparser import DateTimePrecision
 from .forceinputs import FindFORCEProductsTask, FORCEProductImportDialog
 from .maplayerproject import EOTimeSeriesViewerProject
 from .qgispluginsupport.qps.cursorlocationvalue import CursorLocationInfoDock
@@ -66,6 +66,7 @@ from .qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLib
 from .qgispluginsupport.qps.speclib.gui.spectralprofilesources import StandardLayerProfileSource
 from .qgispluginsupport.qps.subdatasets import subLayers
 from .qgispluginsupport.qps.utils import file_search, loadUi, SpatialExtent, SpatialPoint
+from .sensors import has_sensor_id, SensorInstrument, SensorMockupDataProvider
 from .settings.settings import EOTSVSettingsManager
 from .settings.widget import EOTSVSettingsWidgetFactory
 from .tasks import EOTSVTask
@@ -1768,7 +1769,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
             search_results = d.files()
             if not isinstance(search_results, list):
-                task = FindFORCEProductsTask(d.productType(), d.rootFolder())
+                task = FindFORCEProductsTask(d.productType(), d.rootFolder(),
+                                             dateMin=d.minDate(), dateMax=d.maxDate())
 
                 def onCompleted(t: FindFORCEProductsTask):
                     files = t.files()
