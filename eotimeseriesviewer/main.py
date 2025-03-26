@@ -1770,6 +1770,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             search_results = d.files()
             if not isinstance(search_results, list):
                 task = FindFORCEProductsTask(d.productType(), d.rootFolder(),
+                                             tile_ids=d.tileIds(),
                                              dateMin=d.minDate(), dateMax=d.maxDate())
 
                 def onCompleted(t: FindFORCEProductsTask):
