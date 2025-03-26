@@ -26,8 +26,7 @@ from typing import List
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QAction, QApplication
 from qgis.gui import QgisInterface
-
-from eotimeseriesviewer import settings, TITLE
+from eotimeseriesviewer import TITLE
 
 
 class EOTimeSeriesViewerPlugin:
@@ -114,7 +113,9 @@ class EOTimeSeriesViewerPlugin:
             self.mEOTSV = EOTimeSeriesViewer()
             self.mEOTSV.ui.sigAboutToBeClosed.connect(self.onUiClosed)
 
-            if settings.value(settings.Keys.StartupRestoreProjectSettings, False):
+            from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
+            settings = EOTSVSettingsManager.settings()
+            if settings.restoreProjectSettings:
                 self.mEOTSV.reloadProject()
 
             self.mEOTSV.show()

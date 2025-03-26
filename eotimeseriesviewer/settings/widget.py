@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, List
 
 from osgeo import gdal
+
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractTableModel, QItemSelection, QItemSelectionModel, QModelIndex, \
     QSortFilterProxyModel, Qt
 from qgis.PyQt.QtGui import QColor, QDesktopServices, QIcon
@@ -15,7 +16,6 @@ from qgis.gui import QgsColorButton, QgsFileWidget, QgsOptionsPageWidget, QgsOpt
 # PyQGIS
 from qgis.core import QgsApplication
 from qgis.PyQt.Qt import QUrl
-
 from eotimeseriesviewer import __version__, HOMEPAGE, icon, ISSUE_TRACKER, TITLE
 from eotimeseriesviewer.dateparser import DateTimePrecision
 from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi
@@ -32,17 +32,12 @@ class EOTSVSettingsWidget(QgsOptionsPageWidget):
     """Settings form embedded into QGIS 'options' menu."""
 
     configChanged = pyqtSignal()
-    defaultObjectName = 'mOptionsPageEOTimeSeriesViewerSettings'
 
     def __init__(self, parent):
         super().__init__(parent)
         loadUi(path_ui, self)
         # self.log = PlgLogger().log
         self.settingsManager = EOTSVSettingsManager()
-
-        # load UI and set objectName
-
-        self.setObjectName(self.defaultObjectName)
 
         # header
         self.tbTitle.setText(f"{TITLE} - Version {__version__}")
@@ -87,8 +82,10 @@ class EOTSVSettingsWidget(QgsOptionsPageWidget):
         self.mCanvasColorButton: QgsColorButton
         self.mCanvasColorButton.colorChanged.connect(
             lambda c: setFontButtonPreviewBackgroundColor(c, self.mMapTextFormatButton))
+
         # load previously saved settings
         self.loadSettings()
+        self.listWidget.setCurrentRow(0, QItemSelectionModel.Select)
 
     def onRemoveSelectedSensors(self):
 
@@ -212,6 +209,15 @@ class EOTSVSettingsWidgetFactory(QgsOptionsWidgetFactory):
     """Factory for options widget."""
 
     configChanged = pyqtSignal()
+    _INSTANCE = None
+
+    defaultObjectName = 'mOptionsPageEOTimeSeriesViewerSettings'
+
+    @staticmethod
+    def instance() -> 'EOTSVSettingsWidgetFactory':
+        if EOTSVSettingsWidgetFactory._INSTANCE is None:
+            EOTSVSettingsWidgetFactory._INSTANCE = EOTSVSettingsWidgetFactory()
+        return EOTSVSettingsWidgetFactory._INSTANCE
 
     def __init__(self):
         """Constructor."""
@@ -235,6 +241,7 @@ class EOTSVSettingsWidgetFactory(QgsOptionsWidgetFactory):
         :rtype: ConfigOptionsPage
         """
         page = EOTSVSettingsWidget(parent)
+        page.setObjectName(self.defaultObjectName)
         page.configChanged.connect(self.configChanged.emit)
         return page
 

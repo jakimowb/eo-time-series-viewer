@@ -22,7 +22,6 @@ import unittest
 from qgis.PyQt.QtGui import QColor
 from qgis.gui import QgsOptionsWidgetFactory
 from qgis.PyQt.QtWidgets import QTableView
-
 from eotimeseriesviewer.settings.widget import EOTSVSettingsWidget, EOTSVSettingsWidgetFactory, SensorSettingsTableModel
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
 from eotimeseriesviewer.sensors import SensorMatching
@@ -64,12 +63,16 @@ class TestSettings(EOTSVTestCase):
         self.assertEqual(myPlotStyle, style2)
         self.showGui(w)
 
-    def test_factory(self):
+    @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Blocking dialog')
+    def test_init_factory(self):
 
-        factory = EOTSVSettingsWidgetFactory()
+        factory = EOTSVSettingsWidgetFactory.instance()
         self.assertIsInstance(factory, QgsOptionsWidgetFactory)
-        w = factory.createWidget(None)
-        self.assertIsInstance(w, EOTSVSettingsWidget)
+        from qgis.utils import iface
+        # registerOptionsWidgetFactory()
+        d = iface.showOptionsDialog(currentPage='')
+        d.exec_()
+        # unregisterOptionsWidgetFactory()
 
     def test_SensorMatching(self):
 

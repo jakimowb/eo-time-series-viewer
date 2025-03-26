@@ -116,8 +116,8 @@ def initAll():
 
     from eotimeseriesviewer.timeseries import registerDataProvider
     registerDataProvider()
-
     registerProcessingProvider()
+    registerOptionsWidgetFactory()
 
 
 def registerProcessingProvider():
@@ -130,6 +130,18 @@ def unregisterProcessingProvider():
     EOTSVProcessingProvider.unregisterProvider()
 
 
+def registerOptionsWidgetFactory():
+    from eotimeseriesviewer.settings.widget import EOTSVSettingsWidgetFactory
+    from qgis.utils import iface
+    iface.registerOptionsWidgetFactory(EOTSVSettingsWidgetFactory.instance())
+
+
+def unregisterOptionsWidgetFactory():
+    from eotimeseriesviewer.settings.widget import EOTSVSettingsWidgetFactory
+    from qgis.utils import iface
+    iface.unregisterOptionsWidgetFactory(EOTSVSettingsWidgetFactory.instance())
+
+
 def unloadAll():
     from eotimeseriesviewer.qgispluginsupport.qps import unregisterEditorWidgets, unregisterExpressionFunctions, \
         unregisterMapLayerConfigWidgetFactories
@@ -137,6 +149,7 @@ def unloadAll():
     unregisterExpressionFunctions()
     unregisterMapLayerConfigWidgetFactories()
     unregisterProcessingProvider()
+    unregisterOptionsWidgetFactory()
 
 
 def icon() -> QIcon:

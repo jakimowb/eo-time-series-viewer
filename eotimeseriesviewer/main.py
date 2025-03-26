@@ -41,7 +41,6 @@ from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDial
 from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
 from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
     QgsStatusBar, QgsTaskManagerWidget
-
 import eotimeseriesviewer
 from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
 from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
@@ -68,6 +67,7 @@ from .qgispluginsupport.qps.speclib.gui.spectralprofilesources import StandardLa
 from .qgispluginsupport.qps.subdatasets import subLayers
 from .qgispluginsupport.qps.utils import file_search, loadUi, SpatialExtent, SpatialPoint
 from .settings.settings import EOTSVSettingsManager
+from .settings.widget import EOTSVSettingsWidgetFactory
 from .tasks import EOTSVTask
 from .temporalprofile.temporalprofile import TemporalProfileUtils
 from .temporalprofile.visualization import TemporalProfileDock
@@ -588,7 +588,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         # connect buttons with actions
         self.ui.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
 
-        self.ui.actionSettings.triggered.connect(self.onShowSettingsDialog)
+        self.ui.actionSettings.triggered.connect(self.showSettingsDialog)
 
         self.ui.actionShowOnlineHelp.triggered.connect(lambda: webbrowser.open(DOCUMENTATION))
 
@@ -1273,10 +1273,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                                       messageBar=self.messageBar(),
                                       useQGISDialog=False, modal=True)
 
-    def onShowSettingsDialog(self):
-        from eotimeseriesviewer.settings.widget import EOTSVSettingsWidget
-        d = EOTSVSettingsWidget()
-        d.show()
+    def showSettingsDialog(self):
+        from qgis.utils import iface
+        d = iface.showOptionsDialog(currentPage=EOTSVSettingsWidgetFactory.defaultObjectName)
+        if isinstance(d, QDialog):
+            d.exec_()
 
     def applySettings(self):
         """
