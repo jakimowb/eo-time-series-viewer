@@ -9,6 +9,7 @@ from qgis.core import edit, Qgis, QgsApplication, QgsFeature, QgsFeatureSink, Qg
     QgsProcessingProvider, QgsProcessingRegistry, QgsProcessingUtils, QgsVectorLayer
 from qgis.PyQt.QtCore import QMetaType
 from qgis.PyQt.QtGui import QIcon
+
 from eotimeseriesviewer import icon
 from eotimeseriesviewer.qgispluginsupport.qps.fieldvalueconverter import GenericPropertyTransformer
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
@@ -131,7 +132,11 @@ class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):
         if sink is None:
             raise QgsProcessingException(self.invalidSinkError(parameters, self.OUTPUT))
 
-        sink.finalize()
+        if hasattr(sink, 'finalize'):
+            sink.finalize()
+        else:
+            sink.flushBuffer()
+
         del sink
         lyr = QgsProcessingUtils.mapLayerFromString(dest_id, context)
 
@@ -432,7 +437,11 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
                 feat.setAttribute(self._field_id, value)
             sink.addFeature(feat, QgsFeatureSink.Flag.FastInsert)
 
-        sink.finalize()
+        if hasattr(sink, 'finalize'):
+            sink.finalize()
+        else:
+            sink.flushBuffer()
+        del sink
 
         # lyr = QgsProcessingUtils.mapLayerFromString(dest_id, context)
         # lyr.setEditorWidgetSetup(self._field_id, TemporalProfileUtils.widgetSetup())

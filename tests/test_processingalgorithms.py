@@ -1,6 +1,8 @@
 import unittest
 
 from processing import AlgorithmDialog
+import processing.gui.ProcessingToolbox
+from processing.gui import ProcessingToolbox
 from processing.gui.ProcessingToolbox import ProcessingToolbox
 from qgis.PyQt.QtCore import QMetaType
 from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsField, QgsGeometry, QgsProcessingAlgorithm, \
@@ -19,6 +21,9 @@ from example import examplePoints
 
 start_app()
 initAll()
+from qgis.utils import iface
+
+processing.gui.ProcessingToolbox.iface = iface
 
 
 class ProcessingAlgorithmTests(EOTSVTestCase):
