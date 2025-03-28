@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import numpy as np
+
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsEditorWidgetSetup, \
     QgsFeature, QgsField, QgsFieldFormatter, QgsFieldFormatterRegistry, QgsFields, QgsIconUtils, QgsMapLayer, \
     QgsMapLayerModel, QgsPointXY, QgsProject, QgsRasterDataProvider, QgsRasterLayer, QgsTask, QgsVectorFileWriter, \
@@ -19,7 +20,6 @@ from qgis.PyQt.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QVBox
 from qgis.PyQt.QtGui import QIcon
 from qgis.gui import QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper, \
     QgsGui
-
 from eotimeseriesviewer.tasks import EOTSVTask
 from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
 from eotimeseriesviewer.temporalprofile.spectralindices import spectral_index_acronyms, spectral_indices
@@ -414,7 +414,7 @@ class TemporalProfileUtils(object):
         errors = []
 
         all_obs_dates = np.asarray([datetime.fromisoformat(d) for d in tpData[TemporalProfileUtils.Date]])
-        x = np.asarray([d.timestamp() if isinstance(d, datetime) else np.NaN for d in all_obs_dates])
+        x = np.asarray([d.timestamp() if isinstance(d, datetime) else np.nan for d in all_obs_dates])
         n = len(x)
 
         y = np.empty(n, dtype=float)
@@ -457,9 +457,9 @@ class TemporalProfileUtils(object):
                     y[is_sensor] = s_y
                 except Exception as ex:
                     errors.append(f'{ex}')
-                    y[is_sensor] = np.NaN
+                    y[is_sensor] = np.nan
             else:
-                y[is_sensor] = np.NaN
+                y[is_sensor] = np.nan
 
         # exclude NaNs
         is_valid = np.where(np.isfinite(y))[0]
@@ -522,11 +522,11 @@ class TemporalProfileUtils(object):
                     elif b in band_lookup:
                         params[b] = bandData[:, band_lookup[b]]
                     else:
-                        return np.ones(n) * np.NaN
+                        return np.ones(n) * np.nan
 
                 return eval(formula, {}, params)
             else:
-                return np.ones(n) * np.NaN
+                return np.ones(n) * np.nan
                 # s = ""
                 # raise ValueError(f'Unknown band name / spectral index: {expr}')
 
