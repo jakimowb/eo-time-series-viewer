@@ -9,10 +9,12 @@ from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 
 start_app()
 
-FORCE_CUBE = Path(os.environ.get('FORCE_CUBE', None))
+FORCE_CUBE = None
+if 'FORCE_CUBE' in os.environ.keys():
+    FORCE_CUBE = Path(os.environ['FORCE_CUBE'])
 
 
-@unittest.skipIf(not FORCE_CUBE.is_dir(), 'FORCE_CUBE undefined / not a directory')
+@unittest.skipIf(FORCE_CUBE is None or not FORCE_CUBE.is_dir(), 'FORCE_CUBE undefined / not a directory')
 class FORCEImportTestCases(EOTSVTestCase):
 
     def force_tiles(self):
