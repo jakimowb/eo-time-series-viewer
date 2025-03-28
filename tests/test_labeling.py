@@ -26,6 +26,7 @@ from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_BOOL, Q
     QMETATYPE_QSTRING, \
     QMETATYPE_QTIME
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
+from eotimeseriesviewer.timeseries.source import TimeSeriesDate
 
 start_app()
 
@@ -44,7 +45,6 @@ from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationschem
     EDITOR_WIDGET_REGISTRY_KEY as CS_KEY, classSchemeToConfig
 from eotimeseriesviewer.qgispluginsupport.qps.models import OptionListModel
 from eotimeseriesviewer.qgispluginsupport.qps.utils import createQgsField
-from eotimeseriesviewer.timeseries import TimeSeriesDate
 from qgis.PyQt.QtCore import Qt, QPoint, QPointF, QEvent, QDate, QDateTime, QTime
 from qgis.PyQt.QtGui import QStandardItemModel, QStandardItem, QMouseEvent
 from qgis.PyQt.QtWidgets import QWidget, QVBoxLayout, QComboBox, QLabel, QMenu, QAction

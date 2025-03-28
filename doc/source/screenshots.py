@@ -6,7 +6,7 @@ from eotimeseriesviewer.tests import start_app
 app = start_app()
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapvisualization import *
-from eotimeseriesviewer.timeseries import *
+
 from eotimeseriesviewer import DIR_REPO
 
 # DIR_SCREENSHOTS = jp(DIR_REPO, 'screenshots')

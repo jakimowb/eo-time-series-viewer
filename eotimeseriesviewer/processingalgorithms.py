@@ -13,7 +13,7 @@ from qgis.PyQt.QtGui import QIcon
 from eotimeseriesviewer import icon
 from eotimeseriesviewer.qgispluginsupport.qps.fieldvalueconverter import GenericPropertyTransformer
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
-from eotimeseriesviewer.timeseries import TimeSeries
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 
 
 class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):

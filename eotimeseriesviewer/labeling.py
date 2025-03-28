@@ -3,25 +3,25 @@ import math
 from typing import Dict, List, Union
 
 import numpy as np
-
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractTableModel, QDate, QDateTime, QModelIndex, QSortFilterProxyModel, Qt, \
     QTime, QVariant
 from qgis.gui import QgsAttributeTableModel, QgsAttributeTableView, QgsDateEdit, QgsDateTimeEdit, QgsDoubleSpinBox, \
     QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper, QgsGui, QgsSpinBox, \
     QgsTimeEdit
-from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
-from eotimeseriesviewer.timeseries import TimeSeriesDate, TimeSeriesSource
-from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 from qgis.PyQt.QtGui import QIcon, QKeySequence, QStandardItem, QStandardItemModel
 from qgis.PyQt.QtWidgets import QAction, QComboBox, QLineEdit, QMenu, QStyledItemDelegate, QTableView, QToolBar, \
     QToolButton, QWidget
 from qgis.core import QgsCategorizedSymbolRenderer, QgsEditorWidgetSetup, QgsFeature, QgsField, QgsFields, \
     QgsMapLayerStore, QgsProject, QgsRendererCategory, QgsSymbol, QgsVectorLayer
+
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
+from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 from .qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme, ClassInfo, \
     EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
 from .qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
 from .qgispluginsupport.qps.utils import datetime64, loadUi, SpatialExtent, SpatialPoint
+from .timeseries.source import TimeSeriesDate, TimeSeriesSource
 
 # the QgsProject(s) and QgsMapLayerStore(s) to search for QgsVectorLayers
 MAP_LAYER_STORES = []

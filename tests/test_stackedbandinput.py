@@ -33,12 +33,12 @@ from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QDialog
 
 from eotimeseriesviewer.main import EOTimeSeriesViewer
-from eotimeseriesviewer.timeseries import TimeSeriesSource
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import nextColor
 from eotimeseriesviewer.stackedbandinput import InputStackInfo, InputStackTableModel, OutputImageModel, \
     OutputVRTDescription, StackedBandInputDialog
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
+from eotimeseriesviewer.timeseries.source import TimeSeriesSource
 
 start_app()
 

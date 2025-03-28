@@ -10,7 +10,6 @@ from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import Plo
 from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
 from eotimeseriesviewer.temporalprofile.plotsettings import PlotSettingsContextGenerator
 from eotimeseriesviewer.temporalprofile.plotstyle import TemporalProfilePlotStyle
-from eotimeseriesviewer.timeseries import TimeSeries
 from eotimeseriesviewer.sensors import SensorInstrument
 
 

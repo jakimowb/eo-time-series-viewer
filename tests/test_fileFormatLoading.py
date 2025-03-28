@@ -7,8 +7,9 @@ from osgeo import gdal
 from eotimeseriesviewer import DIR_EXAMPLES
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
-from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.sensors import SensorInstrument
+from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 
 start_app()
 

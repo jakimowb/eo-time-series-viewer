@@ -21,7 +21,7 @@ from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.graphicsItems.
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibraryplotmodelitems import PlotStyleItem, \
     PropertyItem, PropertyItemBase, PropertyItemGroup, PropertyLabel, QgsPropertyItem
 from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
-from eotimeseriesviewer.timeseries import TimeSeries
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from eotimeseriesviewer.sensors import SensorInstrument
 
 

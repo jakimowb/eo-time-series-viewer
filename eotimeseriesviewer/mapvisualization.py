@@ -50,7 +50,8 @@ from .qgispluginsupport.qps.layerproperties import VectorLayerTools
 from .qgispluginsupport.qps.maptools import MapTools
 from .qgispluginsupport.qps.utils import loadUi, SpatialExtent, SpatialPoint
 from .settings.settings import EOTSVSettingsManager
-from .timeseries import TimeSeries, TimeSeriesDate
+from eotimeseriesviewer.timeseries.source import TimeSeriesDate
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from .sensors import has_sensor_id, sensor_id, SensorInstrument, SensorMockupDataProvider
 
 KEY_LOCKED_LAYER = 'eotsv/locked'

@@ -51,8 +51,8 @@ from .qgispluginsupport.qps.maptools import CursorLocationMapTool, FullExtentMap
 from .qgispluginsupport.qps.qgisenums import QGIS_RASTERBANDSTATISTIC
 from .qgispluginsupport.qps.utils import filenameFromString, findParent, SpatialExtent, SpatialPoint
 from .settings.settings import EOTSVSettingsManager
-from .timeseries import TimeSeriesDate
 from .sensors import has_sensor_id, sensor_id, SensorMockupDataProvider
+from .timeseries.source import TimeSeriesDate
 from .utils import copyMapLayerStyle, layerStyleString, setLayerStyleString
 
 KEY_LAST_CLICKED = 'LAST_CLICKED'

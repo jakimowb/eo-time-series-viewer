@@ -47,9 +47,8 @@ from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG,
 from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
-from eotimeseriesviewer.timeseries import TimeSeries, \
-    TimeSeriesDate, TimeSeriesDock, TimeSeriesSource, TimeSeriesTreeView, \
-    TimeSeriesWidget
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries, \
+    TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 from .about import AboutDialogUI
 from .dateparser import DateTimePrecision
@@ -72,6 +71,7 @@ from .settings.widget import EOTSVSettingsWidgetFactory
 from .tasks import EOTSVTask
 from .temporalprofile.temporalprofile import TemporalProfileUtils
 from .temporalprofile.visualization import TemporalProfileDock
+from .timeseries.widgets import TimeSeriesDock, TimeSeriesTreeView, TimeSeriesWidget
 from .utils import fixMenuButtons
 
 DEBUG = False
