@@ -41,7 +41,6 @@ from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QDir, QMimeData, QObject, QP
     QTime, QTimer
 from qgis.PyQt.QtGui import QColor, QFont, QIcon, QMouseEvent, QPainter
 from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QMenu, QSizePolicy, QStyle, QStyleOptionProgressBar
-
 from .labeling import quickLabelLayers, setQuickTSDLabelsForRegisteredLayers
 from .qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairDialog, CrosshairMapCanvasItem, CrosshairStyle
@@ -1193,17 +1192,6 @@ class MapCanvas(QgsMapCanvas):
             else:
                 n_max = 5
             action = menu.addAction('Update source visibility')
-            action.setToolTip(
-                'Hides from the observations shown those observations that do <br>'
-                'not have valid pixels for the currently displayed map extent')
-            action.triggered.connect(lambda *args, ext=self.spatialExtent():
-                                     ts.focusVisibility(ext,
-                                                        date_of_interest=date,
-                                                        max_after=n_max,
-                                                        max_before=n_max
-                                                        ))
-
-            action = menu.addAction('Update source visibility (all)')
             action.setToolTip(
                 'Hides all observations that do not have valid pixels for the currently displayed map extent.'
                 '<br><i>Depending on the length of your time series this may take some time</i>'

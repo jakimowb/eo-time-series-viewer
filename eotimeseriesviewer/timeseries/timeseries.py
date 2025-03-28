@@ -26,6 +26,7 @@ from typing import Any, Iterator, List, Optional, Set, Union
 
 import numpy as np
 from osgeo import gdal
+
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDateTimeRange, \
     QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsRasterLayer, QgsRectangle, QgsTask, \
     QgsTaskManager
@@ -33,14 +34,13 @@ from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QModelIn
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QTreeView
 from qgis.PyQt.QtXml import QDomDocument
-
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer import messageLog
 from eotimeseriesviewer.qgispluginsupport.qps.utils import relativePath, SpatialExtent
 from eotimeseriesviewer.sensors import sensorIDtoProperties, SensorInstrument, SensorMatching
 from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
-from eotimeseriesviewer.timeseries.tasks import TimeSeriesLoadingTask
+from eotimeseriesviewer.timeseries.tasks import TimeSeriesFindOverlapTask, TimeSeriesLoadingTask
 
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
 
@@ -205,10 +205,7 @@ class TimeSeries(QAbstractItemModel):
 
     def focusVisibility(self,
                         ext: SpatialExtent,
-                        runAsync: bool = None,
-                        date_of_interest: np.datetime64 = None,
-                        max_before: int = -1,
-                        max_after: int = -1):
+                        date_of_interest: Optional[QDateTime] = None):
         """
         Changes TSDs visibility according to its intersection with a SpatialExtent
         :param date_of_interest:
@@ -222,50 +219,34 @@ class TimeSeries(QAbstractItemModel):
         """
         assert isinstance(ext, SpatialExtent)
 
-        settings = EOTSVSettingsManager.settings()
-        if runAsync is None:
-            runAsync = settings.qgsTaskAsync
+        sources = list(self.timeSeriesSources())
 
-        tssToTest: List[TimeSeriesSource] = []
-        if isinstance(ext, SpatialExtent):
-            changed = False
-            for tsd in self:
-                assert isinstance(tsd, TimeSeriesDate)
-                tssToTest.extend(tsd[:])
-                # for tss in tsd[:]:
-                #    assert isinstance(tss, TimeSeriesSource)
-                #    tssToTest.(tss)
-
-        if len(tssToTest) > 0:
-
+        if len(sources) > 0:
+            settings = EOTSVSettingsManager.settings()
             qgsTask = TimeSeriesFindOverlapTask(ext,
-                                                tssToTest,
+                                                sources,
                                                 date_of_interest=date_of_interest,
-                                                max_backward=max_before,
-                                                max_forward=max_after,
-                                                sample_size=settings.rasterOverlapSampleSize,
-                                                callback=self.onTaskFinished)
+                                                n_threads=settings.qgsTaskFileReadingThreads,
+                                                sample_size=settings.rasterOverlapSampleSize)
 
             qgsTask.sigTimeSeriesSourceOverlap.connect(self.onFoundOverlap)
             qgsTask.progressChanged.connect(self.sigProgress.emit)
+            qgsTask.executed.connect(self.onTaskFinished)
 
-            if True and runAsync:
-                tm = QgsApplication.taskManager()
-                assert isinstance(tm, QgsTaskManager)
-                # stop previous tasks, allow to run one only
-                for t in tm.tasks():
-                    if isinstance(t, TimeSeriesFindOverlapTask):
-                        t.cancel()
-                tm.addTask(qgsTask)
-            else:
-                qgsTask.finished(qgsTask.run())
+            tm: QgsTaskManager = QgsApplication.taskManager()
+            # stop previous tasks, allow to run one only
+            for t in tm.tasks():
+                if isinstance(t, TimeSeriesFindOverlapTask):
+                    t.cancel()
+            tid = tm.addTask(qgsTask)
+            self.mTasks[tid] = qgsTask
 
     def onFoundOverlap(self, results: dict):
 
         URI2TSS = dict()
         for tsd in self:
             for tss in tsd:
-                URI2TSS[tss.uri()] = tss
+                URI2TSS[tss.source()] = tss
 
         affectedTSDs = set()
         for tssUri, b in results.items():
@@ -715,9 +696,7 @@ class TimeSeries(QAbstractItemModel):
             if path:
                 sourcePaths.append(path)
 
-        qgsTask = TimeSeriesLoadingTask(sourcePaths,
-                                        callback=self.onTaskFinished,
-                                        )
+        qgsTask = TimeSeriesLoadingTask(sourcePaths)
 
         # tid = id(qgsTask)
         # self.mTasks[tid] = qgsTask
@@ -725,6 +704,7 @@ class TimeSeries(QAbstractItemModel):
         # qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
         qgsTask.sigFoundSources.connect(self.addTimeSeriesSources)
         qgsTask.progressChanged.connect(self.sigProgress.emit)
+        qgsTask.executed.connect(self.onTaskFinished)
 
         self.mTasks[id(qgsTask)] = qgsTask
 
@@ -733,7 +713,7 @@ class TimeSeries(QAbstractItemModel):
             assert isinstance(tm, QgsTaskManager)
             tm.addTask(qgsTask)
         else:
-            qgsTask.finished(qgsTask.run_serial())
+            qgsTask.run_serial()
 
     def onRemoveTask(self, key):
         # print(f'remove {key}', flush=True)
@@ -745,7 +725,7 @@ class TimeSeries(QAbstractItemModel):
     def onTaskFinished(self, success, task: QgsTask):
         # print(':: onAddSourcesAsyncFinished')
         if isinstance(task, TimeSeriesLoadingTask):
-            if len(task.mInvalidSources) > 0:
+            if len(task.invalidSources()) > 0:
                 info = ['Unable to load {} data source(s):'.format(len(task.mInvalidSources))]
                 for (s, ex) in task.mInvalidSources:
                     info.append('Path="{}"\nError="{}"'.format(str(s), str(ex).replace('\n', ' ')))
@@ -755,12 +735,11 @@ class TimeSeries(QAbstractItemModel):
             self.sigLoadingTaskFinished.emit()
 
         elif isinstance(task, TimeSeriesFindOverlapTask):
-            if success:
-                if len(task.mIntersections) > 0:
-                    self.onFoundOverlap(task.mIntersections)
+            # if success:
+            #    intersections = task.intersections()
+            #    if len(intersections) > 0:
+            #        self.onFoundOverlap(intersections)
             self.sigFindOverlapTaskFinished.emit()
-        tm: QgsTaskManager = QgsApplication.taskManager()
-
         self.onRemoveTask(task)
 
     def addTimeSeriesSource(self, tss: TimeSeriesSource) -> TimeSeriesDate:

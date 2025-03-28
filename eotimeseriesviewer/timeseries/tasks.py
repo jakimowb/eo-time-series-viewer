@@ -5,7 +5,6 @@ from typing import Dict, List, Tuple
 from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsCoordinateTransformContext, \
     QgsProject, QgsRasterBandStats, QgsRasterLayer, QgsRectangle, QgsTask
 from qgis.PyQt.QtCore import pyqtSignal, QDateTime
-
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
 from eotimeseriesviewer.tasks import EOTSVTask
 from eotimeseriesviewer.timeseries.source import TimeSeriesSource
@@ -83,7 +82,7 @@ class TimeSeriesFindOverlapSubTask(QgsTask):
                 return False
 
             intersections[source] = self.hasValidPixel(source)
-            if i % 10 == 0 or i >= n_total - 1:
+            if (i > 0 and i % 20 == 0) or i >= n_total - 1:
                 self.setProgress(100 * (i + 1) / n_total)
                 self.foundSourceOverlaps.emit(intersections.copy())
                 self.intersections.update(intersections)
@@ -97,8 +96,7 @@ class TimeSeriesFindOverlapSubTask(QgsTask):
 
 class TimeSeriesFindOverlapTask(EOTSVTask):
     sigTimeSeriesSourceOverlap = pyqtSignal(dict)
-
-    executed = pyqtSignal(bool, dict)
+    executed = pyqtSignal(bool, EOTSVTask)
 
     def __init__(self,
                  extent: SpatialExtent,
@@ -112,18 +110,12 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
         :param extent:
         :param time_series_sources:
         :param date_of_interest: date of interest from which to start searching. "pivot" date
-        :param max_forward: max. number of intersecting dates to search into the past of date_of_interest
-            defaults to -1 = search for all dates < date_of_interest
-        :param max_backward: max. number of intersecting dates to search into the future of date_of_interest
-            defaults to -1 = search for all dates > date_of_interest
-        :param callback:
         :param description:
         :param sample_size: number of samples in x and y direction
-        :param progress_interval:
         """
         if description is None:
-            if date_of_interest:
-                description = f'Find image overlap ({str(date_of_interest)})'
+            if isinstance(date_of_interest, QDateTime):
+                description = f'Find image overlap ({date_of_interest.toString('yyyy-MM-dd')})'
             else:
                 description = 'Find image overlap'
 
@@ -165,6 +157,9 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
     def errors(self) -> List[str]:
         return self.mErrors[:]
 
+    def intersections(self):
+        return self.mIntersections
+
     def subTaskExecuted(self, success: bool, results: dict):
         if success:
             self.mIntersections.update(results)
@@ -179,7 +174,8 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
             subTask: TimeSeriesFindOverlapSubTask
             self.mIntersections.update(subTask.intersections)
             self.mErrors.extend(subTask.errors)
-        self.executed.emit(True, self.mIntersections.copy())
+
+        self.executed.emit(True, self)
 
         return True
 
@@ -231,10 +227,11 @@ class TimeSeriesLoadingSubTask(QgsTask):
 class TimeSeriesLoadingTask(EOTSVTask):
     sigFoundSources = pyqtSignal(list)
 
+    executed = pyqtSignal(bool, EOTSVTask)
+
     def __init__(self,
                  files: List[str],
                  description: str = "Load Images",
-                 callback=None,
                  report_block_size=20,
                  n_threads: int = 4,
                  progress_interval: int = 5):
@@ -258,23 +255,22 @@ class TimeSeriesLoadingTask(EOTSVTask):
                 badge.clear()
                 self.addSubTask(subTask, subTaskDependency=QgsTask.SubTaskDependency.ParentDependsOnSubTask)
 
-        self.mCallback = callback
         self.mInvalidSources: List[Tuple[str, Exception]] = []
         self.mValidSources: List[TimeSeriesSource] = []
 
     def canCancel(self) -> bool:
         return True
 
-    def run(self) -> bool:
-        result_block: List[TimeSeriesSource] = []
+    def validSources(self) -> List[TimeSeriesSource]:
+        return self.mValidSources[:]
 
+    def invalidSources(self) -> List[Tuple[str, Exception]]:
+        return self.mInvalidSources[:]
+
+    def run(self) -> bool:
         for subTask in self._sub_tasks:
             assert isinstance(subTask, TimeSeriesLoadingSubTask)
             self.mInvalidSources.extend(subTask.invalid_sources)
             self.mValidSources.extend(subTask.valid_sources)
-
+        self.executed.emit(True, self)
         return True
-
-    def finished(self, result):
-        if self.mCallback is not None:
-            self.mCallback(result, self)

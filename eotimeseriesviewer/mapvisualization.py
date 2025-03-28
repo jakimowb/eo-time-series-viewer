@@ -39,7 +39,6 @@ from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit,
     QWidget
 from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
     QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
-
 from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, layerStyleString, \
     setFontButtonPreviewBackgroundColor, setLayerStyleString
 from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem, STYLE_CATEGORIES
@@ -695,7 +694,7 @@ class MapView(QFrame):
     def addSensor(self, sensor: SensorInstrument):
         """
         Adds a SensorInstrument to be shown in this MapView. Each sensor will be represented as a Raster Layer in the
-        Tree Model.
+        Layer Tree Model.
         :param sensor: SensorInstrument
         """
         assert isinstance(sensor, SensorInstrument)
@@ -703,6 +702,7 @@ class MapView(QFrame):
             sensor.sigNameChanged.connect(self.sigCanvasAppearanceChanged)
 
             masterLayer: QgsRasterLayer = sensor.proxyRasterLayer()
+            assert isinstance(masterLayer, QgsRasterLayer) and masterLayer.isValid()
             assert isinstance(masterLayer.renderer(), QgsRasterRenderer)
 
             self.mSensorLayerList.append((sensor, masterLayer))

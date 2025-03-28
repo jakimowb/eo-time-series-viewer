@@ -5,15 +5,15 @@ import unittest
 
 import numpy as np
 from PyQt5.QtCore import QDateTime
-from qgis._core import QgsCoordinateReferenceSystem, QgsDateTimeRange
+from qgis._core import QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsVector
 from osgeo import gdal
+
 from qgis.gui import QgsTaskManagerWidget
 from qgis.core import Qgis, QgsApplication, QgsMimeDataUtils, QgsProject, QgsRasterLayer
 from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QMimeData, QPointF, QSortFilterProxyModel, Qt, \
     QUrl
 from qgis.PyQt.QtGui import QDropEvent
 from qgis.PyQt.QtWidgets import QTableView, QTreeView
-
 import example.Images
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 import example
@@ -62,6 +62,29 @@ class TestTimeSeries(EOTSVTestCase):
         tsRel = TimeSeries()
         tsRel.loadFromFile(pathTSFileAbs, runAsync=False)
         self.assertTrue(len(tsRel) == len(files))
+
+    def test_focus_visibility(self):
+
+        ts = TestObjects.createTimeSeries()
+
+        extentMax = ts.maxSpatialExtent()
+        extent1 = extentMax + QgsVector(extentMax.width() + 1, extentMax.height() + 1)
+        extent2 = extentMax.toCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
+        extent1 = SpatialExtent(extentMax.crs(), extent1)
+        self.assertFalse(extentMax.intersects(extent1))
+
+        doi = ts[25].dtg()
+
+        ts.focusVisibility(extent1, date_of_interest=doi)
+        self.taskManagerProcessEvents()
+
+        for tss in ts.timeSeriesSources():
+            self.assertFalse(tss.isVisible())
+
+        ts.focusVisibility(extent2)
+        self.taskManagerProcessEvents()
+        for tss in ts.timeSeriesSources():
+            self.assertTrue(tss.isVisible())
 
     def test_TimeSeriesFindOverlapSubTask(self):
 
