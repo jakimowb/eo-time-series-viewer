@@ -3,9 +3,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 from qgis.PyQt.QtCore import QMimeData, QSize
-from qgis.PyQt.QtGui import QPen, QColor, QFont
+from qgis.PyQt.QtGui import QColor, QFont, QPen
 from qgis.core import QgsSettings, QgsTextBufferSettings, QgsTextFormat, QgsUnitTypes
-
 from eotimeseriesviewer import __version__, TITLE
 from eotimeseriesviewer.dateparser import DateTimePrecision
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
@@ -45,7 +44,7 @@ class EOTSVSettings(object):
         self.profileStyleTemporal = style.clone()
 
         self.qgsTaskAsync = True
-        self.qgsTaskBlockSize = 25
+        self.qgsTaskFileReadingThreads = 4
         self.bandStatsSampleSize = 256
         self.rasterOverlapSampleSize = 25
 

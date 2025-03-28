@@ -4,13 +4,11 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Union
 
-from PyQt5.QtCore import QDate
-from qgis.PyQt.QtCore import pyqtSignal, Qt
+from qgis.PyQt.QtCore import pyqtSignal, QDate, Qt
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QComboBox, QDialog, QDialogButtonBox, QLabel
 from qgis.core import QgsApplication, QgsTask
 from qgis.gui import QgsFileWidget
-
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.models import Option, OptionListModel
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, loadUi
@@ -27,7 +25,7 @@ FORCE_PRODUCTS = {
     'HOT': (r'.*_HOT\.(vrt|tif|dat|hdr)$', 'Haze Optimized Transformation (HOT)'),
 }
 
-rx_FORCE_TILEID = re.compile(r'(X\d+)_(Y\d+)', re.MULTILINE)
+rx_FORCE_TILEID = re.compile(r'(X-?\d+)_(Y-?\d+)', re.MULTILINE)
 rx_FORCE_TILEFOLDER = re.compile(f'^{rx_FORCE_TILEID.pattern}$')
 rx_FORCE_L2_Product = re.compile(
     r'(?P<date>\d{8})_LEVEL2_(?P<sensor>[^_. ]+)_(?P<product>[^_. ]+)\.(?P<ext>tif|bsq|bil|bip|cog|vrt)$')

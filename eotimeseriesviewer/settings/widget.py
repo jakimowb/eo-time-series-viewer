@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any, List
 
 from osgeo import gdal
-
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractTableModel, QItemSelection, QItemSelectionModel, QModelIndex, \
     QSortFilterProxyModel, Qt
 from qgis.PyQt.QtGui import QColor, QDesktopServices, QIcon
@@ -16,6 +15,7 @@ from qgis.gui import QgsColorButton, QgsFileWidget, QgsOptionsPageWidget, QgsOpt
 # PyQGIS
 from qgis.core import QgsApplication
 from qgis.PyQt.Qt import QUrl
+
 from eotimeseriesviewer import __version__, HOMEPAGE, icon, ISSUE_TRACKER, TITLE
 from eotimeseriesviewer.dateparser import DateTimePrecision
 from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi
@@ -140,7 +140,7 @@ class EOTSVSettingsWidget(QgsOptionsPageWidget):
         settings.debug = self.cbDebug.isChecked()
 
         settings.qgsTaskAsync = self.cbAsyncQgsTasks.isChecked()
-        settings.qgsTaskBlockSize = self.sbQgsTaskBlockSize.value()
+        settings.qgsTaskFileReadingThreads = self.sbQgsTaskFileReadingThreads.value()
         settings.bandStatsSampleSize = self.sbBandStatsSampleSize.value()
         settings.rasterOverlapSampleSize = self.sbRasterOverlapSampleSize.value()
         settings.profileStyleCurrent = self.btnProfileCurrent.plotStyle()
@@ -185,7 +185,7 @@ class EOTSVSettingsWidget(QgsOptionsPageWidget):
         # others page
         self.cbDebug.setChecked(settings.debug)
         self.cbAsyncQgsTasks.setChecked(settings.qgsTaskAsync)
-        self.sbQgsTaskBlockSize.setValue(settings.qgsTaskBlockSize)
+        self.sbQgsTaskFileReadingThreads.setValue(settings.qgsTaskFileReadingThreads)
         self.sbBandStatsSampleSize.setValue(settings.bandStatsSampleSize)
         self.sbRasterOverlapSampleSize.setValue(settings.rasterOverlapSampleSize)
         self.btnProfileCurrent.setPlotStyle(settings.profileStyleCurrent.clone())
