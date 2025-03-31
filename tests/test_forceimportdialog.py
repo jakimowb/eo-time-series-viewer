@@ -1,3 +1,5 @@
+import datetime
+import json
 import os
 import unittest
 from pathlib import Path
@@ -120,6 +122,46 @@ class FORCEImportTestCases(EOTSVTestCase):
         eotsv.ui.show()
         eotsv.loadFORCEProducts(force_cube=FORCE_CUBE, tile_ids='X0066_Y0058')
         self.showGui(eotsv.ui)
+
+    @unittest.skipIf(not FORCE_CUBE.is_dir(), 'Missing FORCE_CUBE')
+    @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Benchmark only')
+    def test_benchmark_load_eotsv(self):
+
+        path_results = self.createTestOutputDirectory() / 'benchmark_load_eotsv.json'
+
+        if not path_results.is_file():
+            task = FindFORCEProductsTask('BOA', FORCE_CUBE, tile_ids=['X0066_Y0058'])
+            task.run_task_manager()
+
+            files = task.files()
+
+            n_threads = [2, 4, 6]
+            n_files = [50, 100, 200, 400, 800]
+            n_files = [n for n in n_files if n < len(files)]
+            results = dict()
+            for nt in n_threads:
+                for nf in n_files:
+                    files_to_load = files[0:nf]
+                    eotsv = EOTimeSeriesViewer()
+                    eotsv.ui.show()
+                    self.taskManagerProcessEvents()
+                    t0 = datetime.datetime.now()
+                    eotsv.addTimeSeriesImages(files_to_load)
+                    self.taskManagerProcessEvents()
+                    dt = datetime.datetime.now() - t0
+                    results[(nt, nf)] = str(dt)
+
+                    dt_image = dt / len(files_to_load)
+                    print(f'threads={nt}, files={nf}: {dt} -> per file: {dt_image}')
+                    eotsv.close()
+            with open(path_results, 'w') as f:
+                json.dump(results, f, indent=3)
+        else:
+            with open(path_results, 'r') as f:
+                results = json.load(f)
+            print(f'Benchmark results: {path_results}')
+            for (nt, nf), dt in results.items():
+                print(f'threads={nt}, files={nf}: {dt}')
 
 
 if __name__ == '__main__':

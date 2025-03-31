@@ -673,7 +673,8 @@ class TimeSeries(QAbstractItemModel):
 
     def addSources(self,
                    sources: list,
-                   runAsync: bool = None):
+                   runAsync: bool = None,
+                   n_threads: Optional[int] = None):
         """
         Adds source images to the TimeSeries
         :param visibility:
@@ -696,12 +697,13 @@ class TimeSeries(QAbstractItemModel):
             if path:
                 sourcePaths.append(path)
 
-        qgsTask = TimeSeriesLoadingTask(sourcePaths, description=f'Load {len(sourcePaths)} images')
+        if n_threads is None:
+            settings = EOTSVSettingsManager.settings()
+            n_threads = settings.qgsTaskFileReadingThreads
+        qgsTask = TimeSeriesLoadingTask(sourcePaths,
+                                        description=f'Load {len(sourcePaths)} images',
+                                        n_threads=n_threads)
 
-        # tid = id(qgsTask)
-        # self.mTasks[tid] = qgsTask
-        # qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
-        # qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
         qgsTask.imagesLoaded.connect(self.addTimeSeriesSources)
         qgsTask.progressChanged.connect(self.sigProgress.emit)
         qgsTask.executed.connect(self.onTaskFinished)
