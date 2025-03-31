@@ -27,7 +27,15 @@ import webbrowser
 from pathlib import Path
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
+import eotimeseriesviewer
 import qgis.utils
+from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
+from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
+from eotimeseriesviewer.mapcanvas import MapCanvas
+from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries, \
+    TimeSeriesDate, TimeSeriesSource
+from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 from processing import AlgorithmDialog
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import QCloseEvent, QIcon
@@ -41,15 +49,6 @@ from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, 
     QgsTaskManager, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
 from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
     QgsStatusBar, QgsTaskManagerWidget
-
-import eotimeseriesviewer
-from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
-from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
-from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries, \
-    TimeSeriesDate, TimeSeriesSource
-from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 from .about import AboutDialogUI
 from .dateparser import DateTimePrecision
 from .forceinputs import FindFORCEProductsTask, FORCEProductImportDialog
@@ -1750,15 +1749,21 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             path = self.mTimeSeries.saveToFile(path)
             s.setValue('FILE_TS_DEFINITION', path)
 
-    def loadFORCEProducts(self):
+    def loadFORCEProducts(self, *args, force_cube=None, tile_ids: str = None):
 
         settings = EOTSVSettingsManager.settings()
 
         d = FORCEProductImportDialog(parent=self.ui)
-        if force_root := settings.forceRootDir:
-            d.setRootFolder(force_root)
+        if force_cube is None:
+            force_cube = settings.forceRootDir
+        if force_cube:
+            d.setRootFolder(force_cube)
+
         if force_product := settings.forceProduct:
             d.setProductType(force_product)
+
+        if tile_ids:
+            d.setTileIDs(str(tile_ids))
 
         if d.exec_() == QDialog.Accepted:
             settings = EOTSVSettingsManager.settings()

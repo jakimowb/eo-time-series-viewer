@@ -27,20 +27,20 @@ from typing import Any, Iterator, List, Optional, Set, Union
 import numpy as np
 from osgeo import gdal
 
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDateTimeRange, \
-    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsRasterLayer, QgsRectangle, QgsTask, \
-    QgsTaskManager
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QModelIndex, Qt
-from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import QTreeView
-from qgis.PyQt.QtXml import QDomDocument
-from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer import messageLog
+from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import relativePath, SpatialExtent
 from eotimeseriesviewer.sensors import sensorIDtoProperties, SensorInstrument, SensorMatching
 from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.timeseries.tasks import TimeSeriesFindOverlapTask, TimeSeriesLoadingTask
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QModelIndex, Qt
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QTreeView
+from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDateTimeRange, \
+    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsRasterLayer, QgsRectangle, QgsTask, \
+    QgsTaskManager
 
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
 
@@ -660,7 +660,7 @@ class TimeSeries(QAbstractItemModel):
         """
         assert isinstance(sources, list)
         if len(sources) > 0:
-            # print('Add TSS...', flush=True)
+            # print(f'Add {len(sources)} sources...', flush=True)
             addedDates = []
             for i, source in enumerate(sources):
                 assert isinstance(source, TimeSeriesSource)
@@ -696,13 +696,13 @@ class TimeSeries(QAbstractItemModel):
             if path:
                 sourcePaths.append(path)
 
-        qgsTask = TimeSeriesLoadingTask(sourcePaths)
+        qgsTask = TimeSeriesLoadingTask(sourcePaths, description=f'Load {len(sourcePaths)} images')
 
         # tid = id(qgsTask)
         # self.mTasks[tid] = qgsTask
         # qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
         # qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
-        qgsTask.sigFoundSources.connect(self.addTimeSeriesSources)
+        qgsTask.imagesLoaded.connect(self.addTimeSeriesSources)
         qgsTask.progressChanged.connect(self.sigProgress.emit)
         qgsTask.executed.connect(self.onTaskFinished)
 

@@ -4,15 +4,15 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Union
 
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.qgispluginsupport.qps.models import Option, OptionListModel
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, loadUi
+from eotimeseriesviewer.tasks import EOTSVTask
 from qgis.PyQt.QtCore import pyqtSignal, QDate, Qt
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QComboBox, QDialog, QDialogButtonBox, QLabel
 from qgis.core import QgsApplication, QgsTask
 from qgis.gui import QgsFileWidget
-from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer.qgispluginsupport.qps.models import Option, OptionListModel
-from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, loadUi
-from eotimeseriesviewer.tasks import EOTSVTask
 
 FORCE_PRODUCTS = {
     'BOA': (r'.*_BOA\.(vrt|tif|dat|hdr)$', 'Bottom of Atmosphere (BOA)'),
@@ -175,6 +175,8 @@ class FORCEProductImportDialog(QDialog):
     # list force output files according to
     # https://force-eo.readthedocs.io/en/latest/components/lower-level/level2/format.html
 
+    last_dir = last_tile_ids = last_product = last_date_min = last_date_max = None
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         loadUi(DIR_UI / 'forceproductimportdialog.ui', self)
@@ -198,7 +200,42 @@ class FORCEProductImportDialog(QDialog):
         self.mLastSearchResults: Dict[str, List[Path]] = dict()
 
         self.finished.connect(self.onFinished)
+        self.accepted.connect(self.onAccepted)
+
+        if isinstance(self.last_product, str):
+            self.setProductType(self.last_product)
+        if isinstance(self.last_dir, (str, Path)):
+            self.setRootFolder(self.last_dir)
+        if isinstance(self.last_tile_ids, str):
+            self.setTileIDs(self.last_tile_ids)
+        self.setMinDate(self.last_date_min)
+        self.setMaxDate(self.last_date_max)
+
         self.updateInfo()
+
+    def setMinDate(self, date: Optional[QDate]):
+        if isinstance(date, QDate):
+            self.mDateMin.setDate(date)
+            self.cbDateMin.setChecked(True)
+        else:
+            self.cbDateMin.setChecked(False)
+
+    def setMaxDate(self, date: Optional[QDate]):
+        if isinstance(date, QDate):
+            self.mDateMax.setDate(date)
+            self.cbDateMax.setChecked(True)
+        else:
+            self.cbDateMax.setChecked(False)
+
+    def onAccepted(self):
+
+        FORCEProductImportDialog.last_dir = self.rootFolder()
+        tile_ids = self.tileIds()
+        if len(tile_ids) > 0:
+            FORCEProductImportDialog.last_tile_ids = ' '.join(tile_ids)
+        FORCEProductImportDialog.last_product = self.productType()
+        FORCEProductImportDialog.last_date_min = self.minDate()
+        FORCEProductImportDialog.last_date_max = self.maxDate()
 
     def minDate(self) -> Optional[QDate]:
 

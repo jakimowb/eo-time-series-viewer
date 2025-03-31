@@ -1,13 +1,14 @@
+import datetime
 import math
 import warnings
 from typing import Dict, List, Tuple
 
-from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsCoordinateTransformContext, \
-    QgsProject, QgsRasterBandStats, QgsRasterLayer, QgsRectangle, QgsTask
-from qgis.PyQt.QtCore import pyqtSignal, QDateTime
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
 from eotimeseriesviewer.tasks import EOTSVTask
 from eotimeseriesviewer.timeseries.source import TimeSeriesSource
+from qgis.PyQt.QtCore import pyqtSignal, QDateTime
+from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsCoordinateTransformContext, \
+    QgsProject, QgsRasterBandStats, QgsRasterLayer, QgsRectangle, QgsTask
 
 
 class TimeSeriesFindOverlapSubTask(QgsTask):
@@ -188,19 +189,30 @@ class TimeSeriesLoadingSubTask(QgsTask):
 
     def __init__(self,
                  sources: List[str], *args,
+                 progress_interval: int = 5,
                  report_block_size: int = 25, **kwds):
         super().__init__(*args, **kwds)
         assert 0 < report_block_size
         self.report_block_size = report_block_size
         self.sources = [str(s) for s in sources]
+        self.progress_interval = progress_interval
         self.invalid_sources: List[Tuple[str, Exception]] = []
         self.valid_sources: List[TimeSeriesSource] = []
+
+    def canCancel(self):
+        return True
 
     def run(self):
 
         n_total = len(self.sources)
         block: List[TimeSeriesSource] = []
+
+        t0 = datetime.datetime.now()
+
         for i, source in enumerate(self.sources):
+            if self.isCanceled():
+                return False
+
             try:
                 tss = TimeSeriesSource.create(source)
                 assert isinstance(tss, TimeSeriesSource), f'Unable to open {source} as TimeSeriesSource'
@@ -208,34 +220,42 @@ class TimeSeriesLoadingSubTask(QgsTask):
                 self.valid_sources.append(tss)
                 block.append(tss)
                 del tss
-                if len(block) >= self.report_block_size:
-                    self.imagesLoaded.emit([tss.clone() for tss in block])
-                    block.clear()
             except Exception as ex:
                 self.invalid_sources.append((source, ex))
 
-            if i % 10 == 0:
+            dts = (datetime.datetime.now() - t0).seconds
+            if dts > self.progress_interval:
                 self.setProgress(100 * (i + 1) / n_total)
+                t0 = datetime.datetime.now()
+
+            if len(block) >= self.report_block_size:
+                self.imagesLoaded.emit(block[:])
+                block.clear()
 
         if len(block) > 0:
-            self.imagesLoaded.emit([tss.clone() for tss in block])
-
+            self.imagesLoaded.emit(block)
         self.setProgress(100.0)
         return True
 
 
 class TimeSeriesLoadingTask(EOTSVTask):
-    sigFoundSources = pyqtSignal(list)
+    imagesLoaded = pyqtSignal(list)
 
     executed = pyqtSignal(bool, EOTSVTask)
 
     def __init__(self,
                  files: List[str],
                  description: str = "Load Images",
-                 report_block_size=20,
+                 report_block_size=25,
                  n_threads: int = 4,
                  progress_interval: int = 5):
-
+        """
+        :param files: list of files to load
+        :param description:
+        :param report_block_size: number of images to load before emitting them via the sigFoundSources signal.
+        :param n_threads: number of loading threads running in parallel.
+        :param progress_interval:
+        """
         super().__init__(description=description,
                          flags=QgsTask.Silent | QgsTask.CanCancel | QgsTask.CancelWithoutPrompt)
 
@@ -251,7 +271,7 @@ class TimeSeriesLoadingTask(EOTSVTask):
                 subTask = TimeSeriesLoadingSubTask(badge[:],
                                                    report_block_size=report_block_size,
                                                    description=self.description())
-                subTask.imagesLoaded.connect(self.sigFoundSources)
+                subTask.imagesLoaded.connect(self.imagesLoaded)
                 badge.clear()
                 self.addSubTask(subTask, subTaskDependency=QgsTask.SubTaskDependency.ParentDependsOnSubTask)
 

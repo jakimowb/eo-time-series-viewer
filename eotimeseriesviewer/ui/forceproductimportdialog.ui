@@ -70,7 +70,7 @@
       <number>0</number>
      </property>
      <item>
-      <widget class="QCheckBox" name="checkBox">
+      <widget class="QCheckBox" name="cbDateMin">
        <property name="text">
         <string>From</string>
        </property>
@@ -103,7 +103,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QCheckBox" name="checkBox_2">
+      <widget class="QCheckBox" name="cbDateMax">
        <property name="text">
         <string>To</string>
        </property>
@@ -213,8 +213,8 @@
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>517</x>
-     <y>219</y>
+     <x>388</x>
+     <y>138</y>
     </hint>
     <hint type="destinationlabel">
      <x>157</x>
@@ -229,8 +229,8 @@
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>517</x>
-     <y>219</y>
+     <x>388</x>
+     <y>138</y>
     </hint>
     <hint type="destinationlabel">
      <x>286</x>
@@ -239,34 +239,34 @@
    </hints>
   </connection>
   <connection>
-   <sender>checkBox</sender>
-   <signal>clicked(bool)</signal>
+   <sender>cbDateMin</sender>
+   <signal>toggled(bool)</signal>
    <receiver>mDateMin</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>34</x>
-     <y>120</y>
+     <x>22</x>
+     <y>71</y>
     </hint>
     <hint type="destinationlabel">
-     <x>112</x>
-     <y>122</y>
+     <x>122</x>
+     <y>71</y>
     </hint>
    </hints>
   </connection>
   <connection>
-   <sender>checkBox_2</sender>
-   <signal>clicked(bool)</signal>
+   <sender>cbDateMax</sender>
+   <signal>toggled(bool)</signal>
    <receiver>mDateMax</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>288</x>
-     <y>117</y>
+     <x>220</x>
+     <y>74</y>
     </hint>
     <hint type="destinationlabel">
-     <x>384</x>
-     <y>116</y>
+     <x>296</x>
+     <y>73</y>
     </hint>
    </hints>
   </connection>

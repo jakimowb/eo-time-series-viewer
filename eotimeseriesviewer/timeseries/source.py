@@ -3,13 +3,13 @@ from pathlib import Path
 from typing import Iterator, List, Optional, Tuple, Union
 
 from osgeo import gdal
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractTableModel, QDate, QDateTime, QMimeData, QModelIndex, Qt
-from qgis.core import QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, \
-    QgsMimeDataUtils, QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRectangle
 
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
 from eotimeseriesviewer.sensors import create_sensor_id, SensorInstrument
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractTableModel, QDate, QDateTime, QMimeData, QModelIndex, Qt
+from qgis.core import QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, \
+    QgsMimeDataUtils, QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRectangle
 
 
 class TimeSeriesSource(object):
@@ -64,11 +64,9 @@ class TimeSeriesSource(object):
         :param source: gdal.Dataset, str or QgsRasterLayer
         :return: TimeSeriesSource
         """
-
-        if isinstance(source, str):
-            source = QgsRasterLayer(source)
-        elif isinstance(source, Path):
-            source = QgsRasterLayer(source.as_posix())
+        if isinstance(source, (str, Path)):
+            options = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
+            source = QgsRasterLayer(str(source), options=options)
         elif isinstance(source, gdal.Dataset):
             source = QgsRasterLayer(source.GetDescription(), providerType='gdal')
 
@@ -81,7 +79,7 @@ class TimeSeriesSource(object):
         else:
             raise Exception(f'Unable to open {source} as QgsRasterLayer')
 
-    def __init__(self, layer: QgsRasterLayer, dtg: QDateTime):
+    def __init__(self, layer: Union[QgsRasterLayer, str, Path], dtg: QDateTime):
 
         if isinstance(layer, (Path, str)):
             layer = QgsRasterLayer(Path(layer).as_posix())

@@ -2,10 +2,11 @@ import os
 import unittest
 from pathlib import Path
 
-from qgis.PyQt.QtCore import QDate
 from eotimeseriesviewer.forceinputs import find_tile_folders, FindFORCEProductsTask, FORCEProductImportDialog, \
     read_tileids, rx_FORCE_TILEFOLDER
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
+from qgis.PyQt.QtCore import QDate
 
 start_app()
 
@@ -111,6 +112,14 @@ class FORCEImportTestCases(EOTSVTestCase):
             self.assertIsInstance(f, Path)
             self.assertTrue(f.is_file())
             self.assertTrue(f.name.endswith('BOA.tif'))
+
+    @unittest.skipIf(not FORCE_CUBE.is_dir(), 'Missing FORCE_CUBE')
+    def test_load_eotsv(self):
+
+        eotsv = EOTimeSeriesViewer()
+        eotsv.ui.show()
+        eotsv.loadFORCEProducts(force_cube=FORCE_CUBE, tile_ids='X0066_Y0058')
+        self.showGui(eotsv.ui)
 
 
 if __name__ == '__main__':
