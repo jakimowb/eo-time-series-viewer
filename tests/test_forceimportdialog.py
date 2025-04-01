@@ -1,3 +1,4 @@
+import csv
 import datetime
 import json
 import os
@@ -128,6 +129,7 @@ class FORCEImportTestCases(EOTSVTestCase):
     def test_benchmark_load_eotsv(self):
 
         path_results = self.createTestOutputDirectory() / 'benchmark_load_eotsv.json'
+        path_csv = path_results.parent / (path_results.stem + '.csv')
 
         if not path_results.is_file():
             task = FindFORCEProductsTask('BOA', FORCE_CUBE, tile_ids=['X0066_Y0058'])
@@ -149,17 +151,48 @@ class FORCEImportTestCases(EOTSVTestCase):
                     eotsv.addTimeSeriesImages(files_to_load)
                     self.taskManagerProcessEvents()
                     dt = datetime.datetime.now() - t0
-                    results[(nt, nf)] = str(dt)
 
-                    dt_image = dt / len(files_to_load)
-                    print(f'threads={nt}, files={nf}: {dt} -> per file: {dt_image}')
+                    k = f'{nt}_{nf}'
+                    results[k] = {'n_threads': nt,
+                                  'n_files': nf,
+                                  'total_seconds': dt.total_seconds(),
+                                  'total_seconds_per_file': dt.total_seconds() / len(files_to_load),
+                                  }
+                    print(results[k])
                     eotsv.close()
+
             with open(path_results, 'w') as f:
                 json.dump(results, f, indent=3)
         else:
             with open(path_results, 'r') as f:
                 results = json.load(f)
             print(f'Benchmark results: {path_results}')
+
+            n_files = [d['n_files'] for d in results.values()]
+            n_threads = [d['n_threads'] for d in results.values()]
+
+            matrix_total = dict()
+            matrix_per_file = dict()
+            for d in results.values():
+                matrix_total[(d['n_threads'], d['n_files'])] = str(datetime.timedelta(seconds=d['total_seconds']))
+                matrix_per_file[(d['n_threads'], d['n_files'])] = str(
+                    datetime.timedelta(seconds=d['total_seconds_per_file']))
+
+            with open(path_csv, 'w', newline='') as f:
+                writer = csv.writer(f, dialect='excel')
+                writer.writerow(['Benchmark results FORCE File Reading'])
+
+                header = ['n_files'] + n_threads + n_threads
+
+                writer.writerow(['', 'Files'])
+                writer.writerow(['n_threads'] + n_files)
+
+                for nt in n_threads:
+                    row = [nt] + [matrix_total.get((nt, nf), None) for nf in n_files]
+                    writer.writerow(row)
+
+            csv.writer()
+
             for (nt, nf), dt in results.items():
                 print(f'threads={nt}, files={nf}: {dt}')
 
