@@ -26,6 +26,7 @@ from itertools import chain
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
+
 from qgis.core import QgsApplication, QgsCoordinateTransform, QgsExpression, QgsExpressionContext, \
     QgsExpressionContextUtils, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsProject, \
     QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
@@ -34,7 +35,6 @@ from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QItemSelectionModel
 from qgis.PyQt.QtWidgets import QAction, QMenu, QProgressBar, QSlider, QTableView, QToolButton, QWidgetAction
 from qgis.gui import QgsDockWidget, QgsFilterLineEdit
 from qgis.PyQt.QtGui import QColor
-
 from eotimeseriesviewer import DIR_UI
 from .datetimeplot import DateTimePlotDataItem, DateTimePlotWidget
 from .plotsettings import PlotSettingsProxyModel, PlotSettingsTreeModel, PlotSettingsTreeView, \
@@ -450,6 +450,8 @@ class TemporalProfileVisualization(QObject):
 
         # print('# Update plot')
 
+        errors = dict()
+
         pw = self.mPlotWidget
         #
         cand_target_layer, cand_target_field = settings.get('candidates', {}).get('candidate_target', (None, None))
@@ -581,7 +583,8 @@ class TemporalProfileVisualization(QObject):
                 except Exception as ex:
                     print(ex, file=sys.stderr)
                     break
-
+                for e in results.get('errors', []):
+                    errors[e] = errors.get(e, 0) + 1
                 n = results['n']
                 all_x = results['x']
                 all_y = results['y']
@@ -680,6 +683,12 @@ class TemporalProfileVisualization(QObject):
             self.mPlotWidget.plotItem.addItem(item)
 
         self.setSelectedFeatures(selectedProfiles)
+
+        if len(errors) > 0:
+            info = ['TemporalProfile plotting errors:']
+            for e, cnt in errors.items():
+                info.append(f'{cnt}x: {e}')
+            print('\n'.join(info), file=sys.stderr)
 
     def onTip(self, *args, **kwds) -> str:
         return None

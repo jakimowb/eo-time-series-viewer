@@ -133,7 +133,7 @@ class ProfileFunctionTestCases(EOTSVTestCase):
             values_by_sid[sid] = np.asarray(values)
 
         f = QgsFeature()
-        expressions = {'*': 'b("NDVI")'}
+        expressions = {'*': 'b("EVI")'}
         expressions = {k: TemporalProfileUtils.prepareBandExpression(v)[0] for k, v in expressions.items()}
 
         results = TemporalProfileUtils.applyExpressions(tpData, f, expressions)
@@ -141,6 +141,8 @@ class ProfileFunctionTestCases(EOTSVTestCase):
         x = results['x']
         y = results['y']
         n = results['n']
+        errors = results['errors']
+        self.assertEqual(errors, [])
         sidx = results['sensor_indices']
 
         self.assertIsInstance(x, np.ndarray)
