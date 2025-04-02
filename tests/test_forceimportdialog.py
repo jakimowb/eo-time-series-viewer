@@ -3,8 +3,10 @@ import os
 import unittest
 from pathlib import Path
 
+from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsProject, QgsRasterLayer
 from qgis.PyQt.QtCore import QDate
 
+from eotimeseriesviewer.force import FORCEUtils
 from eotimeseriesviewer.forceinputs import find_tile_folders, FindFORCEProductsTask, FORCEProductImportDialog, \
     read_tileids, rx_FORCE_TILEFOLDER
 from eotimeseriesviewer.main import EOTimeSeriesViewer
@@ -115,13 +117,43 @@ class FORCEImportTestCases(EOTSVTestCase):
             self.assertTrue(f.is_file())
             self.assertTrue(f.name.endswith('BOA.tif'))
 
+    def get_example_tiledir(self) -> str:
+
+        tiles = [d.name for d in FORCEUtils.tileDirs(FORCE_CUBE)]
+        assert len(tiles) > 0
+        if 'X0066_Y0058' in tiles:
+            tile_id = 'X0066_Y0058'
+        else:
+            tile_id = tiles[0]
+        return tile_id
+
     @unittest.skipIf(not FORCE_CUBE.is_dir(), 'Missing FORCE_CUBE')
     def test_load_eotsv(self):
 
         eotsv = EOTimeSeriesViewer()
         eotsv.ui.show()
-        eotsv.loadFORCEProducts(force_cube=FORCE_CUBE, tile_ids='X0066_Y0058')
+        tile_id = self.get_example_tiledir()
+        eotsv.loadFORCEProducts(force_cube=FORCE_CUBE, tile_ids=tile_id)
         self.showGui(eotsv.ui)
+
+    def test_crs_check(self):
+        tile_id = self.get_example_tiledir()
+
+        p = QgsProject.instance()
+        for path in FORCEUtils.productFiles(FORCE_CUBE / tile_id, 'BOA'):
+            lyr = QgsRasterLayer(path.as_posix())
+
+            crs = QgsCoordinateReferenceSystem('EPSG:4326')
+
+            trans = QgsCoordinateTransform()
+            trans.setSourceCrs(lyr.crs())
+            trans.setDestinationCrs(crs)
+
+            self.assertTrue(trans.isValid())
+
+            ext2 = trans.transformBoundingBox(lyr.extent())
+            self.assertTrue(ext2.isFinite())
+            break
 
 
 if __name__ == '__main__':
