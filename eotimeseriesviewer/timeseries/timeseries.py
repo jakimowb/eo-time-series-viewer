@@ -450,7 +450,7 @@ class TimeSeries(QAbstractItemModel):
                     return tsd
         return None
 
-    def tsd(self, dtr: QgsDateTimeRange, sensor: Union[SensorInstrument, str]) -> Optional[TimeSeriesDate]:
+    def tsd(self, dtr: QgsDateTimeRange, sensor: Union[None, SensorInstrument, str]) -> Optional[TimeSeriesDate]:
         """
         Returns the TimeSeriesDate identified by date-time-range and sensorID
         :param dtr: numpy.datetime64

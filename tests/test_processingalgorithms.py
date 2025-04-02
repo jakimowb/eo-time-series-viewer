@@ -1,5 +1,7 @@
 import unittest
 
+from qgis._core import QgsFeature
+
 from processing import AlgorithmDialog
 import processing.gui.ProcessingToolbox
 from processing.gui import ProcessingToolbox
@@ -8,12 +10,11 @@ from qgis.PyQt.QtCore import QMetaType
 from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsField, QgsGeometry, QgsProcessingAlgorithm, \
     QgsProcessingAlgRunnerTask, QgsProcessingProvider, QgsProcessingRegistry, QgsProcessingUtils, QgsProject, \
     QgsRasterLayer, QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
-
 from eotimeseriesviewer.forceinputs import FindFORCEProductsTask
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.processingalgorithms import AddTemporalProfileField, CreateEmptyTemporalProfileLayer, \
     EOTSVProcessingProvider, ReadTemporalProfiles
-from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
+from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent, SpatialPoint
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
 from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app, TestObjects
 from eotimeseriesviewer import initAll
@@ -126,9 +127,18 @@ class ProcessingAlgorithmTests(EOTSVTestCase):
 
         tsv = EOTimeSeriesViewer()
         tsv.loadExampleTimeSeries(loadAsync=False)
+
+        sources = tsv.timeSeries().sourceUris()
+        self.assertTrue(len(sources) > 0)
         extent = tsv.timeSeries().maxSpatialExtent()
+        extentLyr = SpatialExtent.fromLayer(lyr).toCrs(extent.crs())
+        self.assertTrue(extent.intersects(extentLyr))
 
         self.assertFalse(TemporalProfileUtils.isProfileLayer(lyr))
+
+        dir_outputs = self.createTestOutputDirectory()
+        path_out1 = dir_outputs / 'output_layer1.geojson'
+        path_out2 = dir_outputs / 'output_layer2.geojson'
 
         alg = ReadTemporalProfiles()
         self.assertIsInstance(alg, QgsProcessingAlgorithm)
@@ -141,33 +151,47 @@ class ProcessingAlgorithmTests(EOTSVTestCase):
         alg.initAlgorithm(conf)
         parm = {alg.INPUT: lyr,
                 alg.FIELD_NAME: 'tp',
-                # alg.OUTPUT: '/vsimem/test.gpkg'
+                alg.OUTPUT: path_out1.as_posix()
                 }
 
-        results = None
+        r = alg.run(parm, context, feedback)
 
-        if True:
-            def onExecuted(task_success, task_results):
-                nonlocal results, success
-                results = task_results
-                success = task_success
+        results = success = None
 
-            task = QgsProcessingAlgRunnerTask(alg, parm, context, feedback)
-            tm: QgsTaskManager = QgsApplication.taskManager()
-            task.executed.connect(onExecuted)
-            tm.addTask(task)
+        def onExecuted(task_success, task_results):
+            nonlocal results, success
+            results = task_results
+            success = task_success
 
-            while tm.count() > 0:
-                QgsApplication.processEvents()
+        parm[alg.OUTPUT] = path_out2.as_posix()
 
-        else:
-            results, success = alg.run(parm, context, feedback, catchExceptions=False)
+        alg = ReadTemporalProfiles()
+        task = QgsProcessingAlgRunnerTask(alg, parm, context, feedback)
+        self.assertTrue(task.canCancel())
+        tm: QgsTaskManager = QgsApplication.taskManager()
+        task.executed.connect(onExecuted)
+        tm.addTask(task)
+
+        self.taskManagerProcessEvents()
 
         self.assertTrue(success)
 
-        tplyr = QgsProcessingUtils.mapLayerFromString(results[alg.OUTPUT], context)
+        tplyr: QgsVectorLayer = QgsProcessingUtils.mapLayerFromString(results[alg.OUTPUT], context)
         field = tplyr.fields().field('tp')
+        self.assertIsInstance(field, QgsField)
         self.assertTrue(TemporalProfileUtils.isProfileField(field))
+        self.assertEqual(lyr.featureCount(), tplyr.featureCount())
+
+        for (f1, f2) in zip(lyr.getFeatures(), tplyr.getFeatures()):
+            f1: QgsFeature
+            f2: QgsFeature
+
+            self.assertGeometriesEqual(f1.geometry(), f2.geometry())
+
+            d = TemporalProfileUtils.profileDict(f2.attribute(field.name()))
+            print(d)
+            # self.assertTrue(TemporalProfileUtils.isProfileDict(d))
+
         tsv.close()
 
     @unittest.skipIf(FORCE_CUBE is None, 'Missing FORCE_CUBE')
