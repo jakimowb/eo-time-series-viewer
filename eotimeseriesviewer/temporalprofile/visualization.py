@@ -27,15 +27,16 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QItemSelectionModel, QModelIndex, QObject, QPoint, Qt, \
+    QTimer
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QAction, QMenu, QProgressBar, QSlider, QTableView, QToolButton, QWidgetAction
 from qgis.core import QgsApplication, QgsCoordinateTransform, QgsExpression, QgsExpressionContext, \
     QgsExpressionContextUtils, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsProject, \
     QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QItemSelectionModel, QModelIndex, QObject, QPoint, Qt, \
-    QTimer
-from qgis.PyQt.QtWidgets import QAction, QMenu, QProgressBar, QSlider, QTableView, QToolButton, QWidgetAction
 from qgis.gui import QgsDockWidget, QgsFilterLineEdit
-from qgis.PyQt.QtGui import QColor
-from eotimeseriesviewer import DIR_UI
 from .datetimeplot import DateTimePlotDataItem, DateTimePlotWidget
 from .plotsettings import PlotSettingsProxyModel, PlotSettingsTreeModel, PlotSettingsTreeView, \
     PlotSettingsTreeViewDelegate, TPVisGroup
@@ -46,7 +47,6 @@ from ..qgispluginsupport.qps.pyqtgraph.pyqtgraph import mkBrush, mkPen, PlotCurv
 from ..qgispluginsupport.qps.pyqtgraph.pyqtgraph.GraphicsScene.mouseEvents import MouseClickEvent
 from ..qgispluginsupport.qps.utils import loadUi, SpatialPoint
 from ..qgispluginsupport.qps.vectorlayertools import VectorLayerTools
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from ..sensors import SensorInstrument
 from ..utils import addFeatures, doEdit
 
@@ -191,7 +191,7 @@ class TemporalProfileVisualization(QObject):
 
     def temporalProfileLayerFields(self) -> List[Tuple[QgsVectorLayer, str]]:
         """
-        Returns a list with all layer ids and field names which are used in one of the
+        Returns a list with all layer ids and field names which are used in
         profile visualizations
         :return:
         """

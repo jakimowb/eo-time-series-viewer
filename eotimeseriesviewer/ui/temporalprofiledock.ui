@@ -310,6 +310,18 @@
     <string>Unselect selected profiles</string>
    </property>
   </action>
+  <action name="actionSettings">
+   <property name="icon">
+    <iconset resource="eotsv_resources.qrc">
+     <normaloff>:/eotimeseriesviewer/icons/settings.svg</normaloff>:/eotimeseriesviewer/icons/settings.svg</iconset>
+   </property>
+   <property name="text">
+    <string>settings</string>
+   </property>
+   <property name="toolTip">
+    <string>Show temporal profile settings</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>

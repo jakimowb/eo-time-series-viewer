@@ -559,6 +559,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionCreateSpectralLibrary.triggered.connect(self.createSpectralLibrary)
         self.ui.actionAddSubDatasets.triggered.connect(self.openAddSubdatasetsDialog)
         self.ui.actionCreateTemporalProfileLayer.triggered.connect(self.createTemporalProfileLayer)
+        self.ui.actionReadTemporalProfiles.triggered.connect(self.loadTemporalProfilesForPoints)
 
         # see https://sentinel.esa.int/web/sentinel/user-guides/sentinel-2-msi/data-formats/xsd
         self.ui.actionAddSentinel2.triggered.connect(
@@ -1001,14 +1002,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         if len(self.mapViews()) == 1:
             mapView.setMapInfoExpression("@map_date + '\n' + @map_sensor")
-
-    def temporalProfileLayers(self) -> List[QgsVectorLayer]:
-        """
-        Returns known layers with temporal profiles
-        :return:
-        """
-
-        return self.profileDock.temporalProfileLayer()
 
     def spectralLibraryWidgets(self) -> List[SpectralLibraryWidget]:
         return [dw.spectralLibraryWidget() for dw in self.ui.findChildren(SpectralLibraryDockWidget)]
@@ -1516,19 +1509,24 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     @pyqtSlot(SpatialPoint)
     def loadCurrentTemporalProfile(self, spatialPoint: SpatialPoint):
-        if not self.mTemporalProfileLayerInitialized:
-            self.initTemporalProfileLayer()
+
+        existing = self.profileDock.mVis.temporalProfileLayerFields()
+        if len(existing) == 0:
+            lyr = self.initTemporalProfileLayer()
+            # self.profileDock.mVis.createVisualization()
 
         layer = fieldname = None
-        tp_layer = self.currentLayer()
-        if TemporalProfileUtils.isProfileLayer(tp_layer):
-            for field in TemporalProfileUtils.profileFields(tp_layer):
-                fieldname = field.name()
-                layer = tp_layer
-                break
-            self.profileDock.loadTemporalProfile(spatialPoint, layer=layer, field=fieldname)
+        for (lyr, fn) in self.profileDock.mVis.temporalProfileLayerFields():
+            layer = lyr
+            fieldname = fn
+            break
 
-    def initTemporalProfileLayer(self):
+        if isinstance(layer, QgsVectorLayer) and isinstance(fieldname, str):
+            self.profileDock.loadTemporalProfile(spatialPoint, layer=layer, field=fieldname)
+        else:
+            self.logMessage('Cannot load temporal profile: target layer undefined', LOG_MESSAGE_TAG, Qgis.Warning)
+
+    def initTemporalProfileLayer(self) -> Optional[QgsVectorLayer]:
         """
         Create a new temporal profile layer, just in case none exists.
         """
@@ -1536,17 +1534,18 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         for lid, lyr in self.mapLayerStore().mapLayers().items():
             if TemporalProfileUtils.isProfileLayer(lyr):
                 has_tl_lyr = True
-                break
+                self.mTemporalProfileLayerInitialized = True
+                return lyr
         if not has_tl_lyr:
             lyr = self.createTemporalProfileLayer(skip_dialog=True)
             if isinstance(lyr, QgsVectorLayer):
                 lyr.setName('Temporal Profiles')
                 with edit(lyr):
                     lyr.addAttribute(QgsField('notes', QMETATYPE_QSTRING))
-                self.addMapLayers([lyr])
+                # self.addMapLayers([lyr])
                 self.mTemporalProfileLayerInitialized = True
-        else:
-            self.mTemporalProfileLayerInitialized = True
+                return lyr
+        self.mTemporalProfileLayerInitialized = False
 
     def onShowProfile(self, spatialPoint, mapCanvas, mapToolKey):
 
@@ -2010,6 +2009,48 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         return layers
 
+    def loadTemporalProfilesForPoints(self):
+
+        from eotimeseriesviewer.processingalgorithms import ReadTemporalProfiles
+        conf = {}
+        alg = ReadTemporalProfiles()
+        alg.initAlgorithm(conf)
+
+        feedback = QgsProcessingFeedback()
+        context = QgsProcessingContext()
+        context.setFeedback(feedback)
+        context.setProject(self.mapLayerStore())
+
+        layer = None
+
+        d = AlgorithmDialog(alg)
+        d.context = context
+
+        def onExecuted(success, results):
+            nonlocal layer
+            if success and alg.OUTPUT in results:
+                layer = QgsProcessingUtils.mapLayerFromString(results[alg.OUTPUT], d.processingContext())
+                s = ""
+            d.close()
+
+        d.algorithmFinished.connect(onExecuted)
+        d.exec_()
+
+    def createSpectralLibrary(self) -> SpectralLibraryWidget:
+        """
+        Create a spectral library
+        """
+
+        speclib: QgsVectorLayer = SpectralLibraryUtils.createSpectralLibrary()
+        speclib.startEditing()
+        for field in SPECTRA_PROFILE_FIELDS:
+            speclib.addAttribute(field)
+        assert speclib.commitChanges()
+        # QgsProject.instance().addMapLayer(speclib)
+        self.mapLayerStore().addMapLayer(speclib)
+        self.showAttributeTable(speclib)
+        self.addMapLayers(speclib)
+
     def createTemporalProfileLayer(self, skip_dialog: bool = False) -> Optional[QgsVectorLayer]:
         """
         Create a new temporal profile layer
@@ -2054,21 +2095,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             return layer
         return None
 
-    def createSpectralLibrary(self) -> SpectralLibraryWidget:
-        """
-        Create a spectral library
-        """
-
-        speclib: QgsVectorLayer = SpectralLibraryUtils.createSpectralLibrary()
-        speclib.startEditing()
-        for field in SPECTRA_PROFILE_FIELDS:
-            speclib.addAttribute(field)
-        assert speclib.commitChanges()
-        # QgsProject.instance().addMapLayer(speclib)
-        self.mapLayerStore().addMapLayer(speclib)
-        self.showAttributeTable(speclib)
-        self.addMapLayers(speclib)
-
     def addVectorData(self, files=None) -> List[QgsVectorLayer]:
         """
         Adds vector data
@@ -2077,14 +2103,17 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         vectorLayers = []
         if files is None:
-            s = settings.settings()
-            defDir = s.value('DIR_FILESEARCH')
+            settings = EOTSVSettingsManager.settings()
+            if settings.dirVectorSources:
+                defDir = str(settings.dirVectorSources)
+            else:
+                defDir = None
             filters = QgsProviderRegistry.instance().fileVectorFilters()
             files, filter = QFileDialog.getOpenFileNames(directory=defDir, filter=filters)
 
             if len(files) > 0 and os.path.exists(files[0]):
                 dn = os.path.dirname(files[0])
-                s.setValue('DIR_FILESEARCH', dn)
+                settings.dirVectorSources = Path(dn)
 
         if not isinstance(files, list):
             files = [files]
