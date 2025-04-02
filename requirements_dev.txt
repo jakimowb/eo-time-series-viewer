@@ -21,3 +21,4 @@ pytest-cov
 pytest-xdist # parallel testing
 flake8
 flake8-qgis
+openpyxl
