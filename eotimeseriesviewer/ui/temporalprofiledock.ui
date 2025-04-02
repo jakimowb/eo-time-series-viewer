@@ -64,6 +64,8 @@
       <addaction name="actionAddVisualization"/>
       <addaction name="actionRemoveVisualization"/>
       <addaction name="actionRefreshPlot"/>
+      <addaction name="separator"/>
+      <addaction name="actionShowSelectedProfileOnly"/>
       <addaction name="actionSaveTemporalProfiles"/>
       <addaction name="actionPanToSelected"/>
       <addaction name="actionZoomToSelected"/>
@@ -322,6 +324,18 @@
     <string>Show temporal profile settings</string>
    </property>
   </action>
+  <action name="actionShowSelectedProfileOnly">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionShowSelectedLayers.svg</normaloff>:/images/themes/default/mActionShowSelectedLayers.svg</iconset>
+   </property>
+   <property name="text">
+    <string>ShowSelectedProfilesOnly</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -348,6 +362,7 @@
  </customwidgets>
  <resources>
   <include location="eotsv_resources.qrc"/>
+  <include location="../qgispluginsupport/qps/qpsresources.qrc"/>
   <include location="../../../QGIS/images/images.qrc"/>
  </resources>
  <connections/>

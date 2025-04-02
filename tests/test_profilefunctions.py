@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QTableView
 from qgis._core import QgsFeature
 
 from eotimeseriesviewer.temporalprofile.spectralindices import SpectralIndexBandIdentifierModel, \
-    SpectralIndexConstantModel
+    SpectralIndexConstantModel, spectral_index_acronyms
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 
@@ -71,6 +71,10 @@ class ProfileFunctionTestCases(EOTSVTestCase):
     def test_bandOrIndex(self):
 
         lyr = TestObjects.createProfileLayer()
+
+        acronyms = spectral_index_acronyms()
+        constants = acronyms['constants']
+
         for feature in lyr.getFeatures():
             tpData = feature.attribute('profile')
             sidx = np.asarray(tpData[TemporalProfileUtils.Sensor])
@@ -115,6 +119,25 @@ class ProfileFunctionTestCases(EOTSVTestCase):
                     ndvi = ((band_values[:, band_lookup['N']] - band_values[:, band_lookup['R']]) /
                             (band_values[:, band_lookup['N']] + band_values[:, band_lookup['R']]))
                     self.assertTrue(np.all(result == ndvi))
+                else:
+                    self.assertTrue(np.all(np.isnan(result)))
+
+                result = TemporalProfileUtils.bandOrIndex('EVI', band_values, specs)
+
+                if 'N' in band_lookup and 'R' in band_lookup:
+                    # ['g', 'N', 'R', 'C1', 'C2', 'B', 'L']
+                    # g * (N - R) / (N + C1 * R - C2 * B + L)
+                    g = constants['g']['value']
+                    C1 = constants['C1']['value']
+                    C2 = constants['C2']['value']
+                    L = constants['L']['value']
+
+                    B = band_values[:, band_lookup['B']]
+                    N = band_values[:, band_lookup['N']]
+                    R = band_values[:, band_lookup['R']]
+                    evi = (g * (N - R)) / (N + C1 * R - C2 * B + L)
+
+                    self.assertTrue(np.all(result == evi))
                 else:
                     self.assertTrue(np.all(np.isnan(result)))
 

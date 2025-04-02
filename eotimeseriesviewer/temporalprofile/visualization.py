@@ -181,10 +181,27 @@ class TemporalProfileVisualization(QObject):
 
         self.mSelectedFeatures: Dict[str, List[int]] = dict()
 
+        self.mShowSelectedOnly = False
+
         self.mUpdateTimer = QTimer()
         self.mUpdateTimer.timeout.connect(self.preUpdates)
         self.mUpdateTimer.setInterval(1000)
         self.mUpdateTimer.start()
+
+    def setShowSelectedOnly(self, show: bool):
+        update = self.mShowSelectedOnly != show
+        self.mShowSelectedOnly = show
+
+        if update:
+            self.updatePlot()
+
+    def showSelectedOnly(self) -> bool:
+        return self.mShowSelectedOnly
+
+    def acceptCandidates(self):
+        if len(self.mProfileCandidates) > 0:
+            self.mProfileCandidates.clear()
+            self.updatePlot()
 
     def profileCandidates(self) -> Dict[Tuple[str, str], List[int]]:
         return self.mProfileCandidates
@@ -524,6 +541,9 @@ class TemporalProfileVisualization(QObject):
 
             # LUT_SENSOR = {s['sensor_id']: s for s in vis['sensors']}
             selected_fids: List[int] = lyr.selectedFeatureIds()
+            if self.showSelectedOnly():
+                request.setFilterFids(selected_fids)
+                selected_fids.clear()
 
             BAND_EXPRESSIONS = dict()
             SENSOR_VISUALS = dict()
@@ -831,11 +851,12 @@ class TemporalProfileDock(QgsDockWidget):
         self.actionRefreshPlot.triggered.connect(lambda: self.mVis.updatePlot())
         self.actionAddVisualization.triggered.connect(self.mVis.createVisualization)
         self.actionRemoveVisualization.triggered.connect(self.mVis.removeSelectedVisualizations)
-
+        self.actionAcceptCandidate.triggered.connect(self.mVis.acceptCandidates)
         self.actionDeselect.triggered.connect(self.deselect)
         self.actionPanToSelected.triggered.connect(self.panToSelected)
         self.actionZoomToSelected.triggered.connect(self.zoomToSelected)
         self.onFeatureSelectionChanged(dict())
+        self.actionShowSelectedProfileOnly.toggled.connect(self.mVis.setShowSelectedOnly)
 
         self.btnCancelTask.clicked.connect(self.mVis.cancelLoadingTask)
 

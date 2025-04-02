@@ -2,27 +2,27 @@ import itertools
 import json
 from typing import Any, Dict, List, Optional, Union
 
-from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
-    QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsGeometry, QgsProject, QgsProperty, \
-    QgsPropertyDefinition, QgsVectorLayer
-from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, \
-    QPixmap, QStandardItem, QStandardItemModel
-from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QHeaderView, QMenu, QStyle, QStyledItemDelegate, \
-    QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
-from qgis.gui import QgsFieldExpressionWidget
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
-
-from eotimeseriesviewer.temporalprofile.spectralindices import spectral_indices
-from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileLayerFieldComboBox, TemporalProfileUtils
-from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, \
     PlotStyleDialog, PlotStyleWidget
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibraryplotmodelitems import PlotStyleItem, \
     PropertyItem, PropertyItemBase, PropertyItemGroup, PropertyLabel, QgsPropertyItem
-from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from eotimeseriesviewer.sensors import SensorInstrument
+from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
+from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
+from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
+from eotimeseriesviewer.temporalprofile.spectralindices import spectral_indices
+from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileLayerFieldComboBox, TemporalProfileUtils
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
+from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, \
+    QPixmap, QStandardItem, QStandardItemModel
+from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QHeaderView, QMenu, QStyle, QStyledItemDelegate, \
+    QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
+from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
+    QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsGeometry, QgsProject, QgsProperty, \
+    QgsPropertyDefinition, QgsVectorLayer
+from qgis.gui import QgsFieldExpressionWidget
 
 
 class StyleItem(PlotStyleItem):
@@ -248,6 +248,10 @@ class TPVisSettings(PropertyItemGroup):
         self.mCandidateLineStyle.label().setText('Candidates')
         self.mCandidateLineStyle.setToolTip('Style of profile candidates')
         self.mCandidateLineStyle.label().setIcon(QIcon(':/images/themes/default/propertyicons/stylepreset.svg'))
+
+        settings = EOTSVSettingsManager.settings()
+        if isinstance(settings.profileStyleCurrent, PlotStyle):
+            self.mCandidateLineStyle.setPlotStyle(settings.profileStyleCurrent)
 
         self.mThreads = QgsPropertyItem('n_threads')
         self.mThreads.setDefinition(QgsPropertyDefinition(
@@ -1080,6 +1084,7 @@ class PlotSettingsTreeView(QTreeView):
         a.setText(f'{sn} - {ln}')
         a.setToolTip(tt)
         a.setData(spectral_index['formula'])
+        a.setData(f'b("{sn}")')
         a.triggered.connect(lambda *args, _a=a, _i=code_items: self.setSpectralIndex(_a, _i))
 
     def setSpectralIndex(self, a: QAction, items: List[PythonCodeItem]):

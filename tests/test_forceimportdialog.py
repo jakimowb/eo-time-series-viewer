@@ -1,19 +1,15 @@
-import csv
-import datetime
-import json
 import os
 import os
 import unittest
 from pathlib import Path
-
-from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsProject, QgsRasterLayer
-from qgis.PyQt.QtCore import QDate
 
 from eotimeseriesviewer.force import FORCEUtils
 from eotimeseriesviewer.forceinputs import find_tile_folders, FindFORCEProductsTask, FORCEProductImportDialog, \
     read_tileids, rx_FORCE_TILEFOLDER
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
+from qgis.PyQt.QtCore import QDate
+from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsProject, QgsRasterLayer
 
 start_app()
 
@@ -136,7 +132,14 @@ class FORCEImportTestCases(EOTSVTestCase):
         eotsv = EOTimeSeriesViewer()
         eotsv.ui.show()
         tile_id = self.get_example_tiledir()
-        eotsv.loadFORCEProducts(force_cube=FORCE_CUBE, tile_ids=tile_id)
+        # eotsv.loadFORCEProducts(force_cube=FORCE_CUBE, tile_ids=tile_id)
+
+        task = FindFORCEProductsTask('BOA', FORCE_CUBE, tile_ids=[tile_id])
+        task.run()
+        files = task.files()[0:20]
+
+        eotsv.addTimeSeriesImages(files)
+
         self.showGui(eotsv.ui)
 
     def test_crs_check(self):
