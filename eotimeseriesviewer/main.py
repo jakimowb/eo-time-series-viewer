@@ -225,7 +225,7 @@ class EOTimeSeriesViewerUI(QMainWindow):
         self.optionIdentifyTemporalProfile.setEnabled(b)
         self.optionMoveCenter.setEnabled(b)
 
-    def closeEvent(self, a0: QCloseEvent, **kwargs):
+    def closeEvent(self, a0: QCloseEvent):
         self.sigAboutToBeClosed.emit()
 
     """
