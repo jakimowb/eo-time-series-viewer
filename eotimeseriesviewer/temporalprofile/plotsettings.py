@@ -11,7 +11,7 @@ from eotimeseriesviewer.sensors import SensorInstrument
 from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
 from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
 from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
-from eotimeseriesviewer.temporalprofile.spectralindices import spectral_indices
+from eotimeseriesviewer.spectralindices import spectral_indices
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileLayerFieldComboBox, TemporalProfileUtils
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
@@ -1003,11 +1003,6 @@ class PlotSettingsTreeView(QTreeView):
             if isinstance(item, TPVisSensor):
                 s = ""
 
-    @classmethod
-    def createSpectralIndexMenu(cls, menu: QMenu) -> QMenu:
-        indices = spectral_indices()
-        pass
-
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         """
         Default implementation. Emits populateContextMenu to create context menu
@@ -1055,8 +1050,10 @@ class PlotSettingsTreeView(QTreeView):
             if d not in ['kernel']:
                 DOMAINS[d] = DOMAINS.get(d, []) + [idx]
 
-        selected_indices = sorted(['EVI', 'NDVI'])
+        settings = EOTSVSettingsManager.settings()
+        selected_indices = settings.spectralIndexShortcuts
         selected_indices = [indices[idx] for idx in selected_indices if idx in indices]
+
         if len(selected_indices) > 0:
             for idx in selected_indices:
                 self.addSpectralIndexAction(m, idx, code_items)
