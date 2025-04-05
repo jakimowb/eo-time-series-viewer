@@ -42,7 +42,12 @@ class DateTimePlotWidget(pg.PlotWidget):
         self.mInfoColor = QColor('yellow')
         self.mCrosshairLineV = pg.InfiniteLine(angle=90, movable=False)
         self.mCrosshairLineH = pg.InfiniteLine(angle=0, movable=False)
-        self.mInfoLabelCursor = pg.TextItem(text='<cursor position>', anchor=(1.0, 0.0))
+
+        b = self.backgroundBrush()
+        c = b.color()
+        c.setAlpha(125)
+
+        self.mInfoLabelCursor = pg.TextItem(text='<cursor position>', fill=c, anchor=(1.0, 0.0))
         self.mInfoLabelCursor.setColor(QColor('yellow'))
 
         self.scene().addItem(self.mInfoLabelCursor)
