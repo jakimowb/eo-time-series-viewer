@@ -299,6 +299,15 @@ class TestTemporalProfilesV2(EOTSVTestCase):
 
         self.assertEqual(len(results), len(points))
 
+    @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Live testing only')
+    def test_temp_profile_loading(self):
+
+        eotsv = EOTimeSeriesViewer()
+        eotsv.loadExampleTimeSeries(loadAsync=False)
+        eotsv.activateIdentifyTemporalProfileMapTool()
+        eotsv.loadCurrentTemporalProfile(eotsv.spatialCenter())
+        self.showGui(eotsv.ui)
+
 
 if __name__ == "__main__":
     unittest.main(buffer=False)

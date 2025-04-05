@@ -1,4 +1,5 @@
 import enum
+import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
@@ -71,6 +72,7 @@ class EOTSVSettings(object):
         # FORCE
         self.forceRootDir: Path = Path.home()
         self.forceProduct: str = 'BOA'
+        self.spectralIndexShortcuts: List[str] = ['EVI', 'NDVI']
 
     def keys(self) -> List[str]:
         return [k for k in self.__dict__.keys() if not k.startswith('_')]
@@ -139,7 +141,9 @@ class EOTSVSettings(object):
             if type(newValue) is type(defaultValue) or defaultValue is None:
                 setattr(self, k, newValue)
             else:
-                raise NotImplementedError(f'Unable to update {k} from {type(newValue)} {newValue}')
+                print(f'Unable to update setting property {k} from:\n'
+                      f'type: {type(newValue)} value: {newValue}\n'
+                      f'default: {type(defaultValue)} value {defaultValue}', file=sys.stderr)
 
 
 class EOTSVSettingsManager(object):

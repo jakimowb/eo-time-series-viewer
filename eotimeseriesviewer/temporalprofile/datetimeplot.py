@@ -1,23 +1,24 @@
-import datetime
 import re
-import sys
-from typing import List
+from typing import Dict, List, Optional, Tuple
+from datetime import datetime
 
-from qgis.PyQt.QtGui import QColor, QPalette
+import numpy as np
+
+from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QDateTimeEdit, QFrame, QGridLayout, QRadioButton, QWidget, QWidgetAction
-from qgis.PyQt.QtCore import pyqtSignal, QPointF
-
-from eotimeseriesviewer.dateparser import dateDOY, ImageDateUtils, num2date
+from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QPointF, Qt
+from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
-from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import ScatterPlotItem
-from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.GraphicsScene.mouseEvents import HoverEvent
-from eotimeseriesviewer.qgispluginsupport.qps.utils import HashablePointF, SpatialPoint
+from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import ScatterPlotItem, SpotItem
+from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.GraphicsScene.mouseEvents import HoverEvent, \
+    MouseClickEvent
+from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
 from eotimeseriesviewer.temporalprofile.plotitems import TemporalProfilePlotDataItem
 
 
 class DateTimePlotWidget(pg.PlotWidget):
     """
-    A plotwidget to visualize temporal profiles
+    A widget to visualize temporal profiles
     """
 
     def __init__(self, parent: QWidget = None):
@@ -53,42 +54,8 @@ class DateTimePlotWidget(pg.PlotWidget):
 
         assert isinstance(self.scene(), pg.GraphicsScene)
         self.mSignalProxyMouseMoved = pg.SignalProxy(self.scene().sigMouseMoved, rateLimit=60, slot=self.onMouseMoved2D)
-        # self.scene().sigMouseHover.connect(self.onPointsHovered)
-        # pal = self.palette()
-        # pal = getQDarkStyleLightQPalette()
-        # self.setPalette(pal)
-
-        # self.setBackground('w')
-        s = ""
-        # self.mUpdateTimer = QTimer()
-        # self.mUpdateTimer.setInterval(500)
-        # self.mUpdateTimer.setSingleShot(False)
-        # self.mUpdateTimer.timeout.connect(self.onPlotUpdateTimeOut)
-        # self.mPlotSettingsModel: PlotSettingsModel = None
-        self.mHoveredPositions = set()
-
-        if False:
-            vb = self.plotItem.getViewBox()
-            p: QPalette = vb.palette()
-
-            groups = {QPalette.Inactive: 'inactive',
-                      QPalette.Active: 'active',
-                      QPalette.Disabled: 'disabled'}
-            roles = {QPalette.ToolTipText: 'ToolTipText',
-                     QPalette.ToolTipBase: 'ToolTipBase'}
-
-            results = dict()
-            for g, gs in groups.items():
-                for r, rs in roles.items():
-                    k = f'{gs}_{rs}'
-                    results[k] = p.color(g, r).name(QColor.HexArgb)
-
-            for k, v in results.items():
-                print(f'{k}={v}')
-
-        s = ""
-        # self.mPlotDataItems = dict()
-        # self.mUpdatedProfileStyles = set()
+        self.mHoveredPositions: Dict[str, List[Tuple[DateTimePlotDataItem, SpotItem]]] = dict()
+        self.mClickedPositions: Dict[Tuple, Tuple[DateTimePlotDataItem, int]] = dict()
 
     def closeEvent(self, *args, **kwds):
         """
@@ -103,19 +70,52 @@ class DateTimePlotWidget(pg.PlotWidget):
     def resetViewBox(self):
         self.plotItem.getViewBox().autoRange()
 
-    def onPointsHovered(self, item, array, event: HoverEvent):
-        if event.isExit() or event.isEnter():
-            self.mHoveredPositions.clear()
+    def onPointsHovered(self, item: ScatterPlotItem, array: np.ndarray, event: HoverEvent):
 
-        if isinstance(item, ScatterPlotItem) and isinstance(item.parentItem(), DateTimePlotDataItem):
-            name = item.parentItem().name()
-            for spot in array.tolist():
-                self.mHoveredPositions.add((name, HashablePointF(spot.pos())))
+        if isinstance(item, ScatterPlotItem):
+            if isinstance(item.parentItem(), DateTimePlotDataItem):
+                if len(array) == 0:
+                    s = ""
+                dataItem: DateTimePlotDataItem = item.parentItem()
+                try:
+                    k = str(event.pos())
+                    # k = item.pos()
+                except AttributeError:
+                    k = None
+
+                if isinstance(k, str):
+                    if k not in self.mHoveredPositions:
+                        self.mHoveredPositions.clear()
+                        self.mHoveredPositions[k] = []
+
+                    for spotItem in array.tolist():
+                        self.mHoveredPositions[k].append((dataItem, spotItem))
+
+                    if len(self.mHoveredPositions[k]) > 1:
+                        s = ""
+            else:
+                s = ""
+        # print(self.mHoveredPositions)
         return True
 
-    def onPointsClicked(self, *args, **kwds):
+    def onPointsClicked(self, item: ScatterPlotItem, array: np.ndarray, event: MouseClickEvent):
 
-        s = ""
+        parent = item.parentItem()
+        if isinstance(parent, DateTimePlotDataItem):
+            for spotItem in array:
+                spotItem: SpotItem
+                k = (id(parent), spotItem.index())
+
+                if bool(event.modifiers() & Qt.ControlModifier):
+                    if k in self.mClickedPositions:
+                        self.mClickedPositions.pop(k)
+                    else:
+                        self.mClickedPositions[k] = (parent, spotItem.index())
+                else:
+                    self.mClickedPositions.clear()
+                    self.mClickedPositions[k] = (parent, spotItem.index())
+
+        # print(self.mClickedPositions)
 
     def onCurveClicked(self, item, event):
 
@@ -136,27 +136,30 @@ class DateTimePlotWidget(pg.PlotWidget):
             if x < 0:
                 self.hideInfoItems()
                 return
-            nearest_item = None
-            nearest_index = -1
-            nearest_distance = sys.float_info.max
 
-            date = datetime.datetime.fromtimestamp(x)
-            # date = num2date(x)
-            doy = dateDOY(date)
+            date = ImageDateUtils.datetime(x)
+            # print(f'#update: {date.toString(Qt.ISODate)}')
             vb.updateCurrentDate(date)
 
-            positionInfo = []
-            for spotInfo in sorted(self.mHoveredPositions, reverse=True, key=lambda p: p[1].y()):
-                name, spotPos = spotInfo
-                name = f'{name}:' if name else ''
-                spotDate = datetime.datetime.fromtimestamp(spotPos.x())
-                spotValue = spotPos.y()
-                spotDoy = dateDOY(spotDate)
+            infoText = []
+            for k, pointValues in self.mHoveredPositions.items():
+                for (dataItem, spotItem) in pointValues:
+                    dataItem: DateTimePlotDataItem
 
-                positionInfo.append(f'{name} {spotValue:0.5f}, {spotDate.date().isoformat()}, {spotDoy}'.strip())
+                    spotItem: SpotItem
+                    spotDate = ImageDateUtils.datetime(spotItem.pos().x())
+                    spotValue = spotItem.pos().y()
+                    spotDoy = ImageDateUtils.doiFromDateTime(spotDate)
 
-            positionInfo = '\n'.join(positionInfo)
-            self.mInfoLabelCursor.setText(positionInfo, color=self.mInfoColor)
+                    info = [f'{spotValue}',
+                            f'{spotDate.date().toString(Qt.ISODate)}',
+                            f'DOY: {spotDoy}',
+                            dataItem.name()]
+
+                    infoText.append('\n'.join([v for v in info if v not in [None, '']]))
+
+            infoText = '\n'.join(infoText)
+            self.mInfoLabelCursor.setText(infoText, color=self.mInfoColor)
 
             s = self.size()
             pos = QPointF(s.width(), 0)
@@ -196,33 +199,8 @@ class DateTimeAxis(pg.DateAxisItem):
         self.enableAutoSIPrefix(False)
         self.labelAngle = 0
 
-    def logTickStrings(self, values, scale, spacing):
-        s = ""
-
-    def __tickStrings(self, values, scale, spacing):
-        strns = []
-
-        if len(values) == 0:
-            return []
-        # assert isinstance(values[0],
-
-        values = [num2date(v) if v > 0 else num2date(1) for v in values]
-        rng = max(values) - min(values)
-        ndays = rng.astype(int)
-
-        strns = []
-
-        for v in values:
-            if ndays == 0:
-                strns.append(v.astype(str))
-            else:
-                strns.append(v.astype(str))
-
-        return strns
-
     def tickValues(self, minVal, maxVal, size):
         d = super(DateTimeAxis, self).tickValues(minVal, maxVal, size)
-
         return d
 
     def tickFont(self):
@@ -268,8 +246,8 @@ class DateTimePlotItem(pg.PlotItem):
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
 
-    def addItem(self, item, *args, **kargs):
-        super().addItem(item, *args, **kargs)
+    def addItem(self, item, *args, **kwds):
+        super().addItem(item, *args, **kwds)
 
 
 class DateTimePlotDataItem(pg.PlotDataItem):
@@ -278,13 +256,19 @@ class DateTimePlotDataItem(pg.PlotDataItem):
         super().__init__(*args, **kwds)
         self.mFeatureID = None
         self.mLayerId = None
+        self.mTemporalProfile: Optional[dict] = None
+        self.mObservationIndices: Optional[np.ndarray] = None
+
+    def setTemporalProfile(self, d: dict, obs_indices: np.ndarray):
+        self.mTemporalProfile = d
+        self.mObservationIndices = obs_indices
 
 
 class DateTimeViewBox(pg.ViewBox):
     """
     Subclass of ViewBox
     """
-    moveToDate = pyqtSignal(datetime.datetime)
+    moveToDate = pyqtSignal(QDateTime)
     moveToLocation = pyqtSignal(SpatialPoint)
 
     def __init__(self, parent=None):
@@ -295,11 +279,10 @@ class DateTimeViewBox(pg.ViewBox):
         # self.menu = None # Override pyqtgraph ViewBoxMenu
         # self.menu = self.getMenu() # Create the menu
         # self.menu = None
-        self.mCurrentDate = datetime.datetime.now()
+        self.mCurrentDate: QDateTime = QDateTime(datetime.now())
 
         self.mXAxisUnit = 'date'
         xAction = [a for a in self.menu.actions() if re.search('X Axis', a.text(), re.IGNORECASE)][0]
-        #  yAction = [a for a in self.menu.actions() if re.search('Y Axis', a.text(), re.IGNORECASE)][0]
 
         menuXAxis = self.menu.addMenu('X Axis')
         # define the widget to set X-Axis options
@@ -339,7 +322,7 @@ class DateTimeViewBox(pg.ViewBox):
         self.menu.insertMenu(xAction, menuXAxis)
         self.menu.removeAction(xAction)
 
-        self.mActionMoveToDate = self.menu.addAction('Move to {}'.format(self.mCurrentDate))
+        self.mActionMoveToDate = self.menu.addAction(f'Move to {self.mCurrentDate.toString(Qt.ISODate)}')
         self.mActionMoveToDate.triggered.connect(lambda *args: self.moveToDate.emit(self.mCurrentDate))
 
         # self.mActionMoveToProfile = self.menu.addAction('Move to profile location')
@@ -380,33 +363,23 @@ class DateTimeViewBox(pg.ViewBox):
 
             self.setXRange(t0, t1)
 
-    def updateCurrentDate(self, dtg: datetime.datetime):
-        if isinstance(dtg, datetime.datetime):
-            self.mCurrentDate = dtg
-            self.mActionMoveToDate.setData(dtg)
-            self.mActionMoveToDate.setText('Move maps to {}'.format(dtg))
+    def updateCurrentDate(self, dtg: QDateTime):
+        assert isinstance(dtg, QDateTime)
+        self.mCurrentDate = dtg
+        # print(f'# Update actionMovetoDate: {dtg.toString(Qt.ISODate)}')
+        self.mActionMoveToDate.setData(dtg)
+        self.mActionMoveToDate.setText(f'Move maps to {dtg.toString(Qt.ISODate)}')
 
     def raiseContextMenu(self, ev):
 
-        pt = self.mapDeviceToView(ev.pos())
-        dtg = datetime.datetime.fromtimestamp(pt.x())
-        self.updateCurrentDate(dtg)
-
-        plotDataItems = [item for item in self.scene().itemsNearEvent(ev) if
-                         isinstance(item, ScatterPlotItem) and isinstance(item.parentItem(),
-                                                                          DateTimePlotDataItem)]
-
         xRange, yRange = self.viewRange()
         if min(xRange) > 0:
-            t0 = datetime.datetime.fromtimestamp(xRange[0])
-            t1 = datetime.datetime.fromtimestamp(xRange[1])
+            t0 = ImageDateUtils.datetime(xRange[0])
+            t1 = ImageDateUtils.datetime(xRange[1])
             self.dateEditX0.setDate(t0.date())
             self.dateEditX1.setDate(t1.date())
 
         menu = self.getMenu(ev)
-
-        if len(plotDataItems) > 0:
-            s = ""
 
         self.scene().addParentContextMenus(self, menu, ev)
         menu.exec_(ev.screenPos().toPoint())

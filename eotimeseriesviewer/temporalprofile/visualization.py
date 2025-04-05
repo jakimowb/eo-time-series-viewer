@@ -18,7 +18,6 @@
  *                                                                         *
  ***************************************************************************/
 """
-import datetime
 import os
 import sys
 import weakref
@@ -27,10 +26,10 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QItemSelectionModel, QModelIndex, QObject, \
+    QPoint, Qt, QTimer
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QItemSelectionModel, QModelIndex, QObject, QPoint, Qt, \
-    QTimer
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QAction, QMenu, QProgressBar, QSlider, QTableView, QToolButton, QWidgetAction
 from qgis.core import QgsApplication, QgsCoordinateTransform, QgsExpression, QgsExpressionContext, \
@@ -147,7 +146,7 @@ class _SensorPoints(pg.PlotDataItem):
 
 class TemporalProfileVisualization(QObject):
     loadingProgress = pyqtSignal(float)
-    moveToDate = pyqtSignal(datetime.datetime)
+    moveToDate = pyqtSignal(QDateTime)
 
     featureSelectionChanged = pyqtSignal(dict)
 
@@ -517,7 +516,6 @@ class TemporalProfileVisualization(QObject):
             # compiles the expressions that are used to calculate the x and y values
 
             request = QgsFeatureRequest()
-            requestCandidates = QgsFeatureRequest()
 
             context = QgsExpressionContext()
             context.appendScope(QgsExpressionContextUtils.globalScope())
@@ -526,6 +524,7 @@ class TemporalProfileVisualization(QObject):
             request.setExpressionContext(context)
 
             if len(VIS_PROFILE_CANDIDATES) > 0:
+                requestCandidates = QgsFeatureRequest()
                 requestCandidates.setExpressionContext(QgsExpressionContext(context))
                 requestCandidates.setFilterFids(VIS_PROFILE_CANDIDATES)
                 candidateFeatures = lyr.getFeatures(requestCandidates)
@@ -551,9 +550,14 @@ class TemporalProfileVisualization(QObject):
             LABEL_EXPRESSION = QgsExpression(vis.get('label', lyr.displayExpression()))
             s = ""
 
+            fid_done = set()
             for feature in chain(candidateFeatures, lyr.getFeatures(request)):
                 feature: QgsFeature
                 is_candidate: bool = feature.id() in VIS_PROFILE_CANDIDATES
+                if feature.id() in fid_done:
+                    continue
+                else:
+                    fid_done.add(feature.id())
 
                 feature_context = QgsExpressionContext(context)
                 feature_context.setFeature(feature)
@@ -573,7 +577,8 @@ class TemporalProfileVisualization(QObject):
                         if isinstance(match, SensorInstrument):
                             if match.id() not in SENSOR_SPECS:
                                 SENSOR_SPECS[match.id()] = spec
-
+                        else:
+                            s = ""
                         requires_sensor_vis = True
                         for vis_sensor in vis['sensors']:
                             vsid = vis_sensor['sensor_id']
@@ -650,7 +655,7 @@ class TemporalProfileVisualization(QObject):
                             s = ""
                         else:
                             if result is None:
-                                name = ''
+                                name = None
                             else:
                                 name = f'{result}'
 
@@ -663,8 +668,8 @@ class TemporalProfileVisualization(QObject):
                                                symbolBrush=all_symbol_brushes,
                                                hoverable=True,
                                                pxMode=True,
-
                                                )
+                    pdi.setTemporalProfile(tpData, results['indices'])
                     pdi.curve.setClickable(True)
                     # pdi = DateTimePlotDataItem(data)
                     # pdi.setCurveClickable(True)
@@ -698,7 +703,7 @@ class TemporalProfileVisualization(QObject):
         for item in new_plotitems:
             item.sigClicked.connect(self.itemClicked)
             item.scatter.sigHovered.connect(self.mPlotWidget.onPointsHovered)
-            # item.sigPointsClicked.connect(self.pointsClicked)
+            item.scatter.sigClicked.connect(self.mPlotWidget.onPointsClicked)
             # item.sigPointsHovered.connect(self.pointsHovered)
             self.mPlotWidget.plotItem.addItem(item)
 
@@ -829,7 +834,7 @@ class TemporalProfileVisualization(QObject):
 
 
 class TemporalProfileDock(QgsDockWidget):
-    sigMoveToDate = pyqtSignal(datetime.datetime)
+    sigMoveToDate = pyqtSignal(QDateTime)
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)

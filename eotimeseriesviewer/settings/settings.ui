@@ -102,6 +102,11 @@
        </item>
        <item>
         <property name="text">
+         <string>Spectral Indices</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
          <string>Others</string>
         </property>
        </item>
@@ -110,7 +115,7 @@
      <item>
       <widget class="QStackedWidget" name="stackedWidget">
        <property name="currentIndex">
-        <number>0</number>
+        <number>4</number>
        </property>
        <widget class="QWidget" name="pageGeneral">
         <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -696,6 +701,197 @@
          </item>
         </layout>
        </widget>
+       <widget class="QWidget" name="pageSpectralIndices">
+        <layout class="QVBoxLayout" name="verticalLayout_10">
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QTabWidget" name="tabWidget">
+           <property name="currentIndex">
+            <number>1</number>
+           </property>
+           <widget class="QWidget" name="tabBandIdentifiers">
+            <attribute name="title">
+             <string>Band Identifiers</string>
+            </attribute>
+            <layout class="QHBoxLayout" name="horizontalLayout_7">
+             <property name="spacing">
+              <number>0</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QTableView" name="tvBandIdentifiers"/>
+             </item>
+            </layout>
+           </widget>
+           <widget class="QWidget" name="tabSpectralIndices">
+            <attribute name="title">
+             <string>Spectral Indices</string>
+            </attribute>
+            <layout class="QVBoxLayout" name="verticalLayout_11">
+             <property name="spacing">
+              <number>6</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item>
+              <layout class="QHBoxLayout" name="horizontalLayout_6">
+               <property name="spacing">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QgsFilterLineEdit" name="mSpectralIndexFilter">
+                 <property name="placeholderText">
+                  <string>Filter</string>
+                 </property>
+                 <property name="nullValue">
+                  <string/>
+                 </property>
+                 <property name="showSearchIcon">
+                  <bool>true</bool>
+                 </property>
+                 <property name="showSpinner">
+                  <bool>false</bool>
+                 </property>
+                 <property name="qgisRelation" stdset="0">
+                  <string notr="true"/>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QToolButton" name="btnSpectralIndexFilterCaseSensitive">
+                 <property name="text">
+                  <string>Cc</string>
+                 </property>
+                 <property name="icon">
+                  <iconset resource="../../../QGIS/images/images.qrc">
+                   <normaloff>:/images/themes/default/mIconSearchCaseSensitive.svg</normaloff>:/images/themes/default/mIconSearchCaseSensitive.svg</iconset>
+                 </property>
+                 <property name="checkable">
+                  <bool>true</bool>
+                 </property>
+                 <property name="autoRaise">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QToolButton" name="btnSpectralIndexFilterUseRegEx">
+                 <property name="text">
+                  <string>*.</string>
+                 </property>
+                 <property name="icon">
+                  <iconset resource="../../../QGIS/images/images.qrc">
+                   <normaloff>:/images/themes/default/mIconSearchRegex.svg</normaloff>:/images/themes/default/mIconSearchRegex.svg</iconset>
+                 </property>
+                 <property name="checkable">
+                  <bool>true</bool>
+                 </property>
+                 <property name="autoRaise">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item>
+              <widget class="QTableView" name="tvSpectralIndices"/>
+             </item>
+             <item>
+              <layout class="QHBoxLayout" name="horizontalLayout_8">
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QLabel" name="label_18">
+                 <property name="text">
+                  <string>Shortcuts:</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QLabel" name="labelSpectralIndexShortcuts">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                   <horstretch>2</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="toolTip">
+                  <string>Shorts for spectral indices in temporal profile view.</string>
+                 </property>
+                 <property name="text">
+                  <string>none</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </widget>
+           <widget class="QWidget" name="tabConstants">
+            <attribute name="title">
+             <string>Constants</string>
+            </attribute>
+            <layout class="QHBoxLayout" name="horizontalLayout_5">
+             <property name="spacing">
+              <number>0</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QTableView" name="tvSpectralConstants"/>
+             </item>
+            </layout>
+           </widget>
+          </widget>
+         </item>
+        </layout>
+       </widget>
        <widget class="QWidget" name="pageOthers">
         <layout class="QVBoxLayout" name="verticalLayout_8">
          <item>
@@ -936,6 +1132,11 @@
    <class>QgsFileWidget</class>
    <extends>QWidget</extends>
    <header>qgsfilewidget.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QgsFilterLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header>qgsfilterlineedit.h</header>
   </customwidget>
   <customwidget>
    <class>QgsFontButton</class>

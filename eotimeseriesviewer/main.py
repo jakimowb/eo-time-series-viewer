@@ -1956,7 +1956,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.ui.addDockWidget(Qt.BottomDockWidgetArea, dock)
         self.ui.menuPanels.addAction(dock.toggleViewAction())
-        self.ui.tabifyDockWidget(self.ui.dockProfiles, dock)
+        # self.ui.tabifyDockWidget(self.ui.dockProfiles, dock)
         dock.activateWindow()
         QTimer.singleShot(10, lambda d=dock: d.raise_())
         return dock
@@ -2018,21 +2018,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         d.algorithmFinished.connect(onExecuted)
         d.exec_()
-
-    def createSpectralLibrary(self) -> SpectralLibraryWidget:
-        """
-        Create a spectral library
-        """
-
-        speclib: QgsVectorLayer = SpectralLibraryUtils.createSpectralLibrary()
-        speclib.startEditing()
-        for field in SPECTRA_PROFILE_FIELDS:
-            speclib.addAttribute(field)
-        assert speclib.commitChanges()
-        # QgsProject.instance().addMapLayer(speclib)
-        self.mapLayerStore().addMapLayer(speclib)
-        self.showAttributeTable(speclib)
-        self.addMapLayers(speclib)
 
     def createTemporalProfileLayer(self, skip_dialog: bool = False) -> Optional[QgsVectorLayer]:
         """

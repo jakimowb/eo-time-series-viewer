@@ -19,6 +19,7 @@
  ***************************************************************************/
 """
 import bisect
+import datetime
 import pathlib
 import re
 from pathlib import Path
@@ -1154,10 +1155,10 @@ class TimeSeries(QAbstractItemModel):
                     return tssCandidate
         return None
 
-    def findDate(self, date) -> Optional[TimeSeriesDate]:
+    def findDate(self, date: Union[str, QDateTime, datetime.datetime, TimeSeriesDate]) -> Optional[TimeSeriesDate]:
         """
         Returns a TimeSeriesDate closest to that in date
-        :param date: QDateTime | str | TimeSeriesDate
+        :param date: QDateTime | str | TimeSeriesDate | datetime.datetime
         :return: TimeSeriesDate
         """
         if isinstance(date, TimeSeriesDate):
@@ -1165,6 +1166,8 @@ class TimeSeries(QAbstractItemModel):
         elif isinstance(date, str):
             date = QDateTime.fromString(date, Qt.ISODateWithMs)
 
+        if not isinstance(date, QDateTime):
+            s = ""
         assert isinstance(date, QDateTime)
 
         if len(self) == 0:

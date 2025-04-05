@@ -16,7 +16,7 @@ from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING
 from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
 from eotimeseriesviewer.sensors import sensor_id
 from eotimeseriesviewer.tasks import EOTSVTask
-from eotimeseriesviewer.temporalprofile.spectralindices import spectral_index_acronyms, spectral_indices
+from eotimeseriesviewer.spectralindices import spectral_index_acronyms, spectral_indices
 from qgis.PyQt.QtCore import NULL, pyqtSignal, QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
@@ -477,6 +477,7 @@ class TemporalProfileUtils(object):
                    'y': y,
                    'n': len(x),
                    'sensor_indices': sensor_indices,
+                   'indices': is_valid,
                    'errors': errors,
                    }
 
