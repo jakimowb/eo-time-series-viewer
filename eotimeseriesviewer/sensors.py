@@ -453,7 +453,7 @@ def registerDataProvider():
         SensorMockupDataProvider.createProvider,
     )
     registry = QgsProviderRegistry.instance()
-    successs = registry.registerProvider(metadata)
-    if not successs:
+    success = registry.registerProvider(metadata)
+    if not success:
         s = ""
     QgsMessageLog.logMessage('EOTSV SensorMockupDataProvider registered', level=Qgis.MessageLevel.Info)
