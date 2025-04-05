@@ -1797,7 +1797,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                               n: int = None,
                               loadAsync: bool = True,
                               filter_raster: Union[str, Pattern, Match] = re.compile(r'.*\.tif$'),
-                              filter_vector: Union[str, Pattern, Match] = re.compile(r'.*\.(gpkg|shp)$')):
+                              filter_vector: Union[str, Pattern, Match] = re.compile(r'.*\.(gpkg|geojson)$')):
         """
         Loads an example time series
         :param filter_vector:
