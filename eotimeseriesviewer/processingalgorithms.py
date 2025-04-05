@@ -352,14 +352,16 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
             return False
 
         out_path = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
-        if os.path.isfile(out_path):
-            Path(out_path).unlink()
+        if out_path.startswith('memory:'):
+            out_driver = 'memory'
+        else:
+            if os.path.isfile(out_path):
+                Path(out_path).unlink()
 
-        out_driver = QgsVectorFileWriter.driverForExtension(os.path.splitext(out_path)[1])
-        if out_driver in ['', None]:
-            feedback.pushError(f'Unable to identify vector driver for output path: "{out_path}"')
-            return False
-
+            out_driver = QgsVectorFileWriter.driverForExtension(os.path.splitext(out_path)[1])
+            if out_driver in ['', None]:
+                feedback.reportError(f'Unable to identify vector driver for output path: "{out_path}"', True)
+                return False
         self._output_driver = out_driver
         self._n_threads = self.parameterAsInt(parameters, self.N_THREADS, context)
         self._field_name = profile_field
