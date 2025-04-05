@@ -282,7 +282,7 @@ class ProcessingAlgorithmTests(EOTSVTestCase):
             progress = 0
 
             def onProgressChanged(p):
-                nonlocal task, progress
+                nonlocal progress
                 progress = p
                 if p > 0.0:
                     task.cancel()

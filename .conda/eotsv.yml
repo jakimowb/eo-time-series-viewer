@@ -19,6 +19,7 @@ dependencies:
   - pytest-xdist
   - flake8
   - doc8
+  - openpyxl
   - pip # pip as dependency
 
   - pip: # pip requirements

@@ -113,7 +113,7 @@ class TestTimeSeries(EOTSVTestCase):
         n_calls = 0
 
         def onOverlapsFound(results: dict):
-            nonlocal all_overlaps, n_calls
+            nonlocal n_calls
             all_overlaps.update(results)
             n_calls += 1
 
