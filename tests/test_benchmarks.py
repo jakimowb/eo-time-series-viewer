@@ -153,8 +153,7 @@ class BenchmarkTestCase(EOTSVTestCase):
                         'TARGET_CRS': lyr.crs(),
                         'MAX_ATTEMPTS': 200,
                         'OUTPUT': str(path_random_points)},
-                                   context=context, feedback=feedback
-                                   )
+                                   context=context, feedback=feedback)
 
                     break
 

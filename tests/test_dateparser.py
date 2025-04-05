@@ -1,10 +1,8 @@
 import datetime
 import unittest
 
-from PyQt5.QtCore import QTime
-
+from qgis.PyQt.QtCore import QDate, QDateTime, Qt, QTime
 from qgis.core import QgsDateTimeRange, QgsRasterLayer
-from qgis.PyQt.QtCore import QDate, QDateTime, Qt
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from example import exampleLandsat8, exampleNoDataImage, exampleRapidEye

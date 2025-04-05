@@ -274,9 +274,6 @@ class TestTemporalProfilesV2(EOTSVTestCase):
                   (int((lyr.width() / 2)), int(lyr.height() / 2))]
         points = [SpatialPoint.fromPixelPosition(lyr, *px) for px in pixels]
 
-        def onProgress(progress):
-            print(f'Progress {progress}')
-
         results = None
 
         def onExecuted(success, r):

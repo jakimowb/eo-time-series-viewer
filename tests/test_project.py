@@ -21,11 +21,9 @@ import random
 import unittest
 from typing import List, Optional
 
-from PyQt5.QtCore import QSize
-from qgis._core import QgsApplication, QgsVectorLayer
-from qgis.core import QgsCoordinateReferenceSystem, QgsProject
+from qgis.PyQt.QtCore import QSize
+from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsProject, QgsVectorLayer
 from qgis.gui import QgsMapCanvas
-
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapvisualization import MapView, MapWidget
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent

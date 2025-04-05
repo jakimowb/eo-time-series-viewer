@@ -2,7 +2,7 @@
 
 """
 ***************************************************************************
-    
+
     ---------------------
     Date                 : 30.11.2017
     Copyright            : (C) 2017 by Benjamin Jakimow
@@ -22,7 +22,6 @@ import unittest
 from qgis.PyQt.QtGui import QColor
 from qgis.gui import QgsOptionsWidgetFactory
 from qgis.PyQt.QtWidgets import QTableView
-
 from eotimeseriesviewer.settings.widget import EOTSVSettingsWidget, EOTSVSettingsWidgetFactory, SensorSettingsTableModel
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
 from eotimeseriesviewer.sensors import SensorMatching

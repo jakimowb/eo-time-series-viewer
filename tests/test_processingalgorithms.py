@@ -1,15 +1,12 @@
 import unittest
 
-from qgis._core import QgsFeature
-
+from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsFeature, QgsField, QgsGeometry, \
+    QgsProcessingAlgorithm, QgsProcessingAlgRunnerTask, QgsProcessingProvider, QgsProcessingRegistry, \
+    QgsProcessingUtils, QgsProject, QgsRasterLayer, QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
 from processing import AlgorithmDialog
-import processing.gui.ProcessingToolbox
-from processing.gui import ProcessingToolbox
 from processing.gui.ProcessingToolbox import ProcessingToolbox
+import processing.gui.ProcessingToolbox
 from qgis.PyQt.QtCore import QMetaType
-from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsField, QgsGeometry, QgsProcessingAlgorithm, \
-    QgsProcessingAlgRunnerTask, QgsProcessingProvider, QgsProcessingRegistry, QgsProcessingUtils, QgsProject, \
-    QgsRasterLayer, QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
 from eotimeseriesviewer.forceinputs import FindFORCEProductsTask
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.processingalgorithms import AddTemporalProfileField, CreateEmptyTemporalProfileLayer, \
@@ -19,12 +16,12 @@ from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUt
 from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app, TestObjects
 from eotimeseriesviewer import initAll
 from example import examplePoints
+import qgis.utils
 
 start_app()
 initAll()
-from qgis.utils import iface
 
-processing.gui.ProcessingToolbox.iface = iface
+processing.gui.ProcessingToolbox.iface = getattr(qgis.utils, 'iface')
 
 
 class ProcessingAlgorithmTests(EOTSVTestCase):

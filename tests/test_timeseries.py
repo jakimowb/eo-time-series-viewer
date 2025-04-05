@@ -4,15 +4,14 @@ import os
 import unittest
 
 import numpy as np
-from PyQt5.QtCore import QDateTime
-from qgis._core import QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsVector
 from osgeo import gdal
 
+from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QDateTime, QMimeData, QPointF, \
+    QSortFilterProxyModel, Qt, QUrl
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsMimeDataUtils, \
+    QgsProject, QgsRasterLayer, QgsVector
 from eotimeseriesviewer.tasks import EOTSVTask
 from qgis.gui import QgsTaskManagerWidget
-from qgis.core import Qgis, QgsApplication, QgsMimeDataUtils, QgsProject, QgsRasterLayer
-from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QMimeData, QPointF, QSortFilterProxyModel, Qt, \
-    QUrl
 from qgis.PyQt.QtGui import QDropEvent
 from qgis.PyQt.QtWidgets import QTableView, QTreeView
 import example.Images

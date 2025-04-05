@@ -2,9 +2,9 @@ import json
 import unittest
 
 import numpy as np
-from PyQt5.QtWidgets import QTableView
-from qgis._core import QgsFeature
 
+from qgis.PyQt.QtWidgets import QTableView
+from qgis.core import QgsFeature
 from eotimeseriesviewer.spectralindices import spectral_index_acronyms, SpectralIndexBandIdentifierModel, \
     SpectralIndexConstantModel
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils

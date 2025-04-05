@@ -8,7 +8,6 @@ from qgis.PyQt.QtCore import QSize, Qt
 from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QPushButton, QSplitter, QVBoxLayout, QWidget
 from qgis.core import QgsProject, QgsVectorLayer
 from qgis.PyQt.QtGui import QAction
-
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint
 from eotimeseriesviewer.qgispluginsupport.qps.vectorlayertools import VectorLayerTools
@@ -17,7 +16,7 @@ from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
 from eotimeseriesviewer.temporalprofile.plotsettings import PlotSettingsTreeView, PythonCodeItem, TPVisSensor
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileEditorWidgetFactory
 from eotimeseriesviewer.temporalprofile.visualization import TemporalProfileDock, TemporalProfileVisualization
-from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
+from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app, TestObjects
 from eotimeseriesviewer import initResources
 from eotimeseriesviewer.sensors import SensorInstrument
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
@@ -26,7 +25,6 @@ start_app()
 initResources()
 
 TemporalProfileEditorWidgetFactory.register()
-from eotimeseriesviewer.tests import FORCE_CUBE
 
 
 class PlotSettingsTests(EOTSVTestCase):

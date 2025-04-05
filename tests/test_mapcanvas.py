@@ -2,7 +2,7 @@
 
 """
 ***************************************************************************
-    
+
     ---------------------
     Date                 : 30.11.2017
     Copyright            : (C) 2017 by Benjamin Jakimow
@@ -22,7 +22,6 @@ from qgis.PyQt.QtCore import QPoint
 from qgis.PyQt.QtWidgets import QMenu
 from qgis.core import QgsProject, QgsRasterLayer, QgsWkbTypes
 from qgis.gui import QgsFontButton, QgsMapCanvas
-
 from eotimeseriesviewer.mapcanvas import MapCanvas, MapCanvasInfoItem
 from eotimeseriesviewer.qgispluginsupport.qps.maptools import SpectralProfileMapTool
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
