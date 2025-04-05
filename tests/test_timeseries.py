@@ -8,6 +8,7 @@ from PyQt5.QtCore import QDateTime
 from qgis._core import QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsVector
 from osgeo import gdal
 
+from eotimeseriesviewer.tasks import EOTSVTask
 from qgis.gui import QgsTaskManagerWidget
 from qgis.core import Qgis, QgsApplication, QgsMimeDataUtils, QgsProject, QgsRasterLayer
 from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QMimeData, QPointF, QSortFilterProxyModel, Qt, \
@@ -138,7 +139,7 @@ class TestTimeSeries(EOTSVTestCase):
 
         def onFinished(success, results):
             self.assertTrue(success)
-            self.assertIsInstance(results, dict)
+            self.assertIsInstance(results, EOTSVTask)
 
         ext_full = tss.spatialExtent()
         ext_nodata = SpatialExtent(ext_full.crs(),

@@ -258,7 +258,7 @@ class ProcessingAlgorithmTests(EOTSVTestCase):
 
             results, success = alg.run(parm, context, feedback)
 
-            self.assertEqual(progress, 100)
+            self.assertEqual(100, progress)
             self.assertTrue(success)
             tpLyr = QgsProcessingUtils.mapLayerFromString(results[alg.OUTPUT], context)
             self.assertIsInstance(tpLyr, QgsVectorLayer)

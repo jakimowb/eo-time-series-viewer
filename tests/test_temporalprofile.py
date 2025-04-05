@@ -308,6 +308,9 @@ class TestTemporalProfilesV2(EOTSVTestCase):
         eotsv.loadCurrentTemporalProfile(eotsv.spatialCenter())
         self.showGui(eotsv.ui)
 
+        eotsv.close()
+        QgsProject.instance().removeAllMapLayers()
+
 
 if __name__ == "__main__":
     unittest.main(buffer=False)

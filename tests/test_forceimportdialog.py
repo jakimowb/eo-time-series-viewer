@@ -16,6 +16,7 @@ start_app()
 FORCE_CUBE = Path(os.environ.get('FORCE_CUBE', '-'))
 
 
+# @unittest.skip('#TEST')
 @unittest.skipIf(not FORCE_CUBE.is_dir(), 'FORCE_CUBE undefined / not a directory')
 class FORCEImportTestCases(EOTSVTestCase):
 
@@ -71,7 +72,7 @@ class FORCEImportTestCases(EOTSVTestCase):
             self.assertTrue(f.parent.name in tile_ids)
             self.assertTrue(f.name.endswith('.tif'))
 
-    @unittest.skipIf(not FORCE_CUBE.is_dir() and (FORCE_CUBE / 'mosaic').is_dir(), 'Missing FORCE_CUBE/mosaic folder')
+    @unittest.skipIf(not (FORCE_CUBE.is_dir() and (FORCE_CUBE / 'mosaic').is_dir()), 'Missing FORCE_CUBE/mosaic folder')
     def test_read_mosaic_vrts(self):
         root = FORCE_CUBE / 'mosaic'
         self.assertTrue(root.is_dir())
@@ -141,6 +142,8 @@ class FORCEImportTestCases(EOTSVTestCase):
         eotsv.addTimeSeriesImages(files)
 
         self.showGui(eotsv.ui)
+        eotsv.close()
+        QgsProject.instance().removeAllMapLayers()
 
     def test_crs_check(self):
         tile_id = self.get_example_tiledir()

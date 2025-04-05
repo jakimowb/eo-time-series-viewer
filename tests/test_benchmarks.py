@@ -8,10 +8,10 @@ from typing import Union
 from openpyxl.reader.excel import load_workbook
 from openpyxl.styles import Alignment, Border, Font, Side
 from openpyxl.workbook import Workbook
+from openpyxl.worksheet.worksheet import Worksheet
+
 from qgis import processing
 from qgis.core import QgsApplication, QgsProcessingAlgRunnerTask, QgsProject, QgsRasterLayer, QgsTaskManager
-from xlsxwriter.worksheet import Worksheet
-
 from eotimeseriesviewer.force import FORCEUtils
 from eotimeseriesviewer.forceinputs import FindFORCEProductsTask
 from eotimeseriesviewer.main import EOTimeSeriesViewer

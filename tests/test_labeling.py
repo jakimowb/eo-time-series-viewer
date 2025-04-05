@@ -27,33 +27,24 @@ from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_BOOL, Q
     QMETATYPE_QTIME
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate
-
-start_app()
-
 from eotimeseriesviewer.docks import LabelDockWidget
-from eotimeseriesviewer.labeling import LabelWidget, LabelAttributeTableModel, shortcuts, \
-    LabelShortcutEditorConfigWidget, quickLabelLayers, LabelShortcutType, registerLabelShortcutEditorWidget, \
-    LabelShortcutWidgetFactory, createWidgetSetup, quickLabelValue
+from eotimeseriesviewer.labeling import createWidgetSetup, LabelAttributeTableModel, LabelShortcutEditorConfigWidget, \
+    LabelShortcutType, LabelShortcutWidgetFactory, LabelWidget, quickLabelLayers, quickLabelValue, \
+    registerLabelShortcutEditorWidget, shortcuts
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapcanvas import MapCanvas
-
-start_app()
-
 from eotimeseriesviewer.mapvisualization import MapView
-from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme
-from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationscheme import \
-    EDITOR_WIDGET_REGISTRY_KEY as CS_KEY, classSchemeToConfig
+from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme, \
+    classSchemeToConfig, EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
 from eotimeseriesviewer.qgispluginsupport.qps.models import OptionListModel
 from eotimeseriesviewer.qgispluginsupport.qps.utils import createQgsField
-from qgis.PyQt.QtCore import Qt, QPoint, QPointF, QEvent, QDate, QDateTime, QTime
-from qgis.PyQt.QtGui import QStandardItemModel, QStandardItem, QMouseEvent
-from qgis.PyQt.QtWidgets import QWidget, QVBoxLayout, QComboBox, QLabel, QMenu, QAction
-from qgis.core import QgsVectorLayer, QgsField, QgsEditorWidgetSetup, QgsProject, \
-    QgsFields
-from qgis.gui import QgsDualView, QgsMapLayerStyleManagerWidget, \
-    QgsMapCanvas
+from qgis.PyQt.QtCore import QDate, QDateTime, QEvent, QPoint, QPointF, Qt, QTime
+from qgis.PyQt.QtGui import QMouseEvent, QStandardItem, QStandardItemModel
+from qgis.PyQt.QtWidgets import QAction, QComboBox, QLabel, QMenu, QVBoxLayout, QWidget
+from qgis.core import QgsEditorWidgetSetup, QgsField, QgsFields, QgsProject, QgsVectorLayer
+from qgis.gui import QgsDualView, QgsMapCanvas, QgsMapLayerStyleManagerWidget
 
-s = ""
+start_app()
 
 
 class TestLabeling(EOTSVTestCase):

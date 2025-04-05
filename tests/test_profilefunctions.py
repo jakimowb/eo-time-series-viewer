@@ -5,8 +5,8 @@ import numpy as np
 from PyQt5.QtWidgets import QTableView
 from qgis._core import QgsFeature
 
-from eotimeseriesviewer.temporalprofile.spectralindices import SpectralIndexBandIdentifierModel, \
-    SpectralIndexConstantModel, spectral_index_acronyms
+from eotimeseriesviewer.spectralindices import spectral_index_acronyms, SpectralIndexBandIdentifierModel, \
+    SpectralIndexConstantModel
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 
