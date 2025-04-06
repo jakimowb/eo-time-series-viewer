@@ -2,7 +2,7 @@
 
 """
 ***************************************************************************
-    
+
     ---------------------
     Date                 : 30.11.2017
     Copyright            : (C) 2017 by Benjamin Jakimow
@@ -26,6 +26,7 @@ from eotimeseriesviewer.settings.widget import EOTSVSettingsWidget, EOTSVSetting
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
 from eotimeseriesviewer.sensors import SensorMatching
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
+from eotimeseriesviewer.timeseries.source import TimeSeriesSource
 
 start_app()
 
@@ -104,7 +105,7 @@ class TestSettings(EOTSVTestCase):
     def test_saveAndRestoreSensorNames(self):
 
         from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA
-        from eotimeseriesviewer.timeseries import TimeSeriesSource
+
         tss = TimeSeriesSource.create(Img_2014_01_15_LC82270652014015LGN00_BOA)
         self.assertIsInstance(tss, TimeSeriesSource)
         sensorID = tss.sid()

@@ -24,8 +24,9 @@ from qgis.gui import QgsDockWidget
 
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi
-from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDate
 from eotimeseriesviewer.sensors import SensorInstrument
+from eotimeseriesviewer.timeseries.source import TimeSeriesDate
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 
 
 class SensorDockUI(QgsDockWidget):
@@ -38,8 +39,6 @@ class SensorDockUI(QgsDockWidget):
         self.mSortedModel: QSortFilterProxyModel = QSortFilterProxyModel()
 
     def setTimeSeries(self, timeSeries):
-        from eotimeseriesviewer.timeseries import TimeSeries
-        from eotimeseriesviewer.sensorvisualization import SensorTableModel
         assert isinstance(timeSeries, TimeSeries)
         self.TS = timeSeries
         self.mSensorModel = SensorTableModel(self.TS)

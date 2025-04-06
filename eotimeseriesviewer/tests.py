@@ -35,7 +35,8 @@ from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.testing import start_app, TestCase, TestObjects as TObj
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, rasterLayerMapToPixel
-from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesSource
+from eotimeseriesviewer.timeseries.source import TimeSeriesSource
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from eotimeseriesviewer.sensors import SensorInstrument
 from eotimeseriesviewer.dateparser import DateTimePrecision
 

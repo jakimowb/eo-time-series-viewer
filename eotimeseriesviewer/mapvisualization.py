@@ -27,31 +27,31 @@ import traceback
 from threading import Lock
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
+import qgis.utils
+from eotimeseriesviewer import debugLog, DIR_UI
+from eotimeseriesviewer.timeseries.source import TimeSeriesDate
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
+from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, layerStyleString, \
+    setFontButtonPreviewBackgroundColor, setLayerStyleString
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QMimeData, QModelIndex, QSize, Qt, QTimer
+from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
+from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
+    QWidget
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsExpression, QgsExpressionContext, \
     QgsExpressionContextGenerator, QgsExpressionContextScope, QgsExpressionContextUtils, QgsLayerTree, \
     QgsLayerTreeGroup, QgsLayerTreeLayer, QgsLayerTreeModel, QgsMapLayer, QgsMapLayerProxyModel, \
     QgsMultiBandColorRenderer, QgsPointXY, QgsProcessingFeedback, QgsProject, QgsRasterLayer, QgsRasterRenderer, \
     QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
-import qgis.utils
-from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
-from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
-    QWidget
 from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
     QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
-
-from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, layerStyleString, \
-    setFontButtonPreviewBackgroundColor, setLayerStyleString
 from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem, STYLE_CATEGORIES
-from eotimeseriesviewer import debugLog, DIR_UI
 from .maplayerproject import EOTimeSeriesViewerProject
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairMapCanvasItem, CrosshairStyle, getCrosshairStyle
 from .qgispluginsupport.qps.layerproperties import VectorLayerTools
 from .qgispluginsupport.qps.maptools import MapTools
 from .qgispluginsupport.qps.utils import loadUi, SpatialExtent, SpatialPoint
-from .settings.settings import EOTSVSettingsManager
-from .timeseries import TimeSeries, TimeSeriesDate
 from .sensors import has_sensor_id, sensor_id, SensorInstrument, SensorMockupDataProvider
+from .settings.settings import EOTSVSettingsManager
 
 KEY_LOCKED_LAYER = 'eotsv/locked'
 KEY_SENSOR_GROUP = 'eotsv/sensorgroup'
@@ -694,7 +694,7 @@ class MapView(QFrame):
     def addSensor(self, sensor: SensorInstrument):
         """
         Adds a SensorInstrument to be shown in this MapView. Each sensor will be represented as a Raster Layer in the
-        Tree Model.
+        Layer Tree Model.
         :param sensor: SensorInstrument
         """
         assert isinstance(sensor, SensorInstrument)
@@ -702,6 +702,7 @@ class MapView(QFrame):
             sensor.sigNameChanged.connect(self.sigCanvasAppearanceChanged)
 
             masterLayer: QgsRasterLayer = sensor.proxyRasterLayer()
+            assert isinstance(masterLayer, QgsRasterLayer) and masterLayer.isValid()
             assert isinstance(masterLayer.renderer(), QgsRasterRenderer)
 
             self.mSensorLayerList.append((sensor, masterLayer))
@@ -1441,6 +1442,15 @@ class MapWidget(QFrame):
                                     proxyLayer.setCustomProperty(SensorInstrument.PROPERTY_KEY_STYLE_INITIALIZED, True)
             self.mMapRefreshBlock = False
         return True
+
+    def layers(self) -> List[QgsMapLayer]:
+        """Returns all QgsMapLayers that are shown in all map view layer trees"""
+        layers = []
+        for mv in self.mapViews():
+            for lyr in mv.layers():
+                if lyr not in layers:
+                    layers.append(lyr)
+        return layers
 
     def currentLayer(self) -> Optional[QgsMapLayer]:
         mv = self.currentMapView()

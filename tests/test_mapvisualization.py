@@ -2,7 +2,7 @@
 
 """
 ***************************************************************************
-    
+
     ---------------------
     Date                 : 30.11.2017
     Copyright            : (C) 2017 by Benjamin Jakimow
@@ -20,31 +20,24 @@ import os
 import unittest
 
 import numpy as np
+
 from qgis.PyQt.QtCore import QSize
 from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import QApplication, QGridLayout, QLabel, QSpinBox, QWidget
+from qgis.PyQt.QtWidgets import QApplication, QGridLayout, QLabel, QPushButton, QSpinBox, QWidget
 from qgis.PyQt.QtXml import QDomDocument, QDomNode
-
 from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
 from eotimeseriesviewer.tests import EOTSVTestCase, example_raster_files, start_app, TestObjects
-
-start_app()
-
 from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.mapvisualization import MapWidget, MapView, MapViewDock
-from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import rendererToXml, rendererFromXml
+from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
+from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import rendererFromXml, rendererToXml
 from eotimeseriesviewer.qgispluginsupport.qps.maptools import MapTools
-from eotimeseriesviewer.qgispluginsupport.qps.utils import parseWavelength, bandClosestToWavelength, file_search, \
-    UnitLookup, SpatialExtent
+from eotimeseriesviewer.qgispluginsupport.qps.utils import bandClosestToWavelength, file_search, parseWavelength, \
+    SpatialExtent, UnitLookup
 from eotimeseriesviewer.sensors import SensorInstrument
 from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
-from qgis.PyQt.QtWidgets import QPushButton
-from qgis.core import QgsProject, QgsRasterLayer, QgsVectorLayer, QgsMultiBandColorRenderer, QgsSingleBandGrayRenderer, \
-    QgsPalettedRasterRenderer, QgsSingleBandPseudoColorRenderer, QgsRasterRenderer
-from qgis.core import QgsFeatureRenderer, \
-    QgsSingleBandColorDataRenderer, QgsHillshadeRenderer, \
-    QgsRasterShader, \
-    QgsVirtualLayerDefinition
+from qgis.core import QgsFeatureRenderer, QgsHillshadeRenderer, QgsMultiBandColorRenderer, QgsPalettedRasterRenderer, \
+    QgsProject, QgsRasterLayer, QgsRasterRenderer, QgsRasterShader, QgsSingleBandColorDataRenderer, \
+    QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsVectorLayer, QgsVirtualLayerDefinition
 from qgis.gui import QgsFontButton
 
 start_app()
@@ -354,7 +347,7 @@ class TestMapVisualization(EOTSVTestCase):
             self.assertIsInstance(xml1, QDomDocument)
 
             r1b = rendererFromXml(xml1)
-            self.assertTrue(type(r1) == type(r1b), msg='Failed to reconstruct {r1.__class__.__name__}')
+            self.assertTrue(type(r1) is type(r1b), msg='Failed to reconstruct {r1.__class__.__name__}')
 
             if isinstance(r1, QgsRasterRenderer):
                 self.assertIsInstance(r1b, QgsRasterRenderer)
@@ -380,7 +373,7 @@ class TestMapVisualization(EOTSVTestCase):
                 print(path)
                 xml = ''.join(f.readlines())
                 renderer = rendererFromXml(xml)
-                self.assertTrue(renderer != None)
+                self.assertTrue(renderer is not None)
                 self.assertIsInstance(renderer, (QgsRasterRenderer, QgsFeatureRenderer))
         print('Render tests finished')
         lyr.deleteLater()

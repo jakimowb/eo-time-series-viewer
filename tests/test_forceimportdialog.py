@@ -2,25 +2,48 @@ import os
 import unittest
 from pathlib import Path
 
+from eotimeseriesviewer.force import FORCEUtils
 from eotimeseriesviewer.forceinputs import find_tile_folders, FindFORCEProductsTask, FORCEProductImportDialog, \
     read_tileids, rx_FORCE_TILEFOLDER
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
+from qgis.PyQt.QtCore import QDate
+from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsProject, QgsRasterLayer
 
 start_app()
 
-FORCE_ROOT = Path(os.environ.get('FORCE_ROOT', r'D:\EOTSV\FORCE_CUBE'))
+FORCE_CUBE = Path(os.environ.get('FORCE_CUBE', '-'))
 
 
+# @unittest.skip('#TEST')
+@unittest.skipIf(not FORCE_CUBE.is_dir(), 'FORCE_CUBE undefined / not a directory')
 class FORCEImportTestCases(EOTSVTestCase):
 
+    def force_tiles(self):
+
+        tile_names = []
+
+        with os.scandir(FORCE_CUBE) as scan:
+            for e in scan:
+                if rx_FORCE_TILEFOLDER.match(e.name):
+                    tile_names.append(e.name)
+        return tile_names
+
+    @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Blocking dialog')
     def test_dialog(self):
         d = FORCEProductImportDialog()
 
         self.showGui(d)
 
     def test_read_tileids(self):
-        text = ' X002_Y009; X001_Y003,\nX001_Y003; X01_Y00001;'
-        self.assertEqual(read_tileids(text), ['X001_Y003', 'X002_Y009'])
+        tile_ids = self.force_tiles()
+        # construct string with duplications and different separators
+        seps = [' ', '\n\t']
+        text = []
+        for sep in seps:
+            text.append(sep.join(tile_ids))
+        text = ';'.join(text)
+        self.assertEqual(read_tileids(text), tile_ids)
 
         tile_ids = ['X002_Y002', 'X0003_Y0004']
         test_dir = self.createTestOutputDirectory()
@@ -33,11 +56,14 @@ class FORCEImportTestCases(EOTSVTestCase):
         ids = d.tileIds()
         self.assertEqual(set(tile_ids), set(ids))
 
-    @unittest.skipIf(True or not FORCE_ROOT.is_dir(), 'Missing FORCE_ROOT')
     def test_read_files(self):
 
-        tile_ids = ['X0044_Y0052', 'X0045_Y0050']
-        task = FindFORCEProductsTask('BOA', FORCE_ROOT, tile_ids=tile_ids)
+        tile_ids = self.force_tiles()
+        dateMin = QDate(2019, 1, 1)
+        dateMax = QDate(2020, 1, 3)
+        task = FindFORCEProductsTask('BOA', FORCE_CUBE,
+                                     tile_ids=tile_ids,
+                                     dateMin=dateMin, dateMax=dateMax)
         task.run()
 
         self.assertTrue(len(task.files()) > 0)
@@ -45,9 +71,9 @@ class FORCEImportTestCases(EOTSVTestCase):
             self.assertTrue(f.parent.name in tile_ids)
             self.assertTrue(f.name.endswith('.tif'))
 
-    @unittest.skipIf(not os.path.isdir(FORCE_ROOT / 'mosaic'), 'Missing FORCE_ROOT/mosaic folder')
+    @unittest.skipIf(not (FORCE_CUBE.is_dir() and (FORCE_CUBE / 'mosaic').is_dir()), 'Missing FORCE_CUBE/mosaic folder')
     def test_read_mosaic_vrts(self):
-        root = FORCE_ROOT / 'mosaic'
+        root = FORCE_CUBE / 'mosaic'
         self.assertTrue(root.is_dir())
 
         task = FindFORCEProductsTask('BOA', root)
@@ -56,29 +82,32 @@ class FORCEImportTestCases(EOTSVTestCase):
         for f in task.files():
             self.assertTrue(f.name.endswith('_BOA.vrt'))
 
-    @unittest.skipIf(not FORCE_ROOT.is_dir(), 'Missing FORCE_ROOT')
+    @unittest.skipIf(not FORCE_CUBE.is_dir(), 'Missing FORCE_CUBE')
     def test_find_tilefolders(self):
-        root = FORCE_ROOT
+        root = FORCE_CUBE
         folders = find_tile_folders(root)
         for f in folders:
             self.assertIsInstance(f, Path)
             self.assertTrue(f.is_dir())
             self.assertTrue(rx_FORCE_TILEFOLDER.match(f.name))
 
-    @unittest.skipIf(not FORCE_ROOT.is_dir(), 'Missing FORCE_ROOT')
+    @unittest.skipIf(not EOTSVTestCase.runsInCI(), 'Blocking dialogs')
     def test_data_loading(self):
         d = FORCEProductImportDialog()
-        d.setRootFolder(FORCE_ROOT)
+        d.setRootFolder(FORCE_CUBE)
         d.setProductType('VZN')
-        d.setTileIDs('X0001_Y0001,  X0001_Y0001')
+
+        tile_id = self.force_tiles()[0]
+
+        d.setTileIDs(f'{tile_id},  {tile_id}')
 
         tiles = d.tileIds()
-        self.assertEqual(tiles, ['X0001_Y0001'])
+        self.assertEqual(tiles, [tile_id])
         self.showGui(d)
 
-    @unittest.skipIf(not FORCE_ROOT.is_dir(), 'Missing FORCE_ROOT')
+    @unittest.skipIf(not FORCE_CUBE.is_dir(), 'Missing FORCE_CUBE')
     def test_find_products(self):
-        task = FindFORCEProductsTask('BOA', FORCE_ROOT)
+        task = FindFORCEProductsTask('BOA', FORCE_CUBE)
         task.run()
 
         self.assertTrue(len(task.files()) > 0)
@@ -86,6 +115,53 @@ class FORCEImportTestCases(EOTSVTestCase):
             self.assertIsInstance(f, Path)
             self.assertTrue(f.is_file())
             self.assertTrue(f.name.endswith('BOA.tif'))
+
+    def get_example_tiledir(self) -> str:
+
+        tiles = [d.name for d in FORCEUtils.tileDirs(FORCE_CUBE)]
+        assert len(tiles) > 0
+        if 'X0066_Y0058' in tiles:
+            tile_id = 'X0066_Y0058'
+        else:
+            tile_id = tiles[0]
+        return tile_id
+
+    @unittest.skipIf(not FORCE_CUBE.is_dir(), 'Missing FORCE_CUBE')
+    def test_load_eotsv(self):
+
+        eotsv = EOTimeSeriesViewer()
+        eotsv.ui.show()
+        tile_id = self.get_example_tiledir()
+        # eotsv.loadFORCEProducts(force_cube=FORCE_CUBE, tile_ids=tile_id)
+
+        task = FindFORCEProductsTask('BOA', FORCE_CUBE, tile_ids=[tile_id])
+        task.run()
+        files = task.files()[0:20]
+
+        eotsv.addTimeSeriesImages(files)
+
+        self.showGui(eotsv.ui)
+        eotsv.close()
+        QgsProject.instance().removeAllMapLayers()
+
+    def test_crs_check(self):
+        tile_id = self.get_example_tiledir()
+
+        p = QgsProject.instance()
+        for path in FORCEUtils.productFiles(FORCE_CUBE / tile_id, 'BOA'):
+            lyr = QgsRasterLayer(path.as_posix())
+
+            crs = QgsCoordinateReferenceSystem('EPSG:4326')
+
+            trans = QgsCoordinateTransform()
+            trans.setSourceCrs(lyr.crs())
+            trans.setDestinationCrs(crs)
+
+            self.assertTrue(trans.isValid())
+
+            ext2 = trans.transformBoundingBox(lyr.extent())
+            self.assertTrue(ext2.isFinite())
+            break
 
 
 if __name__ == '__main__':

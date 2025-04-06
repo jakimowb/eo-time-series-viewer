@@ -64,6 +64,8 @@
       <addaction name="actionAddVisualization"/>
       <addaction name="actionRemoveVisualization"/>
       <addaction name="actionRefreshPlot"/>
+      <addaction name="separator"/>
+      <addaction name="actionShowSelectedProfileOnly"/>
       <addaction name="actionSaveTemporalProfiles"/>
       <addaction name="actionPanToSelected"/>
       <addaction name="actionZoomToSelected"/>
@@ -74,6 +76,9 @@
      <widget class="QSplitter" name="splitter">
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="opaqueResize">
+       <bool>false</bool>
       </property>
       <widget class="QWidget" name="layoutWidget">
        <layout class="QVBoxLayout" name="verticalLayout">
@@ -310,6 +315,30 @@
     <string>Unselect selected profiles</string>
    </property>
   </action>
+  <action name="actionSettings">
+   <property name="icon">
+    <iconset resource="eotsv_resources.qrc">
+     <normaloff>:/eotimeseriesviewer/icons/settings.svg</normaloff>:/eotimeseriesviewer/icons/settings.svg</iconset>
+   </property>
+   <property name="text">
+    <string>settings</string>
+   </property>
+   <property name="toolTip">
+    <string>Show temporal profile settings</string>
+   </property>
+  </action>
+  <action name="actionShowSelectedProfileOnly">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionShowSelectedLayers.svg</normaloff>:/images/themes/default/mActionShowSelectedLayers.svg</iconset>
+   </property>
+   <property name="text">
+    <string>ShowSelectedProfilesOnly</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -336,6 +365,7 @@
  </customwidgets>
  <resources>
   <include location="eotsv_resources.qrc"/>
+  <include location="../qgispluginsupport/qps/qpsresources.qrc"/>
   <include location="../../../QGIS/images/images.qrc"/>
  </resources>
  <connections/>

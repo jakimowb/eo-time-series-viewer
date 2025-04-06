@@ -19,7 +19,6 @@ from eotimeseriesviewer.mapvisualization import MapViewDock
 from eotimeseriesviewer.profilevisualization import ProfileViewDock, TemporalProfilePlotStyle
 from eotimeseriesviewer.qgispluginsupport.qps.testing import start_app
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
-from eotimeseriesviewer.timeseries import SensorProxyLayer, TimeSeriesDate
 from eotimeseriesviewer.sensors import SensorInstrument
 
 app = start_app()

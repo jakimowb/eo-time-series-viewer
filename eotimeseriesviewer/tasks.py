@@ -15,6 +15,9 @@ class EOTSVTask(QgsTask):
 
         return self.mInfo
 
+    def subTasks(self) -> List[QgsTask]:
+        return self._sub_tasks[:]
+
     def addSubTask(self, subTask, *args, **kwargs):
         super().addSubTask(subTask, *args, **kwargs)
         self._sub_tasks.append(subTask)

@@ -1,25 +1,19 @@
 # coding=utf-8
 
-import os
 import unittest
 
-from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QAction, QWidget
-from qgis.core import \
-    QgsProject, QgsMapLayer, QgsCoordinateReferenceSystem, QgsProviderRegistry, QgsRasterLayer, \
-    QgsLayerTree, QgsLayerTreeModel
-from qgis.gui import \
-    QgsLayerTreeView, QgsMapCanvas, QgsLayerTreeViewDefaultActions, \
-    QgsLayerTreeMapCanvasBridge, QgsLayerTreeViewMenuProvider
-
-from eotimeseriesviewer.tests import start_app, EOTSVTestCase
+from qgis.PyQt.QtWidgets import QAction, QHBoxLayout, QMenu, QWidget
+from qgis.core import QgsCoordinateReferenceSystem, QgsLayerTree, QgsLayerTreeModel, QgsMapLayer, QgsProject, \
+    QgsProviderRegistry, QgsRasterLayer
+from qgis.gui import QgsLayerTreeMapCanvasBridge, QgsLayerTreeView, QgsLayerTreeViewDefaultActions, \
+    QgsLayerTreeViewMenuProvider, QgsMapCanvas
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 
 start_app()
 
+
 class TestQGISEnvironment(EOTSVTestCase):
     """Test the QGIS Environment"""
-
-    def test_QgsLayerTreeViewDefaultActions(self):
-        pass
 
     def test_mapcanvasbridge(self):
         from eotimeseriesviewer.tests import TestObjects
@@ -45,9 +39,8 @@ class TestQGISEnvironment(EOTSVTestCase):
 
         model = QgsLayerTreeModel(ltree)
 
-        model.setFlags(QgsLayerTreeModel.AllowNodeChangeVisibility |
-                       QgsLayerTreeModel.AllowNodeRename |
-                       QgsLayerTreeModel.AllowNodeReorder)
+        model.setFlags(
+            QgsLayerTreeModel.AllowNodeChangeVisibility | QgsLayerTreeModel.AllowNodeRename | QgsLayerTreeModel.AllowNodeReorder)
 
         class MenuProvider(QgsLayerTreeViewMenuProvider):
 

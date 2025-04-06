@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>774</width>
+    <width>910</width>
     <height>253</height>
    </rect>
   </property>
@@ -74,7 +74,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>774</width>
+     <width>910</width>
      <height>21</height>
     </rect>
    </property>
@@ -159,9 +159,18 @@
     <addaction name="separator"/>
     <addaction name="menuQGIS_map_canvas"/>
    </widget>
+   <widget class="QMenu" name="menuTools">
+    <property name="title">
+     <string>Tools</string>
+    </property>
+    <addaction name="actionCreateSpectralLibrary"/>
+    <addaction name="actionCreateTemporalProfileLayer"/>
+    <addaction name="actionReadTemporalProfiles"/>
+   </widget>
    <addaction name="menuFiles"/>
    <addaction name="menuView"/>
    <addaction name="menuNavigation"/>
+   <addaction name="menuTools"/>
    <addaction name="menuAbout"/>
   </widget>
   <widget class="QToolBar" name="toolBarData">
@@ -998,6 +1007,14 @@
    </property>
    <property name="toolTip">
     <string>Create a new point vector layer that can store temporal profiles.</string>
+   </property>
+  </action>
+  <action name="actionReadTemporalProfiles">
+   <property name="text">
+    <string>Read Temporal Profiles</string>
+   </property>
+   <property name="toolTip">
+    <string>Loads temporal profiles for point layer coordinates.</string>
    </property>
   </action>
  </widget>

@@ -2,10 +2,10 @@ import json
 import unittest
 
 import numpy as np
-from PyQt5.QtWidgets import QTableView
-from qgis._core import QgsFeature
 
-from eotimeseriesviewer.temporalprofile.spectralindices import SpectralIndexBandIdentifierModel, \
+from qgis.PyQt.QtWidgets import QTableView
+from qgis.core import QgsFeature
+from eotimeseriesviewer.spectralindices import spectral_index_acronyms, SpectralIndexBandIdentifierModel, \
     SpectralIndexConstantModel
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
@@ -71,6 +71,10 @@ class ProfileFunctionTestCases(EOTSVTestCase):
     def test_bandOrIndex(self):
 
         lyr = TestObjects.createProfileLayer()
+
+        acronyms = spectral_index_acronyms()
+        constants = acronyms['constants']
+
         for feature in lyr.getFeatures():
             tpData = feature.attribute('profile')
             sidx = np.asarray(tpData[TemporalProfileUtils.Sensor])
@@ -118,6 +122,25 @@ class ProfileFunctionTestCases(EOTSVTestCase):
                 else:
                     self.assertTrue(np.all(np.isnan(result)))
 
+                result = TemporalProfileUtils.bandOrIndex('EVI', band_values, specs)
+
+                if 'N' in band_lookup and 'R' in band_lookup:
+                    # ['g', 'N', 'R', 'C1', 'C2', 'B', 'L']
+                    # g * (N - R) / (N + C1 * R - C2 * B + L)
+                    g = constants['g']['value']
+                    C1 = constants['C1']['value']
+                    C2 = constants['C2']['value']
+                    L = constants['L']['value']
+
+                    B = band_values[:, band_lookup['B']]
+                    N = band_values[:, band_lookup['N']]
+                    R = band_values[:, band_lookup['R']]
+                    evi = (g * (N - R)) / (N + C1 * R - C2 * B + L)
+
+                    self.assertTrue(np.all(result == evi))
+                else:
+                    self.assertTrue(np.all(np.isnan(result)))
+
     def test_profile_python_function(self):
 
         tpData = TestObjects.createTemporalProfileDict()
@@ -133,7 +156,7 @@ class ProfileFunctionTestCases(EOTSVTestCase):
             values_by_sid[sid] = np.asarray(values)
 
         f = QgsFeature()
-        expressions = {'*': 'b("NDVI")'}
+        expressions = {'*': 'b("EVI")'}
         expressions = {k: TemporalProfileUtils.prepareBandExpression(v)[0] for k, v in expressions.items()}
 
         results = TemporalProfileUtils.applyExpressions(tpData, f, expressions)
@@ -141,6 +164,8 @@ class ProfileFunctionTestCases(EOTSVTestCase):
         x = results['x']
         y = results['y']
         n = results['n']
+        errors = results['errors']
+        self.assertEqual(errors, [])
         sidx = results['sensor_indices']
 
         self.assertIsInstance(x, np.ndarray)

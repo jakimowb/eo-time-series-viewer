@@ -114,7 +114,9 @@ def initAll():
     from .labeling import registerLabelShortcutEditorWidget
     registerLabelShortcutEditorWidget()
 
-    from eotimeseriesviewer.timeseries import registerDataProvider
+    from eotimeseriesviewer.sensors import registerDataProvider
+    from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileEditorWidgetFactory
+    TemporalProfileEditorWidgetFactory.register()
     registerDataProvider()
     registerProcessingProvider()
     registerOptionsWidgetFactory()

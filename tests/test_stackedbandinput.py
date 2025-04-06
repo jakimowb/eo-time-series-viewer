@@ -2,7 +2,7 @@
 
 """
 ***************************************************************************
-    
+
     ---------------------
     Date                 :
     Copyright            : (C) 2017 by Benjamin Jakimow
@@ -25,20 +25,18 @@ from typing import List
 
 import numpy as np
 from osgeo import gdal, gdal_array, osr
-from PyQt5.QtWidgets import QApplication
-from qgis._core import QgsProject
-from qgis.PyQt.QtCore import QDateTime
-from qgis.core import QgsRasterLayer
-from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import QDialog
 
+from qgis.PyQt.QtWidgets import QApplication, QDialog
+from qgis.core import QgsProject, QgsRasterLayer
+from qgis.PyQt.QtCore import QDateTime
+from qgis.PyQt.QtGui import QColor
 from eotimeseriesviewer.main import EOTimeSeriesViewer
-from eotimeseriesviewer.timeseries import TimeSeriesSource
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import nextColor
 from eotimeseriesviewer.stackedbandinput import InputStackInfo, InputStackTableModel, OutputImageModel, \
     OutputVRTDescription, StackedBandInputDialog
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
+from eotimeseriesviewer.timeseries.source import TimeSeriesSource
 
 start_app()
 

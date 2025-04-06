@@ -274,9 +274,6 @@ class TestTemporalProfilesV2(EOTSVTestCase):
                   (int((lyr.width() / 2)), int(lyr.height() / 2))]
         points = [SpatialPoint.fromPixelPosition(lyr, *px) for px in pixels]
 
-        def onProgress(progress):
-            print(f'Progress {progress}')
-
         results = None
 
         def onExecuted(success, r):
@@ -298,6 +295,18 @@ class TestTemporalProfilesV2(EOTSVTestCase):
             QgsApplication.processEvents()
 
         self.assertEqual(len(results), len(points))
+
+    @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Live testing only')
+    def test_temp_profile_loading(self):
+
+        eotsv = EOTimeSeriesViewer()
+        eotsv.loadExampleTimeSeries(loadAsync=False)
+        eotsv.activateIdentifyTemporalProfileMapTool()
+        eotsv.loadCurrentTemporalProfile(eotsv.spatialCenter())
+        self.showGui(eotsv.ui)
+
+        eotsv.close()
+        QgsProject.instance().removeAllMapLayers()
 
 
 if __name__ == "__main__":

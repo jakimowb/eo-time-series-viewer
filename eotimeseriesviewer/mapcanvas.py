@@ -41,7 +41,6 @@ from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QDir, QMimeData, QObject, QP
     QTime, QTimer
 from qgis.PyQt.QtGui import QColor, QFont, QIcon, QMouseEvent, QPainter
 from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QMenu, QSizePolicy, QStyle, QStyleOptionProgressBar
-
 from .labeling import quickLabelLayers, setQuickTSDLabelsForRegisteredLayers
 from .qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairDialog, CrosshairMapCanvasItem, CrosshairStyle
@@ -51,8 +50,8 @@ from .qgispluginsupport.qps.maptools import CursorLocationMapTool, FullExtentMap
 from .qgispluginsupport.qps.qgisenums import QGIS_RASTERBANDSTATISTIC
 from .qgispluginsupport.qps.utils import filenameFromString, findParent, SpatialExtent, SpatialPoint
 from .settings.settings import EOTSVSettingsManager
-from .timeseries import TimeSeriesDate
 from .sensors import has_sensor_id, sensor_id, SensorMockupDataProvider
+from .timeseries.source import TimeSeriesDate
 from .utils import copyMapLayerStyle, layerStyleString, setLayerStyleString
 
 KEY_LAST_CLICKED = 'LAST_CLICKED'
@@ -952,7 +951,7 @@ class MapCanvas(QgsMapCanvas):
                     a.setToolTip(
                         f'Writes dates/sensor information to selected features in layer(s): {layerNames}.')
                     a.triggered.connect(lambda *args, tsd=self.tsd(), layer_group=grp, _tss=tss:
-                                        setQuickTSDLabelsForRegisteredLayers(tsd, _tss, layer_group=layer_group))
+                                        setQuickTSDLabelsForRegisteredLayers(tsd, _tss, label_group=layer_group))
 
                 for layer in lyrWithSelectedFeatures:
                     assert isinstance(layer, QgsVectorLayer)
@@ -1193,17 +1192,6 @@ class MapCanvas(QgsMapCanvas):
             else:
                 n_max = 5
             action = menu.addAction('Update source visibility')
-            action.setToolTip(
-                'Hides from the observations shown those observations that do <br>'
-                'not have valid pixels for the currently displayed map extent')
-            action.triggered.connect(lambda *args, ext=self.spatialExtent():
-                                     ts.focusVisibility(ext,
-                                                        date_of_interest=date,
-                                                        max_after=n_max,
-                                                        max_before=n_max
-                                                        ))
-
-            action = menu.addAction('Update source visibility (all)')
             action.setToolTip(
                 'Hides all observations that do not have valid pixels for the currently displayed map extent.'
                 '<br><i>Depending on the length of your time series this may take some time</i>'

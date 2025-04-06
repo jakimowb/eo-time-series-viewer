@@ -18,8 +18,8 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        qgis_version: [ 3.34, 3.38, 3.40 ]
-        python: [ 3.12 ]
+        qgis_version: ['3.40', '3.42' ]
+        python: [ '3.12' ]
     env:
       QGIS_VERSION: ${{ matrix.qgis_version}}
     steps:

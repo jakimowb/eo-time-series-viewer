@@ -5,14 +5,16 @@
 """
 import enum
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Optional
 
 from osgeo import gdal
 
+from qgis.gui import QgsColorButton, QgsFileWidget, QgsFilterLineEdit, QgsOptionsPageWidget, QgsOptionsWidgetFactory
+from eotimeseriesviewer.spectralindices import SpectralIndexBandIdentifierModel, SpectralIndexConstantModel, \
+    SpectralIndexModel, SpectralIndexProxyModel
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractTableModel, QItemSelection, QItemSelectionModel, QModelIndex, \
     QSortFilterProxyModel, Qt
 from qgis.PyQt.QtGui import QColor, QDesktopServices, QIcon
-from qgis.gui import QgsColorButton, QgsFileWidget, QgsOptionsPageWidget, QgsOptionsWidgetFactory
 # PyQGIS
 from qgis.core import QgsApplication
 from qgis.PyQt.Qt import QUrl
@@ -83,9 +85,46 @@ class EOTSVSettingsWidget(QgsOptionsPageWidget):
         self.mCanvasColorButton.colorChanged.connect(
             lambda c: setFontButtonPreviewBackgroundColor(c, self.mMapTextFormatButton))
 
+        self.bandIdentifierModel = SpectralIndexBandIdentifierModel.instance()
+        self.tvBandIdentifiers.setModel(self.bandIdentifierModel)
+
+        self.spectralIndexProxyModel = SpectralIndexProxyModel()
+        self.spectralIndexModel: SpectralIndexModel = self.spectralIndexProxyModel.sourceModel()
+        self.spectralIndexProxyModel.sourceModel().dataChanged.connect(self.updateShortcutsLabel)
+        self.spectralIndexProxyModel.setFilterKeyColumn(-1)
+        self.tvSpectralIndices.setModel(self.spectralIndexProxyModel)
+        self.mSpectralIndexFilter: QgsFilterLineEdit
+        self.mSpectralIndexFilter.valueChanged.connect(self.setSpectralIndexFilter)
+
+        self.btnSpectralIndexFilterUseRegEx.toggled.connect(lambda *args: self.setSpectralIndexFilter(None))
+        self.btnSpectralIndexFilterCaseSensitive.toggled.connect(lambda *args: self.setSpectralIndexFilter(None))
+        self.spectralConstantModel = SpectralIndexConstantModel.instance()
+        self.tvSpectralConstants.setModel(self.spectralConstantModel)
+
         # load previously saved settings
         self.loadSettings()
         self.listWidget.setCurrentRow(0, QItemSelectionModel.Select)
+
+    def updateShortcutsLabel(self):
+        shortcuts = self.spectralIndexProxyModel.sourceModel().shortcuts()
+        if len(shortcuts) == 0:
+            info = '<i>None</i>'
+        else:
+            info = ', '.join(shortcuts)
+        self.labelSpectralIndexShortcuts.setText(info)
+
+    def setSpectralIndexFilter(self, filter: Optional[str] = None):
+
+        if filter is None:
+            filter = self.mSpectralIndexFilter.text()
+
+        caseSense = Qt.CaseSensitive if self.btnSpectralIndexFilterCaseSensitive.isChecked() else Qt.CaseInsensitive
+        self.spectralIndexProxyModel.setFilterCaseSensitivity(caseSense)
+
+        if self.btnSpectralIndexFilterUseRegEx.isChecked():
+            self.spectralIndexProxyModel.setFilterRegularExpression(filter)
+        else:
+            self.spectralIndexProxyModel.setFilterWildcard(filter)
 
     def onRemoveSelectedSensors(self):
 
@@ -140,13 +179,15 @@ class EOTSVSettingsWidget(QgsOptionsPageWidget):
         settings.debug = self.cbDebug.isChecked()
 
         settings.qgsTaskAsync = self.cbAsyncQgsTasks.isChecked()
-        settings.qgsTaskBlockSize = self.sbQgsTaskBlockSize.value()
+        settings.qgsTaskFileReadingThreads = self.sbQgsTaskFileReadingThreads.value()
         settings.bandStatsSampleSize = self.sbBandStatsSampleSize.value()
         settings.rasterOverlapSampleSize = self.sbRasterOverlapSampleSize.value()
         settings.profileStyleCurrent = self.btnProfileCurrent.plotStyle()
         settings.profileStyleAdded = self.btnProfileAdded.plotStyle()
 
         settings.profileStyleTemporal = self.btnProfileTemporal.plotStyle()
+
+        settings.spectralIndexShortcuts = self.spectralIndexModel.shortcuts()
 
         self.settingsManager.saveSettings(settings)
 
@@ -185,13 +226,16 @@ class EOTSVSettingsWidget(QgsOptionsPageWidget):
         # others page
         self.cbDebug.setChecked(settings.debug)
         self.cbAsyncQgsTasks.setChecked(settings.qgsTaskAsync)
-        self.sbQgsTaskBlockSize.setValue(settings.qgsTaskBlockSize)
+        self.sbQgsTaskFileReadingThreads.setValue(settings.qgsTaskFileReadingThreads)
         self.sbBandStatsSampleSize.setValue(settings.bandStatsSampleSize)
         self.sbRasterOverlapSampleSize.setValue(settings.rasterOverlapSampleSize)
         self.btnProfileCurrent.setPlotStyle(settings.profileStyleCurrent.clone())
         self.btnProfileAdded.setPlotStyle(settings.profileStyleAdded.clone())
 
         self.btnProfileTemporal.setPlotStyle(settings.profileStyleTemporal.clone())
+
+        self.spectralIndexModel.setShortcuts(settings.spectralIndexShortcuts)
+        self.updateShortcutsLabel()
 
     def resetSettings(self):
         """Reset settings to default values"""

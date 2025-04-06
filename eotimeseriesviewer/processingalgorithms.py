@@ -1,4 +1,6 @@
+import os.path
 import re
+from pathlib import Path
 from typing import Dict
 
 from qgis.core import edit, Qgis, QgsApplication, QgsFeature, QgsFeatureSink, QgsField, QgsFields, QgsMapLayer, \
@@ -6,13 +8,14 @@ from qgis.core import edit, Qgis, QgsApplication, QgsFeature, QgsFeatureSink, Qg
     QgsProcessingOutputVectorLayer, QgsProcessingParameterCrs, QgsProcessingParameterFeatureSink, \
     QgsProcessingParameterField, QgsProcessingParameterFieldMapping, QgsProcessingParameterFile, \
     QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessingParameterVectorLayer, \
-    QgsProcessingProvider, QgsProcessingRegistry, QgsProcessingUtils, QgsVectorLayer
+    QgsProcessingProvider, QgsProcessingRegistry, QgsProcessingUtils, QgsVectorFileWriter, QgsVectorLayer
 from qgis.PyQt.QtCore import QMetaType
 from qgis.PyQt.QtGui import QIcon
 from eotimeseriesviewer import icon
-from eotimeseriesviewer.qgispluginsupport.qps.fieldvalueconverter import GenericPropertyTransformer
+from eotimeseriesviewer.qgispluginsupport.qps.fieldvalueconverter import GenericFieldValueConverter, \
+    GenericPropertyTransformer
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
-from eotimeseriesviewer.timeseries import TimeSeries
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 
 
 class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):
@@ -131,7 +134,11 @@ class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):
         if sink is None:
             raise QgsProcessingException(self.invalidSinkError(parameters, self.OUTPUT))
 
-        sink.finalize()
+        if hasattr(sink, 'finalize'):
+            sink.finalize()
+        else:
+            sink.flushBuffer()
+
         del sink
         lyr = QgsProcessingUtils.mapLayerFromString(dest_id, context)
 
@@ -274,7 +281,7 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
 
         p4 = QgsProcessingParameterNumber(
             self.N_THREADS,
-            description="Number of Threads to read files",
+            description="Number of threads used to read files",
             type=QgsProcessingParameterNumber.Integer,
             minValue=1,
             maxValue=16,
@@ -305,6 +312,11 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
         time_series = self.parameterAsFile(parameters, self.TIMESERIES, context)
         if time_series == '':
             time_series = self.parameterAsFileList(parameters, self.TIMESERIES, context)
+            time_series = [t for t in time_series if t != '']
+
+        if time_series in ['', [], None]:
+            time_series = None
+
         profile_field = self.parameterAsStrings(parameters, self.FIELD_NAME, context)
 
         if not input_layer.wkbType() == Qgis.WkbType.Point:
@@ -324,7 +336,7 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
                 return False
 
         sources = None
-        if time_series in [None, '']:
+        if time_series is None:
             from eotimeseriesviewer.main import EOTimeSeriesViewer
             tsv = EOTimeSeriesViewer.instance()
             if isinstance(tsv, EOTimeSeriesViewer):
@@ -339,6 +351,18 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
                                "open EO Time Series Viewer with source files.")
             return False
 
+        out_path = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
+        if out_path.startswith('memory:'):
+            out_driver = 'memory'
+        else:
+            if os.path.isfile(out_path):
+                Path(out_path).unlink()
+
+            out_driver = QgsVectorFileWriter.driverForExtension(os.path.splitext(out_path)[1])
+            if out_driver in ['', None]:
+                feedback.reportError(f'Unable to identify vector driver for output path: "{out_path}"', True)
+                return False
+        self._output_driver = out_driver
         self._n_threads = self.parameterAsInt(parameters, self.N_THREADS, context)
         self._field_name = profile_field
         self._sources = sources
@@ -395,6 +419,7 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
             is_new = True
         self._field_id = fields.indexFromName(fn)
 
+        fields = GenericFieldValueConverter.compatibleTargetFields(fields, self._output_driver)
         func = GenericPropertyTransformer.fieldValueTransformFunction(fields[self._field_id])
 
         (sink, dest_id) = self.parameterAsSink(
@@ -423,7 +448,7 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
                 profile = profiles[i]
                 if profile:
                     value = func(profile)
-
+                    s = ""
             # write features
             if is_new:
                 attrs.append(value)
@@ -432,7 +457,11 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
                 feat.setAttribute(self._field_id, value)
             sink.addFeature(feat, QgsFeatureSink.Flag.FastInsert)
 
-        sink.finalize()
+        if hasattr(sink, 'finalize'):
+            sink.finalize()
+        else:
+            sink.flushBuffer()
+        del sink
 
         # lyr = QgsProcessingUtils.mapLayerFromString(dest_id, context)
         # lyr.setEditorWidgetSetup(self._field_id, TemporalProfileUtils.widgetSetup())
@@ -447,6 +476,8 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
         result = dict()
         if self._dest_id:
             lyr = QgsProcessingUtils.mapLayerFromString(self._dest_id, context)
+            assert isinstance(lyr, QgsVectorLayer)
+            assert lyr.isValid()
             lyr.setEditorWidgetSetup(self._field_id, TemporalProfileUtils.widgetSetup())
             lyr.saveDefaultStyle(QgsMapLayer.StyleCategory.Forms)
             assert TemporalProfileUtils.isProfileLayer(lyr)

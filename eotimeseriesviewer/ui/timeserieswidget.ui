@@ -195,7 +195,7 @@
   <customwidget>
    <class>TimeSeriesTreeView</class>
    <extends>QTreeView</extends>
-   <header>eotimeseriesviewer.timeseries</header>
+   <header>eotimeseriesviewer.timeseries.widgets</header>
   </customwidget>
  </customwidgets>
  <resources>

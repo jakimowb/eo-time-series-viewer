@@ -4,26 +4,28 @@ import os
 import unittest
 
 import numpy as np
-from PyQt5.QtCore import QDateTime
-from qgis._core import QgsDateTimeRange
 from osgeo import gdal
+
+from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QDateTime, QMimeData, QPointF, \
+    QSortFilterProxyModel, Qt, QUrl
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsMimeDataUtils, \
+    QgsProject, QgsRasterLayer, QgsVector
+from eotimeseriesviewer.tasks import EOTSVTask
 from qgis.gui import QgsTaskManagerWidget
-from qgis.core import Qgis, QgsApplication, QgsMimeDataUtils, QgsProject, QgsRasterLayer
-from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QMimeData, QPointF, QSortFilterProxyModel, Qt, \
-    QUrl
 from qgis.PyQt.QtGui import QDropEvent
 from qgis.PyQt.QtWidgets import QTableView, QTreeView
-
 import example.Images
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 import example
 import example.Images
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
-from eotimeseriesviewer.timeseries import registerDataProvider, TimeSeries, TimeSeriesDate, TimeSeriesDock, \
-    TimeSeriesFindOverlapTask, \
-    TimeSeriesLoadingTask, TimeSeriesSource
-from eotimeseriesviewer.sensors import sensorID, SensorInstrument, SensorMockupDataProvider
+from eotimeseriesviewer.sensors import registerDataProvider, sensorID, SensorInstrument, SensorMockupDataProvider
+from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
+from eotimeseriesviewer.timeseries.tasks import TimeSeriesFindOverlapSubTask, TimeSeriesFindOverlapTask, \
+    TimeSeriesLoadingTask
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
+from eotimeseriesviewer.timeseries.widgets import TimeSeriesDock
 
 start_app()
 
@@ -61,8 +63,67 @@ class TestTimeSeries(EOTSVTestCase):
         tsRel.loadFromFile(pathTSFileAbs, runAsync=False)
         self.assertTrue(len(tsRel) == len(files))
 
+    def test_focus_visibility(self):
+
+        ts = TestObjects.createTimeSeries()
+
+        extentMax = ts.maxSpatialExtent()
+        extent1 = extentMax + QgsVector(extentMax.width() + 1, extentMax.height() + 1)
+        extent2 = extentMax.toCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
+        extent1 = SpatialExtent(extentMax.crs(), extent1)
+        self.assertFalse(extentMax.intersects(extent1))
+
+        doi = ts[25].dtg()
+
+        ts.focusVisibility(extent1, date_of_interest=doi)
+        self.taskManagerProcessEvents()
+
+        for tss in ts.timeSeriesSources():
+            self.assertFalse(tss.isVisible())
+
+        ts.focusVisibility(extent2)
+        self.taskManagerProcessEvents()
+        for tss in ts.timeSeriesSources():
+            self.assertTrue(tss.isVisible())
+
+    def test_TimeSeriesFindOverlapSubTask(self):
+
+        ts = TestObjects.createTimeSeries()
+        sources = [str(example.exampleNoDataImage)] + ts.sourceUris()
+
+        crs = QgsCoordinateReferenceSystem('EPSG:4326')
+        extent = ts.maxSpatialExtent().toCrs(crs)
+
+        task = TimeSeriesFindOverlapSubTask(extent, crs, sources)
+        self.assertTrue(task.run())
+
+        for src in sources:
+            self.assertTrue(src in task.intersections)
+
     def test_TimeSeriesFindOverlapTask(self):
 
+        ts = TestObjects.createTimeSeries()
+
+        crs = QgsCoordinateReferenceSystem('EPSG:4326')
+        extent = ts.maxSpatialExtent().toCrs(crs)
+        doi = ts[25].dtg()
+
+        all_overlaps = dict()
+
+        n_calls = 0
+
+        def onOverlapsFound(results: dict):
+            nonlocal n_calls
+            all_overlaps.update(results)
+            n_calls += 1
+
+        task = TimeSeriesFindOverlapTask(extent, ts.sources(), date_of_interest=doi)
+        task.sigTimeSeriesSourceOverlap.connect(onOverlapsFound)
+        task.run_task_manager()
+
+        s = ""
+
+        self.taskManagerProcessEvents()
         tss = TimeSeriesSource.create(example.exampleNoDataImage)
         self.assertIsInstance(tss, TimeSeriesSource)
 
@@ -75,8 +136,9 @@ class TestTimeSeries(EOTSVTestCase):
 
                 overlapped.append(is_overlapp)
 
-        def onFinished(success, task):
-            self.assertIsInstance(task, TimeSeriesFindOverlapTask)
+        def onFinished(success, results):
+            self.assertTrue(success)
+            self.assertIsInstance(results, EOTSVTask)
 
         ext_full = tss.spatialExtent()
         ext_nodata = SpatialExtent(ext_full.crs(),
@@ -92,10 +154,11 @@ class TestTimeSeries(EOTSVTestCase):
                                         ext_full.yMaximum())
 
         for ext in [ext_full, ext_nodata, ext_outofbounds]:
-            task = TimeSeriesFindOverlapTask(ext, [tss], sample_size=3, callback=onFinished)
+            task = TimeSeriesFindOverlapTask(ext, [tss], sample_size=3)
+            task.executed.connect(onFinished)
             task.sigTimeSeriesSourceOverlap.connect(onOverlapp)
-            task.finished(task.run())
-            self.assertTrue(task.mError is None, msg=f'Task returned error {task.mError}')
+            task.run_task_manager()
+            self.assertEqual(task.errors(), [], msg=f'Task returned errors: {task.errors()}')
 
         self.assertListEqual(overlapped, [True, False, False])
 

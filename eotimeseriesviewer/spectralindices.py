@@ -1,8 +1,7 @@
 import json
-from typing import List
+from typing import List, Set
 
-from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Qt
-from qgis.PyQt.QtWidgets import QWidget, QWidgetAction
+from qgis.PyQt.QtCore import QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Qt
 from eotimeseriesviewer import DIR_REPO
 
 INDICES = dict()
@@ -383,16 +382,132 @@ def spectral_index_acronyms(band_identifier_model: SpectralIndexBandIdentifierMo
             'constants': constant_model.asMap()}
 
 
-class SpectralIndexModel(QAbstractItemModel):
+class SpectralIndexModel(QAbstractTableModel):
     """
-    A model that lists spectral indices
+    A model that lists all spectral indices and their details
     """
+
+    cShortName = 0
+    cFormula = 1
+    cLongName = 2
+    cDomain = 3
+    cPlatforms = 4
+    cReference = 5
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
 
         indices = spectral_indices()
         self._indices: List[dict] = list(indices.values())
+        self._indices0: List[dict] = list(indices.values())
+
+        self.mColumnNames = {
+            self.cShortName: 'Name',
+            self.cLongName: 'Long Name',
+            self.cDomain: 'Domain',
+            self.cFormula: 'Formula',
+            self.cReference: 'Reference',
+            self.cPlatforms: 'Platforms',
+        }
+
+        self.mShortcuts: Set[str] = set()
+
+    def shortcuts(self) -> List[str]:
+        return sorted(self.mShortcuts)
+
+    def setShortcuts(self, shortcuts: List[str]):
+        self.beginResetModel()
+        for s in shortcuts:
+            self.mShortcuts.add(s)
+        self.endResetModel()
+
+    def rowCount(self, parent=None, *args, **kwargs):
+        return len(self._indices)
+
+    def columnCount(self, parent=None, *args, **kwargs):
+        return len(self.mColumnNames)
+
+    def flags(self, index: QModelIndex):
+        if index.isValid():
+            flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
+            if index.column() == self.cShortName:
+                flags = flags | Qt.ItemIsUserCheckable
+            return flags
+        return Qt.NoItemFlags
+
+    def headerData(self, section, orientation, role=None):
+
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            return self.mColumnNames[section]
+        elif orientation == Qt.Vertical and role == Qt.DisplayRole:
+            return section + 1
+        return None
+
+    def setData(self, index: QModelIndex, value, role=None):
+        if not index.isValid():
+            return None
+
+        col = index.column()
+        row = index.row()
+
+        sidx: dict = self._indices[row]
+
+        changed = False
+        if col == self.cShortName and role == Qt.CheckStateRole:
+            short_name = sidx['short_name']
+            if value == Qt.Checked:
+                self.mShortcuts.add(short_name)
+            else:
+                if short_name in self.mShortcuts:
+                    self.mShortcuts.remove(short_name)
+            changed = True
+        if changed:
+            self.dataChanged.emit(index, index, [role])
+        return changed
+
+    def data(self, index: QModelIndex, role=None):
+
+        if not index.isValid():
+            return None
+
+        row = index.row()
+        col = index.column()
+
+        sidx: dict = self._indices[row]
+
+        if role == Qt.DisplayRole:
+            if col == self.cShortName:
+                return sidx.get('short_name')
+            if col == self.cLongName:
+                return sidx.get('long_name')
+            if col == self.cPlatforms:
+                return ','.join(sidx.get('platforms'))
+            if col == self.cDomain:
+                return sidx.get('application_domain')
+            if col == self.cReference:
+                uri = sidx.get('reference')
+                return uri
+                # return f'<a href="{uri}">{uri}</a>'
+            if col == self.cFormula:
+                return sidx.get('formula')
+        if role == Qt.ToolTipRole:
+            uri = sidx.get('reference')
+            tt = [
+                f'<b>{sidx.get('short_name')}</b>',
+                f'<i>{sidx.get('long_name')}</i>',
+                f'Formula: {sidx.get('formula')}',
+                f'Domain: {sidx.get('domain')}',
+                f'Platforms: {",".join(sidx.get('platforms'))}',
+                f'Reference: <a href="{uri}">{uri}</a>',
+            ]
+            return '<br>'.join(tt)
+
+        if role == Qt.CheckStateRole:
+            if col == self.cShortName:
+                sn = sidx.get('short_name')
+                return Qt.Checked if sn in self.mShortcuts else Qt.Unchecked
+
+        return None
 
 
 class SpectralIndexProxyModel(QSortFilterProxyModel):
@@ -401,16 +516,3 @@ class SpectralIndexProxyModel(QSortFilterProxyModel):
         super().__init__(*args, **kwds)
         self._model = SpectralIndexModel()
         self.setSourceModel(self._model)
-
-
-class SpectralIndexSelectionWidget(QWidget):
-    """A widget to select a spectral index"""
-
-    def __init__(self, *args, **kwds):
-        super().__init__(*args, **kwds)
-
-
-class SpectralIndexWidgetAction(QWidgetAction):
-
-    def __init__(self, *args, **kwds):
-        pass

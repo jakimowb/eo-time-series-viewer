@@ -4,9 +4,9 @@ import re
 from typing import Optional
 
 import numpy as np
+from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsDataProvider, QgsMessageLog, QgsPointXY, \
+    QgsProviderMetadata, QgsProviderRegistry, QgsRasterDataProvider, QgsRasterInterface, QgsRasterLayer, QgsRectangle
 from qgis.PyQt.QtCore import pyqtSignal, QObject
-from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsDataProvider, QgsPointXY, QgsRasterDataProvider, \
-    QgsRasterInterface, QgsRasterLayer, QgsRectangle
 from qgis.PyQt import sip
 from osgeo import gdal
 
@@ -444,3 +444,16 @@ def sensor_id(layer) -> Optional[str]:
             return sid
     else:
         return None
+
+
+def registerDataProvider():
+    metadata = QgsProviderMetadata(
+        SensorMockupDataProvider.providerKey(),
+        SensorMockupDataProvider.description(),
+        SensorMockupDataProvider.createProvider,
+    )
+    registry = QgsProviderRegistry.instance()
+    success = registry.registerProvider(metadata)
+    if not success:
+        s = ""
+    QgsMessageLog.logMessage('EOTSV SensorMockupDataProvider registered', level=Qgis.MessageLevel.Info)

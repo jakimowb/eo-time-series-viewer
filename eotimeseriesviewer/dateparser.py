@@ -1,12 +1,13 @@
-import datetime
+from datetime import date, datetime, timedelta
 import enum
 import os
 import re
 from pathlib import Path
 from typing import Optional, Union
 
-import numpy as np
+from numpy import datetime64, int16, timedelta64
 from osgeo import gdal
+
 from qgis.PyQt.QtCore import QDate, QDateTime, Qt, QTime
 from qgis.core import Qgis, QgsDateTimeRange, QgsRasterDataProvider, QgsRasterLayer, QgsRasterLayerTemporalProperties
 
@@ -17,9 +18,9 @@ from qgis.core import Qgis, QgsDateTimeRange, QgsRasterDataProvider, QgsRasterLa
 regISODate1 = re.compile(
     r'(?:[1-9]\d{3}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[1-9]\d(?:0[48]|[2468][048]|[13579][26])|(?:[2468][048]|[13579][26])00)-02-29)T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:Z|[+-][01]\d:[0-5]\d)')
 regISODate3 = re.compile(
-    r'([\+-]?\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))([T\s]((([01]\d|2[0-3])((:?)[0-5]\d)?|24\:?00)([\.,]\d+(?!:))?)?(\17[0-5]\d([\.,]\d+)?)?([zZ]|([\+-])([01]\d|2[0-3]):?([0-5]\d)?)?)?)?')
+    r'([\\+-]?\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))([T\s]((([01]\d|2[0-3])((:?)[0-5]\d)?|24\\:?00)([\\.,]\d+(?!:))?)?(\\17[0-5]\d([\\.,]\d+)?)?([zZ]|([\\+-])([01]\d|2[0-3]):?([0-5]\d)?)?)?)?')
 regISODate2 = re.compile(
-    r'(19|20|21\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))([T\s]((([01]\d|2[0-3])((:?)[0-5]\d)?|24\:?00)([\.,]\d+(?!:))?)?(\17[0-5]\d([\.,]\d+)?)?([zZ]|([\+-])([01]\d|2[0-3]):?([0-5]\d)?)?)?)?')
+    r'(19|20|21\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))([T\s]((([01]\d|2[0-3])((:?)[0-5]\d)?|24\\:?00)([\\.,]\d+(?!:))?)?(\\17[0-5]\d([\\.,]\d+)?)?([zZ]|([\\+-])([01]\d|2[0-3]):?([0-5]\d)?)?)?)?')
 # regISODate2 = re.compile(r'([12]\d{3}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))([T\s]((([01]\d|2[0-3])((:?)[0-5]\d)?|24\:?00)([\.,]\d+(?!:))?)?(\17[0-5]\d([\.,]\d+)?)?([zZ]|([\+-])([01]\d|2[0-3]):?([0-5]\d)?)?)?)?')
 # https://www.safaribooksonline.com/library/view/regular-expressions-cookbook/9781449327453/ch04s07.html
 
@@ -56,7 +57,7 @@ def matchOrNone(regex, text):
         return None
 
 
-def dateDOY(date: datetime.date) -> int:
+def dateDOY(date: date) -> int:
     """
     Returns the DOY
     :param date:
@@ -64,22 +65,22 @@ def dateDOY(date: datetime.date) -> int:
     :return:
     :rtype:
     """
-    if isinstance(date, np.datetime64):
-        date = date.astype(datetime.date)
+    if isinstance(date, datetime64):
+        date = date.astype(date)
     return date.timetuple().tm_yday
 
 
 def daysPerYear(year) -> int:
     """Returns the days per year"""
-    if isinstance(year, np.datetime64):
-        year = year.astype(datetime.date)
-    if isinstance(year, datetime.date):
+    if isinstance(year, datetime64):
+        year = year.astype(date)
+    if isinstance(year, date):
         year = year.timetuple().tm_year
 
-    return dateDOY(datetime.date(year=year, month=12, day=31))
+    return dateDOY(date(year=year, month=12, day=31))
 
 
-def num2date(n, dt64=True, qDate=False):
+def num2date(n, dt64: bool = True, qDate: bool = False):
     """
     Converts a decimal-year number into a date
     :param n: number
@@ -99,19 +100,16 @@ def num2date(n, dt64=True, qDate=False):
     doy = round(yearElapsed)
     if doy < 1:
         doy = 1
-    try:
-        date = datetime.date(year, 1, 1) + datetime.timedelta(days=doy - 1)
-    except Exception:
-        s = ""
+    d = date(year, 1, 1) + timedelta(days=doy - 1)
     if qDate:
-        return QDate(date.year, date.month, date.day)
+        return QDate(d.year, d.month, d.day)
     if dt64:
-        return np.datetime64(date)
+        return datetime64(d)
     else:
-        return date
+        return d
 
 
-def extractDateTimeGroup(text: str) -> np.datetime64:
+def extractDateTimeGroup(text: str) -> Optional[datetime64]:
     """
     Extracts a date-time-group from a text string
     :param text: a string
@@ -122,7 +120,7 @@ def extractDateTimeGroup(text: str) -> np.datetime64:
         matchedText = match.group()
         if regMissingHypen.search(matchedText):
             matchedText = '{}-{}-{}'.format(matchedText[0:4], matchedText[4:6], matchedText[6:])
-        return np.datetime64(matchedText)
+        return datetime64(matchedText)
 
     match = regYYYYMMDD.search(text)
     if match:
@@ -134,7 +132,7 @@ def extractDateTimeGroup(text: str) -> np.datetime64:
 
     match = regYYYYMM.search(text)
     if match:
-        return np.datetime64(match.group())
+        return datetime64(match.group())
 
     match = regDecimalYear.search(text)
     if match:
@@ -145,7 +143,7 @@ def extractDateTimeGroup(text: str) -> np.datetime64:
 
     match = regYYYY.search(text)
     if match:
-        return np.datetime64(match.group('year'))
+        return datetime64(match.group('year'))
     return None
 
 
@@ -153,19 +151,17 @@ def datetime64FromYYYYMMDD(yyyymmdd):
     if re.search(r'^\d{8}$', yyyymmdd):
         # insert hyphens
         yyyymmdd = '{}-{}-{}'.format(yyyymmdd[0:4], yyyymmdd[4:6], yyyymmdd[6:8])
-    return np.datetime64(yyyymmdd)
+    return datetime64(yyyymmdd)
 
 
 def datetime64FromYYYYDOY(yyyydoy):
     return datetime64FromDOY(yyyydoy[0:4], yyyydoy[4:7])
 
 
-def DOYfromDatetime64(dt):
+def DOYfromDatetime64(dt: datetime64):
     doy = dt.astype('datetime64[D]') - dt.astype('datetime64[Y]') + 1
-    doy = doy.astype(np.int16)
+    doy = doy.astype(int16)
     return doy
-
-    return (dt.astype('datetime64[D]') - dt.astype('datetime64[Y]')).astype(int) + 1
 
 
 def datetime64FromDOY(year, doy):
@@ -173,7 +169,7 @@ def datetime64FromDOY(year, doy):
         year = int(year)
     if type(doy) is str:
         doy = int(doy)
-    return np.datetime64('{:04d}-01-01'.format(year)) + np.timedelta64(doy - 1, 'D')
+    return datetime64('{:04d}-01-01'.format(year)) + timedelta64(doy - 1, 'D')
 
 
 class ImageDateReader(object):
@@ -193,7 +189,6 @@ class ImageDateReader(object):
         :return: None in case date was not found, numpy.datetime64 else
         """
         raise NotImplementedError()
-        return None
 
 
 class ImageReaderOWS(ImageDateReader):
@@ -209,7 +204,7 @@ class ImageReaderOWS(ImageDateReader):
             text = self.dataSet.GetMetadataItem('WCS_GLOBAL#updateSequence', '')
             if isinstance(text, str):
                 date = extractDateTimeGroup(text)
-                if isinstance(date, np.datetime64):
+                if isinstance(date, datetime64):
                     return date
 
         return None
@@ -234,7 +229,7 @@ class ImageDateReaderDefault(ImageDateReader):
                 if self.regDateKeys.search(key):
                     try:
                         # remove timezone characters from end of string, e.g. 'Z' in '2013-03-25T13:45:03.0Z'
-                        dtg = np.datetime64(re.sub(r'\D+$', '', value))
+                        dtg = datetime64(re.sub(r'\D+$', '', value))
                         return dtg
                     except Exception as ex:
                         pass
@@ -270,7 +265,7 @@ class ImageDateReaderPLEIADES(ImageDateReader):
         elif ext == '.jp2':
             timeStamp = self.dataSet.GetMetadataItem('ACQUISITIONDATETIME', 'IMAGERY')
         if len(timeStamp) > 0:
-            return np.datetime64(timeStamp)
+            return datetime64(timeStamp)
         return None
 
 
@@ -284,7 +279,7 @@ class ImageDateReaderSentinel2(ImageDateReader):
             md = self.dataSet.GetMetadata_Dict()
             timeStamp = md.get('DATATAKE_1_DATATAKE_SENSING_START', '')
         if len(timeStamp) > 0:
-            return np.datetime64(timeStamp)
+            return datetime64(timeStamp)
         return None
 
 
@@ -309,7 +304,7 @@ class ImageDateParserLandsat(ImageDateReader):
 
         productID = matchOrNone(ImageDateParserLandsat.regLandsatProductID, self.baseName)
         if productID:
-            return np.datetim64(productID[17:25])
+            return datetime64(productID[17:25])
         return None
 
 
@@ -326,16 +321,7 @@ dateParserList = [
 ]
 
 
-def parseDateFromLayer(layer: QgsRasterLayer) -> Optional[datetime.datetime]:
-    assert isinstance(layer, QgsRasterLayer)
-    for parser in dateParserList:
-        dtg = parser(layer).readDTG()
-        if dtg:
-            return dtg
-    return None
-
-
-def parseDateFromDataSet(dataSet: gdal.Dataset) -> Optional[np.datetime64]:
+def parseDateFromDataSet(dataSet: gdal.Dataset) -> Optional[datetime64]:
     assert isinstance(dataSet, gdal.Dataset)
     for parser in dateParserList:
         dtg = parser(dataSet).readDTG()
@@ -378,7 +364,7 @@ class ImageDateUtils(object):
         # try Qt Formats
         for fmt in [Qt.ISODateWithMs, Qt.ISODate, Qt.TextDate]:
             try:
-                dtg = QDateTime.fromString(text, fmt)
+                dtg: QDateTime = QDateTime.fromString(text, fmt)
                 if dtg.isValid():
                     return dtg
             except Exception as ex:
@@ -387,23 +373,23 @@ class ImageDateUtils(object):
         for fmt in DATETIME_FORMATS:
             try:
                 if isinstance(fmt, str):
-                    dtg = datetime.datetime.strptime(text, fmt)
+                    dtg = datetime.strptime(text, fmt)
                     return QDateTime(dtg)
                 elif isinstance(fmt, tuple):
                     fmt, rx = fmt
                     match = rx.search(text)
                     if match:
-                        dtg = datetime.datetime.strptime(match.group('dtg'), fmt)
+                        dtg = datetime.strptime(match.group('dtg'), fmt)
                         return QDateTime(dtg)
             except Exception as ex:
                 s = ""
 
         try:
-            dt = np.datetime64(text).astype(object)
+            dt = datetime64(text).astype(object)
             dtg = None
-            if isinstance(dt, datetime.date):
+            if isinstance(dt, date):
                 dtg = QDateTime(QDate(dtg), QTime())
-            elif isinstance(dt, datetime.datetime):
+            elif isinstance(dt, datetime):
                 dtg = QDateTime(dt)
             if isinstance(dtg, QDateTime) and dtg.isValid():
                 return dtg
@@ -472,18 +458,40 @@ class ImageDateUtils(object):
             return None
 
     @classmethod
-    def doiFromDateTime(cls, dateTime: QDateTime) -> int:
-        return dateTime.date().dayOfYear()
+    def doiFromDateTime(cls, dtg: Union[QDateTime, QDate, datetime, date, str, float]) -> int:
+        dtg = cls.datetime(dtg)
+        return dtg.date().dayOfYear()
 
     @classmethod
-    def timestamp(cls, dtg: Union[QDateTime, QDate, datetime.datetime, datetime.date]) -> float:
+    def datetime(cls, dtg: Union[QDateTime, QDate, datetime, date, str, float]) -> QDateTime:
+        """
+        Converts a time object into a QDateTime object
+        :param dtg:
+        :return:
+        """
+        if isinstance(dtg, float):
+            return QDateTime(datetime.fromtimestamp(dtg))
+        if isinstance(dtg, str):
+            return cls.dateTimeFromString(dtg)
+        if isinstance(dtg, (datetime, date)):
+            return QDateTime(dtg)
+        if isinstance(dtg, QDateTime):
+            return dtg
+        raise NotImplementedError(f'Unknown type: {type(dtg)}')
 
-        if isinstance(dtg, datetime.datetime):
+    @classmethod
+    def timestamp(cls, dtg: Union[QDateTime, QDate, datetime, date]) -> float:
+        """
+        Converts a time object into a float string, to be used in plotting
+        :param dtg:
+        :return:
+        """
+        if isinstance(dtg, datetime):
             return dtg.timestamp()
         elif isinstance(dtg, QDateTime):
             return dtg.toPyDateTime().timestamp()
-        elif isinstance(dtg, datetime.date):
-            return cls.timestamp(datetime.datetime(dtg.year, dtg.month, dtg.day))
+        elif isinstance(dtg, date):
+            return cls.timestamp(datetime(dtg.year, dtg.month, dtg.day))
         elif isinstance(dtg, QDate):
             return cls.timestamp(QDateTime(dtg, QTime()))
         raise NotImplementedError(f'Unknown type: {type(dtg)}')

@@ -1,5 +1,5 @@
-# install: conda env create --file eotsv.yml
-# update: conda env update --file eotsv.yml
+# install: conda env create --file=eotsv.yml
+# update: conda env update --file=eotsv.yml
 # see also https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-from-an-environment-yml-file
 name: eotsv
 channels:
@@ -19,6 +19,7 @@ dependencies:
   - pytest-xdist
   - flake8
   - doc8
+  - openpyxl
   - pip # pip as dependency
 
   - pip: # pip requirements

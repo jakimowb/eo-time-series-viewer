@@ -10,22 +10,22 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import numpy as np
+
+from eotimeseriesviewer.dateparser import ImageDateUtils
+from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
+from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
+from eotimeseriesviewer.sensors import sensor_id
+from eotimeseriesviewer.tasks import EOTSVTask
+from eotimeseriesviewer.spectralindices import spectral_index_acronyms, spectral_indices
+from qgis.PyQt.QtCore import NULL, pyqtSignal, QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt, QVariant
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsEditorWidgetSetup, \
     QgsFeature, QgsField, QgsFieldFormatter, QgsFieldFormatterRegistry, QgsFields, QgsIconUtils, QgsMapLayer, \
     QgsMapLayerModel, QgsPointXY, QgsProject, QgsRasterDataProvider, QgsRasterLayer, QgsTask, QgsVectorFileWriter, \
     QgsVectorLayer
-from qgis.PyQt.QtCore import NULL, pyqtSignal, QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt, QVariant
-from qgis.PyQt.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
-from qgis.PyQt.QtGui import QIcon
 from qgis.gui import QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper, \
     QgsGui
-
-from eotimeseriesviewer.tasks import EOTSVTask
-from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
-from eotimeseriesviewer.temporalprofile.spectralindices import spectral_index_acronyms, spectral_indices
-from eotimeseriesviewer.dateparser import ImageDateUtils
-from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
-from eotimeseriesviewer.sensors import sensor_id
 
 # TimeSeriesProfileData JSON Format
 # { sensors_ids = [sid 1 <str>, ..., sid n],
@@ -357,7 +357,7 @@ class TemporalProfileUtils(object):
         error = None
         compiled_code = None
         try:
-            compiled_code = compile('\n'.join(code), '<band sensor function>', 'exec')
+            compiled_code = compile('\n'.join(code), f'<band expression: "{code}">', 'exec')
         except Exception as ex:
             error = str(ex)
         return compiled_code, error
@@ -414,7 +414,7 @@ class TemporalProfileUtils(object):
         errors = []
 
         all_obs_dates = np.asarray([datetime.fromisoformat(d) for d in tpData[TemporalProfileUtils.Date]])
-        x = np.asarray([d.timestamp() if isinstance(d, datetime) else np.NaN for d in all_obs_dates])
+        x = np.asarray([d.timestamp() if isinstance(d, datetime) else np.nan for d in all_obs_dates])
         n = len(x)
 
         y = np.empty(n, dtype=float)
@@ -453,13 +453,13 @@ class TemporalProfileUtils(object):
                                 warnings.warn(f'Variable {k} is already defined.')
                     exec(expr, _globals)
                     s_y = _globals['y']
-                    # s_y = cls.applySensorExpression(s_band_values, s_obs_dates, feature)
+
                     y[is_sensor] = s_y
                 except Exception as ex:
                     errors.append(f'{ex}')
-                    y[is_sensor] = np.NaN
+                    y[is_sensor] = np.nan
             else:
-                y[is_sensor] = np.NaN
+                y[is_sensor] = np.nan
 
         # exclude NaNs
         is_valid = np.where(np.isfinite(y))[0]
@@ -477,6 +477,7 @@ class TemporalProfileUtils(object):
                    'y': y,
                    'n': len(x),
                    'sensor_indices': sensor_indices,
+                   'indices': is_valid,
                    'errors': errors,
                    }
 
@@ -522,11 +523,11 @@ class TemporalProfileUtils(object):
                     elif b in band_lookup:
                         params[b] = bandData[:, band_lookup[b]]
                     else:
-                        return np.ones(n) * np.NaN
+                        return np.ones(n) * np.nan
 
                 return eval(formula, {}, params)
             else:
-                return np.ones(n) * np.NaN
+                return np.ones(n) * np.nan
                 # s = ""
                 # raise ValueError(f'Unknown band name / spectral index: {expr}')
 

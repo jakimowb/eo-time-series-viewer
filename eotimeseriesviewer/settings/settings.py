@@ -1,16 +1,15 @@
 import enum
+import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 from qgis.PyQt.QtCore import QMimeData, QSize
-from qgis.PyQt.QtGui import QPen
+from qgis.PyQt.QtGui import QColor, QFont, QPen
 from qgis.core import QgsSettings, QgsTextBufferSettings, QgsTextFormat, QgsUnitTypes
-
-from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
-from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.examples.ExampleApp import QColor, QFont
-from eotimeseriesviewer.sensors import SensorInstrument, SensorMatching
 from eotimeseriesviewer import __version__, TITLE
 from eotimeseriesviewer.dateparser import DateTimePrecision
+from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
+from eotimeseriesviewer.sensors import SensorInstrument, SensorMatching
 
 
 class EOTSVSettings(object):
@@ -46,7 +45,7 @@ class EOTSVSettings(object):
         self.profileStyleTemporal = style.clone()
 
         self.qgsTaskAsync = True
-        self.qgsTaskBlockSize = 25
+        self.qgsTaskFileReadingThreads = 4
         self.bandStatsSampleSize = 256
         self.rasterOverlapSampleSize = 25
 
@@ -71,9 +70,9 @@ class EOTSVSettings(object):
         self.sensorSpecifications: Dict[str, str] = dict()
 
         # FORCE
-
-        self.forceRootDir: Path = None
+        self.forceRootDir: Path = Path.home()
         self.forceProduct: str = 'BOA'
+        self.spectralIndexShortcuts: List[str] = ['EVI', 'NDVI']
 
     def keys(self) -> List[str]:
         return [k for k in self.__dict__.keys() if not k.startswith('_')]
@@ -139,10 +138,12 @@ class EOTSVSettings(object):
                             if flag.value == newValue:
                                 newValue = flag
 
-            if type(newValue) is type(defaultValue):
+            if type(newValue) is type(defaultValue) or defaultValue is None:
                 setattr(self, k, newValue)
             else:
-                raise NotImplementedError(f'Unable to update {k} from {type(newValue)} {newValue}')
+                print(f'Unable to update setting property {k} from:\n'
+                      f'type: {type(newValue)} value: {newValue}\n'
+                      f'default: {type(defaultValue)} value {defaultValue}', file=sys.stderr)
 
 
 class EOTSVSettingsManager(object):
