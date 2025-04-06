@@ -1,8 +1,9 @@
 import enum
 import math
-from typing import Dict, List, Union
+from typing import Dict, List, Optional
 
 import numpy as np
+
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractTableModel, QDate, QDateTime, QModelIndex, QSortFilterProxyModel, Qt, \
     QTime, QVariant
 from qgis.gui import QgsAttributeTableModel, QgsAttributeTableView, QgsDateEdit, QgsDateTimeEdit, QgsDoubleSpinBox, \
@@ -12,8 +13,7 @@ from qgis.PyQt.QtGui import QIcon, QKeySequence, QStandardItem, QStandardItemMod
 from qgis.PyQt.QtWidgets import QAction, QComboBox, QLineEdit, QMenu, QStyledItemDelegate, QTableView, QToolBar, \
     QToolButton, QWidget
 from qgis.core import QgsCategorizedSymbolRenderer, QgsEditorWidgetSetup, QgsFeature, QgsField, QgsFields, \
-    QgsMapLayerStore, QgsProject, QgsRendererCategory, QgsSymbol, QgsVectorLayer
-
+    QgsProject, QgsRendererCategory, QgsSymbol, QgsVectorLayer
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
@@ -27,13 +27,6 @@ from .timeseries.source import TimeSeriesDate, TimeSeriesSource
 MAP_LAYER_STORES = []
 
 EDITOR_WIDGET_REGISTRY_KEY = 'EOTSV Quick Label'
-
-
-def mapLayerStores() -> List[Union[QgsProject, QgsMapLayerStore]]:
-    if len(MAP_LAYER_STORES) == 0:
-        MAP_LAYER_STORES.append(QgsProject.instance())
-
-    return MAP_LAYER_STORES[:]
 
 
 class LabelConfigurationKey(object):
@@ -168,25 +161,33 @@ def labelShortcutLayerClassificationSchemes(layer: QgsVectorLayer):
     return classSchemes
 
 
-def quickLabelLayers() -> List[QgsVectorLayer]:
+def isQuickLabelLayer(layer: QgsVectorLayer) -> bool:
+    """
+    Returns True if the layer contains a quick-label field
+    :param layer: QgsVectorLayer
+    :return: bool
+    """
+    if not (isinstance(layer, QgsVectorLayer) and layer.isValid()):
+        return False
+    for i in range(layer.fields().count()):
+        setup: QgsEditorWidgetSetup = layer.editorWidgetSetup(i)
+        if setup.type() in [EDITOR_WIDGET_REGISTRY_KEY, CS_KEY, 'Classification']:
+            return True
+    return False
+
+
+def quickLabelLayers(project: Optional[QgsProject] = None) -> List[QgsVectorLayer]:
     """
     Returns a list of known QgsVectorLayers with at least one LabelShortcutEditWidget
     :return: [list-of-QgsVectorLayer]
     """
-    layers = []
+    if project is None:
+        project = QgsProject.instance()
 
-    classSchemes = set()
-    for store in mapLayerStores():
-        assert isinstance(store, (QgsProject, QgsMapLayerStore))
-        for layer in store.mapLayers().values():
-            if isinstance(layer, QgsVectorLayer):
-                for i in range(layer.fields().count()):
-                    setup = layer.editorWidgetSetup(i)
-                    assert isinstance(setup, QgsEditorWidgetSetup)
-                    if setup.type() in [EDITOR_WIDGET_REGISTRY_KEY, CS_KEY, 'Classification']:
-                        if layer not in layers:
-                            layers.append(layer)
-                        break
+    layers = []
+    for layer in project.mapLayers().values():
+        if isQuickLabelLayer(layer):
+            layers.append(layer)
     return layers
 
 
@@ -222,15 +223,18 @@ def quickLayerFieldSetup(layer, label_group: str = None) -> List[QgsField]:
 
 def setQuickTSDLabelsForRegisteredLayers(tsd: TimeSeriesDate,
                                          tss: TimeSeriesSource,
-                                         layer_group: str = ''):
+                                         label_group: str = '',
+                                         project: Optional[QgsProject] = None):
     """
+    :param project:
+    :param label_group:
+    :param tss:
     :param tsd: TimeSeriesDate
-    :param classInfos:
     """
-    for layer in quickLabelLayers():
+    for layer in quickLabelLayers(project=project):
         assert isinstance(layer, QgsVectorLayer)
         if layer.isEditable():
-            setQuickTSDLabels(layer, tsd, tss, label_group=layer_group)
+            setQuickTSDLabels(layer, tsd, tss, label_group=label_group)
 
 
 def setQuickClassInfo(vectorLayer: QgsVectorLayer, field, classInfo: ClassInfo):
