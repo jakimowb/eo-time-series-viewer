@@ -1,4 +1,15 @@
 """
+Modifies the following QGIS processing classes to become usable with
+self-defined QgsProcessingContext and own QgisInterfaces:
+
+AlgorithmDialog - original: processing/gui/AlgorithmDialog.py
+BatchAlgorithmDialog - original: processing/gui/BatchAlgorithmDialog.py
+BatchPanel - original: processing/gui/BatchPanel.py
+ParametersPanel - original: processing/gui/ParametersPanel.py
+
+createContext - original: processing/tools/dataobjects.py
+createExpressionContext - original: processing/tools/dataobjects.py
+
 
 """
 import codecs
