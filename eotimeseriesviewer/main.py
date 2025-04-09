@@ -27,17 +27,9 @@ import webbrowser
 from pathlib import Path
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
-import eotimeseriesviewer
+from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsLayerTreeView, QgsMapCanvas, QgsMessageBar, \
+    QgsMessageViewer, QgsStatusBar, QgsTaskManagerWidget
 import qgis.utils
-from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
-from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
-from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
-import eotimeseriesviewer.labeling
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries, \
-    TimeSeriesDate, TimeSeriesSource
-from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
-from processing import AlgorithmDialog
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import QCloseEvent, QIcon
 from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
@@ -48,8 +40,18 @@ from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, 
     QgsPointXY, QgsProcessingContext, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProcessingUtils, \
     QgsProject, QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, QgsTask, \
     QgsTaskManager, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
-from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
-    QgsStatusBar, QgsTaskManagerWidget
+
+import eotimeseriesviewer
+from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
+from eotimeseriesviewer.algorithmdialog import AlgorithmDialog
+from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
+from eotimeseriesviewer.mapcanvas import MapCanvas
+from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
+import eotimeseriesviewer.labeling
+from eotimeseriesviewer.processingalgorithms import CreateEmptyTemporalProfileLayer, EOTSVProcessingProvider
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries, \
+    TimeSeriesDate, TimeSeriesSource
+from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 from eotimeseriesviewer.about import AboutDialogUI
 from eotimeseriesviewer.dateparser import DateTimePrecision
 from eotimeseriesviewer.forceinputs import FindFORCEProductsTask, FORCEProductImportDialog
@@ -1039,6 +1041,18 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             QgsApplication.instance().processEvents()
         s = ""
 
+    def browserModel(self):
+        return None
+
+    def mainWindow(self):
+        return self.ui
+
+    def activeLayer(self):
+        return self.currentLayer()
+
+    def setActiveLayer(self, layer: QgsMapLayer):
+        self.setCurrentLayer(layer)
+
     def actionCopyLayerStyle(self) -> QAction:
         return self.ui.mActionCopyLayerStyle
 
@@ -1637,6 +1651,12 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         return self.mapWidget().currentLayer()
 
+    def layerTreeView(self) -> Optional[QgsLayerTreeView]:
+        for mv in self.mapViews():
+            return mv.layerTreeView()
+
+        return None
+
     def createMapView(self, *args, **kwds) -> MapView:
         """
         Creates a new MapView.
@@ -2006,8 +2026,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         layer = None
 
-        d = AlgorithmDialog(alg)
-        d.context = context
+        context = QgsProcessingContext()
+        context.setProject(self.project())
+
+        d = AlgorithmDialog(alg, context=context, iface=self)
 
         def onExecuted(success, results):
             nonlocal layer
@@ -2025,9 +2047,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         :return:
         """
 
-        from eotimeseriesviewer.processingalgorithms import CreateEmptyTemporalProfileLayer
-
-        alg = CreateEmptyTemporalProfileLayer()
+        reg = QgsApplication.processingRegistry()
+        alg = reg.algorithmById(f'{EOTSVProcessingProvider.NAME}:{CreateEmptyTemporalProfileLayer.__name__}')
+        assert isinstance(alg, CreateEmptyTemporalProfileLayer)
         conf = {}
         alg.initAlgorithm(conf)
 
@@ -2045,8 +2067,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 layer = QgsProcessingUtils.mapLayerFromString(results[alg.OUTPUT], context)
                 s = ""
         else:
-            d = AlgorithmDialog(alg)
-            d.context = context
+            d = AlgorithmDialog(alg, context=context)
 
             def onExecuted(success, results):
                 nonlocal layer

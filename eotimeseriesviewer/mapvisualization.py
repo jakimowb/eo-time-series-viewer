@@ -558,6 +558,9 @@ class MapView(QFrame):
     def layerTree(self) -> QgsLayerTree:
         return self.mLayerTree
 
+    def layerTreeView(self) -> QgsLayerTreeView:
+        return self.mLayerTreeView
+
     def title(self, maskNewLines=True) -> str:
         """
         Returns the MapView title

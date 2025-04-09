@@ -11,6 +11,7 @@ from qgis.core import edit, Qgis, QgsApplication, QgsFeature, QgsFeatureSink, Qg
     QgsProcessingProvider, QgsProcessingRegistry, QgsProcessingUtils, QgsVectorFileWriter, QgsVectorLayer
 from qgis.PyQt.QtCore import QMetaType
 from qgis.PyQt.QtGui import QIcon
+
 from eotimeseriesviewer import icon
 from eotimeseriesviewer.qgispluginsupport.qps.fieldvalueconverter import GenericFieldValueConverter, \
     GenericPropertyTransformer
@@ -306,7 +307,7 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
 
         input_layer = self.parameterAsVectorLayer(parameters, self.INPUT, context)
         if not isinstance(input_layer, QgsVectorLayer) or not input_layer.isValid():
-            feedback.pushError(f"Invalid input layer {parameters[self.INPUT]}")
+            feedback.reportError(f"Invalid input layer {parameters[self.INPUT]}", True)
             return False
 
         time_series = self.parameterAsFile(parameters, self.TIMESERIES, context)
@@ -443,9 +444,9 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
 
             # set new profile field
             value = None
-            if f.id() in fids:
-                i = fids.index(f.id())
-                profile = profiles[i]
+            if feat.id() in fids:
+                i_profile = fids.index(feat.id())
+                profile = profiles[i_profile]
                 if profile:
                     value = func(profile)
                     s = ""

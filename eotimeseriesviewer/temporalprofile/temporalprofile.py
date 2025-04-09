@@ -10,13 +10,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import numpy as np
-
-from eotimeseriesviewer.dateparser import ImageDateUtils
-from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
-from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
-from eotimeseriesviewer.sensors import sensor_id
-from eotimeseriesviewer.tasks import EOTSVTask
-from eotimeseriesviewer.spectralindices import spectral_index_acronyms, spectral_indices
 from qgis.PyQt.QtCore import NULL, pyqtSignal, QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
@@ -26,6 +19,13 @@ from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoo
     QgsVectorLayer
 from qgis.gui import QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper, \
     QgsGui
+
+from eotimeseriesviewer.dateparser import ImageDateUtils
+from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
+from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
+from eotimeseriesviewer.sensors import sensor_id
+from eotimeseriesviewer.tasks import EOTSVTask
+from eotimeseriesviewer.spectralindices import spectral_index_acronyms, spectral_indices
 
 # TimeSeriesProfileData JSON Format
 # { sensors_ids = [sid 1 <str>, ..., sid n],
@@ -912,8 +912,6 @@ class LoadTemporalProfileTask(EOTSVTask):
                 # empty temporal profile
                 temporal_profiles[iTP] = None
                 continue
-            if iTP % 10 and self.isCanceled():
-                return False
 
             # order temporal profile content by observation time and sensor
             i_sorted = np.argsort(np.asarray(tp[TemporalProfileUtils.Date]))

@@ -7,6 +7,8 @@ from processing import AlgorithmDialog
 from processing.gui.ProcessingToolbox import ProcessingToolbox
 import processing.gui.ProcessingToolbox
 from qgis.PyQt.QtCore import QMetaType
+import qgis.utils
+
 from eotimeseriesviewer.forceinputs import FindFORCEProductsTask
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.processingalgorithms import AddTemporalProfileField, CreateEmptyTemporalProfileLayer, \
@@ -16,7 +18,6 @@ from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUt
 from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app, TestObjects
 from eotimeseriesviewer import initAll
 from example import examplePoints
-import qgis.utils
 
 start_app()
 initAll()
@@ -82,6 +83,9 @@ class ProcessingAlgorithmTests(EOTSVTestCase):
         lyr = QgsProcessingUtils.mapLayerFromString(results[alg.OUTPUT], context)
         self.assertTrue(lyr.isValid())
         self.assertEqual(lyr.featureCount(), 0)
+
+        profiles = []
+
         for f in ['p1', 'p2', 'p3']:
             self.assertTrue(TemporalProfileUtils.isProfileField(lyr.fields()[f]))
 
@@ -178,7 +182,10 @@ class ProcessingAlgorithmTests(EOTSVTestCase):
         self.assertIsInstance(field, QgsField)
         self.assertTrue(TemporalProfileUtils.isProfileField(field))
         self.assertEqual(lyr.featureCount(), tplyr.featureCount())
+        self.assertTrue(tplyr.featureCount() > 0)
 
+        profiles = []
+        points = []
         for (f1, f2) in zip(lyr.getFeatures(), tplyr.getFeatures()):
             f1: QgsFeature
             f2: QgsFeature
@@ -186,7 +193,16 @@ class ProcessingAlgorithmTests(EOTSVTestCase):
             self.assertGeometriesEqual(f1.geometry(), f2.geometry())
 
             d = TemporalProfileUtils.profileDict(f2.attribute(field.name()))
-            print(d)
+            wkt = f2.geometry().asWkt()
+            self.assertTrue(wkt not in points)
+            points.append(wkt)
+
+            if d in profiles:
+                s = ""
+
+            self.assertTrue(d not in profiles)
+            profiles.append(d)
+
             # self.assertTrue(TemporalProfileUtils.isProfileDict(d))
 
         tsv.close()
