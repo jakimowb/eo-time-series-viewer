@@ -27,6 +27,11 @@ import webbrowser
 from pathlib import Path
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
+from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, \
+    QgsExpressionContext, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, \
+    QgsPointXY, QgsProcessingContext, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProcessingRegistry, \
+    QgsProcessingUtils, QgsProject, QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, \
+    QgsTask, QgsTaskManager, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
 from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsLayerTreeView, QgsMapCanvas, QgsMessageBar, \
     QgsMessageViewer, QgsStatusBar, QgsTaskManagerWidget
 import qgis.utils
@@ -35,20 +40,16 @@ from qgis.PyQt.QtGui import QCloseEvent, QIcon
 from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
     QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
 from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
-from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, \
-    QgsExpressionContext, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, \
-    QgsPointXY, QgsProcessingContext, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProcessingUtils, \
-    QgsProject, QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, QgsTask, \
-    QgsTaskManager, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
 
 import eotimeseriesviewer
 from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
-from eotimeseriesviewer.algorithmdialog import AlgorithmDialog
+from eotimeseriesviewer.processing.algorithmdialog import AlgorithmDialog
 from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
 import eotimeseriesviewer.labeling
-from eotimeseriesviewer.processingalgorithms import CreateEmptyTemporalProfileLayer, EOTSVProcessingProvider
+from eotimeseriesviewer.processing.processingalgorithms import CreateEmptyTemporalProfileLayer, EOTSVProcessingProvider, \
+    ReadTemporalProfiles
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries, \
     TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
@@ -2014,10 +2015,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     def loadTemporalProfilesForPoints(self):
 
-        from eotimeseriesviewer.processingalgorithms import ReadTemporalProfiles
-        conf = {}
-        alg = ReadTemporalProfiles()
-        alg.initAlgorithm(conf)
+        reg: QgsProcessingRegistry = QgsApplication.processingRegistry()
+        alg = reg.algorithmById(f'{EOTSVProcessingProvider.name()}:{ReadTemporalProfiles.name()}')
+        assert isinstance(alg, ReadTemporalProfiles)
 
         feedback = QgsProcessingFeedback()
         context = QgsProcessingContext()
@@ -2047,12 +2047,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         :return:
         """
 
-        reg = QgsApplication.processingRegistry()
-        alg = reg.algorithmById(f'{EOTSVProcessingProvider.NAME}:{CreateEmptyTemporalProfileLayer.__name__}')
+        reg: QgsProcessingRegistry = QgsApplication.processingRegistry()
+        alg = reg.algorithmById(f'{EOTSVProcessingProvider.name()}:{CreateEmptyTemporalProfileLayer.name()}')
         assert isinstance(alg, CreateEmptyTemporalProfileLayer)
-        conf = {}
-        alg.initAlgorithm(conf)
-
         feedback = QgsProcessingFeedback()
         context = QgsProcessingContext()
         context.setFeedback(feedback)

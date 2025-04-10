@@ -1,18 +1,19 @@
 import unittest
 
 from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsFeature, QgsField, QgsGeometry, \
-    QgsProcessingAlgorithm, QgsProcessingAlgRunnerTask, QgsProcessingProvider, QgsProcessingRegistry, \
-    QgsProcessingUtils, QgsProject, QgsRasterLayer, QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
+    QgsProcessingAlgorithm, QgsProcessingAlgRunnerTask, QgsProcessingParameterDefinition, QgsProcessingProvider, \
+    QgsProcessingRegistry, QgsProcessingUtils, QgsProject, QgsRasterLayer, QgsTaskManager, QgsVectorLayer, \
+    QgsVectorLayerUtils
 from processing import AlgorithmDialog
 from processing.gui.ProcessingToolbox import ProcessingToolbox
 import processing.gui.ProcessingToolbox
 from qgis.PyQt.QtCore import QMetaType
 import qgis.utils
 
+from eotimeseriesviewer.processing.processingalgorithms import AddTemporalProfileField, CreateEmptyTemporalProfileLayer, \
+    EOTSVProcessingProvider, ReadTemporalProfiles
 from eotimeseriesviewer.forceinputs import FindFORCEProductsTask
 from eotimeseriesviewer.main import EOTimeSeriesViewer
-from eotimeseriesviewer.processingalgorithms import AddTemporalProfileField, CreateEmptyTemporalProfileLayer, \
-    EOTSVProcessingProvider, ReadTemporalProfiles
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent, SpatialPoint
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
 from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app, TestObjects
@@ -35,10 +36,10 @@ class ProcessingAlgorithmTests(EOTSVTestCase):
 
         registry: QgsProcessingRegistry = QgsApplication.instance().processingRegistry()
 
-        p = registry.providerById('eotimeseriesviewer')
+        p = registry.providerById(EOTSVProcessingProvider.name())
         self.assertIsInstance(p, EOTSVProcessingProvider)
 
-        alg = registry.createAlgorithmById('eotimeseriesviewer:AddTemporalProfileField', {})
+        alg = registry.createAlgorithmById(f'{EOTSVProcessingProvider.name()}:{AddTemporalProfileField.name()}', {})
         self.assertIsInstance(alg, AddTemporalProfileField)
 
         unregisterProcessingProvider()
@@ -329,3 +330,22 @@ class ProcessingAlgorithmTests(EOTSVTestCase):
         w = ProcessingToolbox()
         w.executeWithGui.connect(executeWithGui)
         self.showGui(w)
+
+    def test_algorithm_html_help(self):
+
+        algs = [CreateEmptyTemporalProfileLayer(),
+                ReadTemporalProfiles(),
+                AddTemporalProfileField()]
+
+        for a in algs:
+
+            self.assertIsInstance(a, QgsProcessingAlgorithm)
+            conf = {}
+            a.initAlgorithm(conf)
+            help = a.shortHelpString()
+            self.assertIsInstance(help, str)
+            self.assertTrue(len(help) > 0)
+
+            for p in a.parameterDefinitions():
+                self.assertIsInstance(p, QgsProcessingParameterDefinition)
+                self.assertTrue(p.name() in help, msg=f'Parameter {p.name()} is missing in html help of {a.id()}')

@@ -123,12 +123,12 @@ def initAll():
 
 
 def registerProcessingProvider():
-    from eotimeseriesviewer.processingalgorithms import EOTSVProcessingProvider
+    from eotimeseriesviewer.processing.processingalgorithms import EOTSVProcessingProvider
     EOTSVProcessingProvider.registerProvider()
 
 
 def unregisterProcessingProvider():
-    from eotimeseriesviewer.processingalgorithms import EOTSVProcessingProvider
+    from eotimeseriesviewer.processing.processingalgorithms import EOTSVProcessingProvider
     EOTSVProcessingProvider.unregisterProvider()
 
 

@@ -9,13 +9,13 @@ from openpyxl.reader.excel import load_workbook
 from openpyxl.styles import Alignment, Border, Font, Side
 from openpyxl.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
-
 from qgis import processing
 from qgis.core import QgsApplication, QgsProcessingAlgRunnerTask, QgsProject, QgsRasterLayer, QgsTaskManager
+
 from eotimeseriesviewer.force import FORCEUtils
 from eotimeseriesviewer.forceinputs import FindFORCEProductsTask
 from eotimeseriesviewer.main import EOTimeSeriesViewer
-from eotimeseriesviewer.processingalgorithms import ReadTemporalProfiles
+from eotimeseriesviewer.processing.processingalgorithms import ReadTemporalProfiles
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 from eotimeseriesviewer import initAll
 

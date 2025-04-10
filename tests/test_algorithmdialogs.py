@@ -1,10 +1,10 @@
 import unittest
 
-from qgis._core import QgsProcessingUtils, QgsVectorLayer
+from qgis.core import QgsProcessingUtils, QgsVectorLayer
 
-from eotimeseriesviewer.algorithmdialog import AlgorithmDialog, BatchAlgorithmDialog
+from eotimeseriesviewer.processing.algorithmdialog import AlgorithmDialog, BatchAlgorithmDialog
 from eotimeseriesviewer.main import EOTimeSeriesViewer
-from eotimeseriesviewer.processingalgorithms import ReadTemporalProfiles
+from eotimeseriesviewer.processing.processingalgorithms import ReadTemporalProfiles
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 
 start_app()
@@ -31,7 +31,7 @@ class AlgorithmDialogTests(EOTSVTestCase):
         d.exec_()
 
         results = d.results()
-        layer = QgsProcessingUtils.mapLayerFromString(results['OUTPUT'], context)
+        layer = QgsProcessingUtils.mapLayerFromString(results[ReadTemporalProfiles.OUTPUT], context)
         self.assertIsInstance(layer, QgsVectorLayer)
         self.assertTrue(layer.featureCount() > 0)
         for f in layer.getFeatures():
@@ -61,5 +61,12 @@ class AlgorithmDialogTests(EOTSVTestCase):
         d = BatchAlgorithmDialog(alg, context=context, iface=eotsv)
         d.exec_()
 
+        self.showGui(eotsv.ui)
+        eotsv.close()
+
+    @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Blocking dialog')
+    def test_others(self):
+        eotsv = EOTimeSeriesViewer()
+        eotsv.loadExampleTimeSeries(loadAsync=False)
         self.showGui(eotsv.ui)
         eotsv.close()

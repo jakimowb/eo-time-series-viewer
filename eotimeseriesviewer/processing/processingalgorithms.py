@@ -13,6 +13,7 @@ from qgis.PyQt.QtCore import QMetaType
 from qgis.PyQt.QtGui import QIcon
 
 from eotimeseriesviewer import icon
+from eotimeseriesviewer.processing.algorithmhelp import AlgorithmHelp
 from eotimeseriesviewer.qgispluginsupport.qps.fieldvalueconverter import GenericFieldValueConverter, \
     GenericPropertyTransformer
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
@@ -58,7 +59,7 @@ class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):
             description='Other fields to add',
             optional=True,
         )
-        p4.setHelp('Define other field and their data types to be added.')
+        p4.setHelp('Define other fields and their data types to be added.')
 
         p3 = QgsProcessingParameterFeatureSink(
             self.OUTPUT,
@@ -154,17 +155,16 @@ class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):
     def createInstance(self):
         return self.__class__()
 
-    def name(self):
-        return self.__class__.__name__
-
-    # def id(self):
-    #    return self.name().lower()
+    @classmethod
+    def name(cls):
+        return cls.__name__.lower()
 
     def displayName(self):
         return "Create Temporal Profile Layer"
 
     def shortHelpString(self):
-        return "Create a new point layer with a field to store temporal profiles."
+        return AlgorithmHelp.shortHelpString(self,
+                                             default='Create a new point layer with a field to store temporal profiles.')
 
 
 class AddTemporalProfileField(QgsProcessingAlgorithm):
@@ -228,14 +228,15 @@ class AddTemporalProfileField(QgsProcessingAlgorithm):
     def createInstance(self):
         return self.__class__()
 
-    def name(self):
-        return self.__class__.__name__
+    @classmethod
+    def name(cls):
+        return cls.__name__.lower()
 
     def displayName(self):
         return "Add Temporal Profile field"
 
     def shortHelpString(self):
-        return "Adds a field to store temporal profiles."
+        return AlgorithmHelp.shortHelpString(self, default="Adds a field to store temporal profiles.")
 
 
 class ReadTemporalProfiles(QgsProcessingAlgorithm):
@@ -264,6 +265,7 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
             "Input Vector Layer",
             [QgsProcessing.TypeVectorPoint]
         )
+        p1.setHelp('Point vector layer with coordinates to read temporal profiles from.')
 
         p2 = QgsProcessingParameterFile(
             self.TIMESERIES,
@@ -271,6 +273,9 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
             optional=True,
             defaultValue=None,
         )
+        p2.setHelp('A text file (*.csv) with the time series raster sources to read profiles from. '
+                   'If not set, the temporal profiles will be read from the time series '
+                   'shown in the EO Time Series Viewer')
 
         p3 = QgsProcessingParameterField(
             self.FIELD_NAME,
@@ -279,6 +284,7 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
             defaultValue='profiles',
             optional=True
         )
+        p3.setHelp('The new field name to store the temporal profiles in.')
 
         p4 = QgsProcessingParameterNumber(
             self.N_THREADS,
@@ -288,17 +294,16 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
             maxValue=16,
             defaultValue=4,
         )
+        p4.setHelp('Number of threads to read raster sources in parallel. Can be a value between 1 and 16.')
 
-        for p in [p1, p2, p3, p4]:
-            self.addParameter(p)
-
-        self.addParameter(
-            QgsProcessingParameterFeatureSink(
-                self.OUTPUT,
-                description="Calculated",
-                defaultValue=QgsProcessing.TEMPORARY_OUTPUT,
-            )
+        p5 = QgsProcessingParameterFeatureSink(
+            self.OUTPUT,
+            description="Calculated",
+            defaultValue=QgsProcessing.TEMPORARY_OUTPUT,
         )
+        p5.setHelp('Name of the create vector layer with temporal profiles.')
+        for p in [p1, p2, p3, p4, p5]:
+            self.addParameter(p)
 
     def prepareAlgorithm(self,
                          parameters: dict,
@@ -489,8 +494,9 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
     def createInstance(self):
         return self.__class__()
 
-    def name(self):
-        return self.__class__.__name__
+    @classmethod
+    def name(cls):
+        return cls.__name__.lower()
 
     # def id(self):
     #    return self.name().lower()
@@ -499,12 +505,12 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
         return "Read Temporal Profiles"
 
     def shortHelpString(self):
-        return "Adds a new field 'name' to the input vector layer and populates it with extracted temporal profiles."
+        return AlgorithmHelp.shortHelpString(self,
+                                             default="Adds a new field 'name' to the input vector layer "
+                                                     "and populates it with extracted temporal profiles.")
 
 
 class EOTSVProcessingProvider(QgsProcessingProvider):
-    NAME = 'EOTimeSeriesViewer'
-
     _INSTANCE = None
 
     @staticmethod
@@ -543,15 +549,16 @@ class EOTSVProcessingProvider(QgsProcessingProvider):
         self._algs.clear()
         self.loadAlgorithms()
 
-    def name(self):
-        return self.NAME
+    @classmethod
+    def name(cls) -> str:
+        return 'eotsv'
 
     def longName(self):
-        return self.NAME
+        return 'EO Time Series Viewer'
 
     @classmethod
     def id(cls):
-        return cls.NAME.lower()
+        return cls.name()
 
     def helpId(self):
         return self.id()
