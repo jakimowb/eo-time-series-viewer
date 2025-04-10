@@ -25,17 +25,17 @@ from itertools import chain
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
-
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QItemSelectionModel, QModelIndex, QObject, \
     QPoint, Qt, QTimer
-from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QAction, QMenu, QProgressBar, QSlider, QTableView, QToolButton, QWidgetAction
 from qgis.core import QgsApplication, QgsCoordinateTransform, QgsExpression, QgsExpressionContext, \
     QgsExpressionContextUtils, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsProject, \
     QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
 from qgis.gui import QgsDockWidget, QgsFilterLineEdit
+
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from .datetimeplot import DateTimePlotDataItem, DateTimePlotWidget
 from .plotsettings import PlotSettingsProxyModel, PlotSettingsTreeModel, PlotSettingsTreeView, \
     PlotSettingsTreeViewDelegate, TPVisGroup
@@ -812,6 +812,7 @@ class TemporalProfileVisualization(QObject):
                     self.project().layersAdded.disconnect(self.initPlot)
                 except Exception as ex:
                     pass
+                self.updatePlot()
 
     def setTimeSeries(self, timeseries: TimeSeries):
         self.mModel.setTimeSeries(timeseries)
@@ -835,6 +836,7 @@ class TemporalProfileVisualization(QObject):
 
 class TemporalProfileDock(QgsDockWidget):
     sigMoveToDate = pyqtSignal(QDateTime)
+    layerAttributeTableRequest = pyqtSignal(list)
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
@@ -844,6 +846,8 @@ class TemporalProfileDock(QgsDockWidget):
 
         self.mPlotWidget: DateTimePlotWidget
         self.mTreeView: PlotSettingsTreeView
+        self.mTreeView.layerAttributeTableRequest.connect(self.layerAttributeTableRequest)
+
         self.mVectorLayerTool: Optional[VectorLayerTools] = None
 
         self.mVis = TemporalProfileVisualization(self.mTreeView, self.mPlotWidget)
@@ -860,10 +864,16 @@ class TemporalProfileDock(QgsDockWidget):
         self.actionDeselect.triggered.connect(self.deselect)
         self.actionPanToSelected.triggered.connect(self.panToSelected)
         self.actionZoomToSelected.triggered.connect(self.zoomToSelected)
+        self.actionShowAttributeTable.setEnabled(False)
+        self.actionShowAttributeTable.triggered.connect(self.onOpenAttributeTables)
         self.onFeatureSelectionChanged(dict())
         self.actionShowSelectedProfileOnly.toggled.connect(self.mVis.setShowSelectedOnly)
 
         self.btnCancelTask.clicked.connect(self.mVis.cancelLoadingTask)
+
+    def onOpenAttributeTables(self):
+
+        pass
 
     def onFeatureSelectionChanged(self, selected_features: dict):
         has_selected = len(selected_features) > 0

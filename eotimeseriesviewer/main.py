@@ -457,6 +457,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.dockSensors.setTimeSeries(self.mTimeSeries)
         self.ui.dockProfiles.setTimeSeries(self.mTimeSeries)
         self.ui.dockProfiles.setVectorLayerTools(self.mVectorLayerTools)
+        self.ui.dockProfiles.layerAttributeTableRequest.connect(self.showAttributeTables)
+
         mw.setTimeSeries(self.mTimeSeries)
         # mvd.setTimeSeries(self.mTimeSeries)
         mvd.setMapWidget(mw)
@@ -1943,6 +1945,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
     def show(self):
         self.ui.show()
 
+    def showAttributeTables(self, layers: List[QgsMapLayer]):
+        for lyr in layers:
+            if isinstance(lyr, QgsVectorLayer):
+                self.showAttributeTable(lyr)
+
     def showAttributeTable(self, lyr: QgsVectorLayer, filterExpression: str = "") -> QgsDockWidget:
         assert isinstance(lyr, QgsVectorLayer)
 
@@ -2016,8 +2023,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
     def loadTemporalProfilesForPoints(self):
 
         reg: QgsProcessingRegistry = QgsApplication.processingRegistry()
-        alg = reg.algorithmById(f'{EOTSVProcessingProvider.name()}:{ReadTemporalProfiles.name()}')
+        alg = reg.createAlgorithmById(f'{EOTSVProcessingProvider.name()}:{ReadTemporalProfiles.name()}')
         assert isinstance(alg, ReadTemporalProfiles)
+        # alg = alg.createInstance()
 
         feedback = QgsProcessingFeedback()
         context = QgsProcessingContext()
@@ -2048,7 +2056,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
 
         reg: QgsProcessingRegistry = QgsApplication.processingRegistry()
-        alg = reg.algorithmById(f'{EOTSVProcessingProvider.name()}:{CreateEmptyTemporalProfileLayer.name()}')
+        alg = reg.createAlgorithmById(f'{EOTSVProcessingProvider.name()}:{CreateEmptyTemporalProfileLayer.name()}')
         assert isinstance(alg, CreateEmptyTemporalProfileLayer)
         feedback = QgsProcessingFeedback()
         context = QgsProcessingContext()

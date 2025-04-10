@@ -334,7 +334,7 @@ class TemporalProfileUtils(object):
     @classmethod
     def createEmptyProfile(cls) -> dict:
         p = {
-            TemporalProfileUtils.Source: [],
+            # TemporalProfileUtils.Source: [],
             TemporalProfileUtils.Date: [],
             TemporalProfileUtils.Sensor: [],
             TemporalProfileUtils.SensorIDs: [],
@@ -838,6 +838,7 @@ class LoadTemporalProfileTask(EOTSVTask):
                  points: List[QgsPointXY],
                  crs: QgsCoordinateReferenceSystem,
                  info: dict = None,
+                 save_sources: bool = False,
                  n_threads: int = 4,
                  *args, **kwds):
         super().__init__(*args, **kwds)
@@ -857,6 +858,7 @@ class LoadTemporalProfileTask(EOTSVTask):
         self.mErrors = None
         self.mProfiles = None
         self.mSubTaskErrors = []
+        self.mSaveSources = save_sources
 
         added = []
         badge = []
@@ -882,6 +884,9 @@ class LoadTemporalProfileTask(EOTSVTask):
 
         # create an empty temporal profile for each point
         temporal_profiles: List[dict] = [TemporalProfileUtils.createEmptyProfile() for _ in self.mPoints]
+        if self.mSaveSources:
+            for tp in temporal_profiles:
+                tp[TemporalProfileUtils.Source] = []
 
         n_total = len(self.mSources)
         assert n_total == len(self.mSubTaskResults)
@@ -901,7 +906,8 @@ class LoadTemporalProfileTask(EOTSVTask):
                     if profile:
                         tp[TemporalProfileUtils.Date].append(data[TemporalProfileUtils.Date])
                         tp[TemporalProfileUtils.Values].append(profile)
-                        tp[TemporalProfileUtils.Source].append(data[TemporalProfileUtils.Source])
+                        if self.mSaveSources:
+                            tp[TemporalProfileUtils.Source].append(data[TemporalProfileUtils.Source])
                         tp[TemporalProfileUtils.Sensor].append(data[TemporalProfileUtils.Sensor])
             if error:
                 errors.append(error)

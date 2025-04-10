@@ -2,6 +2,17 @@ import itertools
 import json
 from typing import Any, Dict, List, Optional, Union
 
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
+from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, \
+    QPixmap, QStandardItem, QStandardItemModel
+from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QHeaderView, QMenu, QStyle, QStyledItemDelegate, \
+    QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
+from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
+    QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsGeometry, QgsProject, QgsProperty, \
+    QgsPropertyDefinition, QgsVectorLayer
+from qgis.gui import QgsFieldExpressionWidget
+
+from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, \
     PlotStyleDialog, PlotStyleWidget
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
@@ -14,15 +25,6 @@ from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpre
 from eotimeseriesviewer.spectralindices import spectral_indices
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileLayerFieldComboBox, TemporalProfileUtils
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
-from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, \
-    QPixmap, QStandardItem, QStandardItemModel
-from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QHeaderView, QMenu, QStyle, QStyledItemDelegate, \
-    QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
-from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
-    QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsGeometry, QgsProject, QgsProperty, \
-    QgsPropertyDefinition, QgsVectorLayer
-from qgis.gui import QgsFieldExpressionWidget
 
 
 class StyleItem(PlotStyleItem):
@@ -967,6 +969,7 @@ class PlotSettingsTreeModel(QStandardItemModel):
 
 
 class PlotSettingsTreeView(QTreeView):
+    layerAttributeTableRequest = pyqtSignal(list)
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
@@ -1013,6 +1016,9 @@ class PlotSettingsTreeView(QTreeView):
         menu: QMenu = QMenu()
         menu.setToolTipsVisible(True)
         selected_indices = self.selectionModel().selectedRows()
+
+        tp_layers = []
+
         for idx in selected_indices:
             item = idx.data(Qt.UserRole)
             if isinstance(item, PropertyLabel):
@@ -1025,14 +1031,27 @@ class PlotSettingsTreeView(QTreeView):
                 sensorItems.append(item)
             elif isinstance(item, TPVisGroup):
                 sensorItems.extend(item.sensorItems())
+                tp_layers.append(item.layer())
             elif isinstance(parentItem, TPVisSensor):
                 sensorItems.append(parentItem)
             elif isinstance(parentItem, TPVisGroup):
                 sensorItems.extend(parentItem.sensorItems())
+                tp_layers.append(parentItem.layer())
 
             if len(sensorItems) > 0:
                 code_items = [s.mPBand for s in sensorItems]
                 self.addSpectralIndexMenu(menu, code_items)
+
+        if len(tp_layers) > 0:
+            tp_layers = list(set(tp_layers))
+            menu.addSeparator()
+            a: QAction = menu.addAction('Open Layer Table')
+            a.setIcon(QIcon(':/images/themes/default/propertyicons/attributes.svg'))
+            a.triggered.connect(lambda *args, lyrs=tp_layers: self.layerAttributeTableRequest.emit(lyrs))
+
+            a: QAction = menu.addAction('Layer Properties...')
+            a.triggered.connect(
+                lambda *args, lyr=tp_layers[0]: showLayerPropertiesDialog(lyr, self, useQGISDialog=False))
 
         if not menu.isEmpty():
             menu.exec_(self.viewport().mapToGlobal(event.pos()))

@@ -72,7 +72,6 @@
       <addaction name="actionDeselect"/>
       <addaction name="separator"/>
       <addaction name="actionShowAttributeTable"/>
-      <addaction name="actionShowLayerProperties"/>
      </widget>
     </item>
     <item>

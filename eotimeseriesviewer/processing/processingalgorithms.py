@@ -5,8 +5,8 @@ from typing import Dict
 
 from qgis.core import edit, Qgis, QgsApplication, QgsFeature, QgsFeatureSink, QgsField, QgsFields, QgsMapLayer, \
     QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext, QgsProcessingException, QgsProcessingFeedback, \
-    QgsProcessingOutputVectorLayer, QgsProcessingParameterCrs, QgsProcessingParameterFeatureSink, \
-    QgsProcessingParameterField, QgsProcessingParameterFieldMapping, QgsProcessingParameterFile, \
+    QgsProcessingOutputVectorLayer, QgsProcessingParameterBoolean, QgsProcessingParameterCrs, \
+    QgsProcessingParameterFeatureSink, QgsProcessingParameterFieldMapping, QgsProcessingParameterFile, \
     QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessingParameterVectorLayer, \
     QgsProcessingProvider, QgsProcessingRegistry, QgsProcessingUtils, QgsVectorFileWriter, QgsVectorLayer
 from qgis.PyQt.QtCore import QMetaType
@@ -245,6 +245,7 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
     FIELD_NAME = 'FIELD_NAME'
     N_THREADS = 'N_THREADS'
     OUTPUT = 'OUTPUT'
+    ADD_SOURCES = 'ADD_SOURCES'
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
@@ -277,10 +278,9 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
                    'If not set, the temporal profiles will be read from the time series '
                    'shown in the EO Time Series Viewer')
 
-        p3 = QgsProcessingParameterField(
+        p3 = QgsProcessingParameterString(
             self.FIELD_NAME,
             description="Temporal Profile Field",
-            parentLayerParameterName=self.INPUT,
             defaultValue='profiles',
             optional=True
         )
@@ -296,13 +296,20 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
         )
         p4.setHelp('Number of threads to read raster sources in parallel. Can be a value between 1 and 16.')
 
-        p5 = QgsProcessingParameterFeatureSink(
+        p5 = QgsProcessingParameterBoolean(
+            self.ADD_SOURCES,
+            description='Save source path in temporal profiles',
+            defaultValue=False,
+        )
+        p5.setHelp('Set True to store the file path of each source image in the temporal profile json')
+
+        p6 = QgsProcessingParameterFeatureSink(
             self.OUTPUT,
             description="Calculated",
             defaultValue=QgsProcessing.TEMPORARY_OUTPUT,
         )
-        p5.setHelp('Name of the create vector layer with temporal profiles.')
-        for p in [p1, p2, p3, p4, p5]:
+        p6.setHelp('Name of the create vector layer with temporal profiles.')
+        for p in [p1, p2, p3, p4, p5, p6]:
             self.addParameter(p)
 
     def prepareAlgorithm(self,
@@ -379,7 +386,7 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
 
         # collect geometries
         input_layer: QgsVectorLayer = self.parameterAsVectorLayer(parameters, self.INPUT, context)
-
+        save_source_path: bool = self.parameterAsBoolean(parameters, self.ADD_SOURCES, context)
         points = []
         fids = []
         for f in input_layer.getFeatures():
@@ -392,6 +399,7 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
                                        points,
                                        input_layer.crs(),
                                        n_threads=self._n_threads,
+                                       save_sources=save_source_path,
                                        description='Load temporal profiles')
 
         task.setDescription('Load Temporal Profile')
