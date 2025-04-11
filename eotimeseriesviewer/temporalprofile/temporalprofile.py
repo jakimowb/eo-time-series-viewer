@@ -10,13 +10,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import numpy as np
-
-from eotimeseriesviewer.dateparser import ImageDateUtils
-from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
-from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
-from eotimeseriesviewer.sensors import sensor_id
-from eotimeseriesviewer.tasks import EOTSVTask
-from eotimeseriesviewer.spectralindices import spectral_index_acronyms, spectral_indices
 from qgis.PyQt.QtCore import NULL, pyqtSignal, QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
@@ -26,6 +19,13 @@ from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoo
     QgsVectorLayer
 from qgis.gui import QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper, \
     QgsGui
+
+from eotimeseriesviewer.dateparser import ImageDateUtils
+from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
+from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
+from eotimeseriesviewer.sensors import sensor_id
+from eotimeseriesviewer.tasks import EOTSVTask
+from eotimeseriesviewer.spectralindices import spectral_index_acronyms, spectral_indices
 
 # TimeSeriesProfileData JSON Format
 # { sensors_ids = [sid 1 <str>, ..., sid n],
@@ -334,7 +334,7 @@ class TemporalProfileUtils(object):
     @classmethod
     def createEmptyProfile(cls) -> dict:
         p = {
-            TemporalProfileUtils.Source: [],
+            # TemporalProfileUtils.Source: [],
             TemporalProfileUtils.Date: [],
             TemporalProfileUtils.Sensor: [],
             TemporalProfileUtils.SensorIDs: [],
@@ -759,7 +759,9 @@ class LoadTemporalProfileSubTask(QgsTask):
                        crs: QgsCoordinateReferenceSystem) -> Tuple[Optional[dict], Optional[str]]:
         """
         Returns the profiles + meta infos from a single source
-        :param src:
+        :param source: str
+        :param points:
+        :param crs:
         :return: profiles (in order of points), sensor-id, list of errors
         """
         error = None
@@ -838,6 +840,7 @@ class LoadTemporalProfileTask(EOTSVTask):
                  points: List[QgsPointXY],
                  crs: QgsCoordinateReferenceSystem,
                  info: dict = None,
+                 save_sources: bool = False,
                  n_threads: int = 4,
                  *args, **kwds):
         super().__init__(*args, **kwds)
@@ -857,6 +860,7 @@ class LoadTemporalProfileTask(EOTSVTask):
         self.mErrors = None
         self.mProfiles = None
         self.mSubTaskErrors = []
+        self.mSaveSources = save_sources
 
         added = []
         badge = []
@@ -882,6 +886,9 @@ class LoadTemporalProfileTask(EOTSVTask):
 
         # create an empty temporal profile for each point
         temporal_profiles: List[dict] = [TemporalProfileUtils.createEmptyProfile() for _ in self.mPoints]
+        if self.mSaveSources:
+            for tp in temporal_profiles:
+                tp[TemporalProfileUtils.Source] = []
 
         n_total = len(self.mSources)
         assert n_total == len(self.mSubTaskResults)
@@ -901,7 +908,8 @@ class LoadTemporalProfileTask(EOTSVTask):
                     if profile:
                         tp[TemporalProfileUtils.Date].append(data[TemporalProfileUtils.Date])
                         tp[TemporalProfileUtils.Values].append(profile)
-                        tp[TemporalProfileUtils.Source].append(data[TemporalProfileUtils.Source])
+                        if self.mSaveSources:
+                            tp[TemporalProfileUtils.Source].append(data[TemporalProfileUtils.Source])
                         tp[TemporalProfileUtils.Sensor].append(data[TemporalProfileUtils.Sensor])
             if error:
                 errors.append(error)
@@ -912,8 +920,6 @@ class LoadTemporalProfileTask(EOTSVTask):
                 # empty temporal profile
                 temporal_profiles[iTP] = None
                 continue
-            if iTP % 10 and self.isCanceled():
-                return False
 
             # order temporal profile content by observation time and sensor
             i_sorted = np.argsort(np.asarray(tp[TemporalProfileUtils.Date]))

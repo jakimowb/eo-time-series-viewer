@@ -87,6 +87,15 @@ class TestMain(EOTSVTestCase):
         TSV.close()
         QgsProject.instance().removeAllMapLayers()
 
+    def test_TimeSeriesViewe_VectorOnly(self):
+
+        eotsv = EOTimeSeriesViewer()
+        from example import examplePoints
+        eotsv.addVectorData(examplePoints)
+        self.showGui(eotsv.ui)
+
+        eotsv.close()
+
     # @unittest.skip('test')
     def test_TimeSeriesViewerNoSource(self):
 

@@ -186,7 +186,15 @@ def create_plugin(include_testdata: bool = False,
 
     # Copy to other deploy directory
     if copy_to_profile:
-        profileManager: QgsUserProfileManager = userProfileManager()
+
+        if 'QGIS_PROFILE_FOLDER' in os.environ:
+            folder = Path(os.environ.get('QGIS_PROFILE_FOLDER'))
+            assert folder.is_dir()
+            assert (folder / 'profiles.ini').is_file()
+            profileManager = QgsUserProfileManager(str(folder))
+        else:
+            profileManager: QgsUserProfileManager = userProfileManager()
+
         assert len(profileManager.allProfiles()) > 0
         if isinstance(copy_to_profile, str):
             profileName = copy_to_profile
@@ -210,7 +218,11 @@ def create_plugin(include_testdata: bool = False,
             if QGIS_PROFILE_DEPLOY.is_dir():
                 print(f'Copy plugin to {QGIS_PROFILE_DEPLOY}...')
                 shutil.rmtree(QGIS_PROFILE_DEPLOY)
-            shutil.copytree(PLUGIN_DIR, QGIS_PROFILE_DEPLOY)
+
+            def ignore_func(dir, files):
+                return [f for f in files if "CC0 legal code" in f]
+
+            shutil.copytree(PLUGIN_DIR, QGIS_PROFILE_DEPLOY, ignore=ignore_func)
 
     # 5. create a zip
     # Create a zip

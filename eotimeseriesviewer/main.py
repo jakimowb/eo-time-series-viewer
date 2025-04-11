@@ -27,29 +27,32 @@ import webbrowser
 from pathlib import Path
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
-import eotimeseriesviewer
+from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, \
+    QgsExpressionContext, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, \
+    QgsPointXY, QgsProcessingContext, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProcessingRegistry, \
+    QgsProcessingUtils, QgsProject, QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, \
+    QgsTask, QgsTaskManager, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
+from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsLayerTreeView, QgsMapCanvas, QgsMessageBar, \
+    QgsMessageViewer, QgsStatusBar, QgsTaskManagerWidget
 import qgis.utils
-from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
-from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
-from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
-import eotimeseriesviewer.labeling
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries, \
-    TimeSeriesDate, TimeSeriesSource
-from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
-from processing import AlgorithmDialog
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import QCloseEvent, QIcon
 from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
     QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
 from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
-from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, \
-    QgsExpressionContext, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, \
-    QgsPointXY, QgsProcessingContext, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProcessingUtils, \
-    QgsProject, QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, QgsTask, \
-    QgsTaskManager, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
-from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
-    QgsStatusBar, QgsTaskManagerWidget
+
+import eotimeseriesviewer
+from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG
+from eotimeseriesviewer.processing.algorithmdialog import AlgorithmDialog
+from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
+from eotimeseriesviewer.mapcanvas import MapCanvas
+from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
+import eotimeseriesviewer.labeling
+from eotimeseriesviewer.processing.processingalgorithms import CreateEmptyTemporalProfileLayer, EOTSVProcessingProvider, \
+    ReadTemporalProfiles
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries, \
+    TimeSeriesDate, TimeSeriesSource
+from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 from eotimeseriesviewer.about import AboutDialogUI
 from eotimeseriesviewer.dateparser import DateTimePrecision
 from eotimeseriesviewer.forceinputs import FindFORCEProductsTask, FORCEProductImportDialog
@@ -227,6 +230,7 @@ class EOTimeSeriesViewerUI(QMainWindow):
 
     def closeEvent(self, a0: QCloseEvent):
         self.sigAboutToBeClosed.emit()
+        super().closeEvent(a0)
 
     """
     def resizeEvent(self, event:QResizeEvent):
@@ -419,7 +423,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         assert isinstance(mw, MapWidget)
         assert isinstance(tswidget, TimeSeriesWidget)
 
-        self.ui.sigAboutToBeClosed.connect(self.onClose)
+        self.ui.sigAboutToBeClosed.connect(self.beforeClose)
 
         import qgis.utils
         assert isinstance(qgis.utils.iface, QgisInterface)
@@ -454,6 +458,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.dockSensors.setTimeSeries(self.mTimeSeries)
         self.ui.dockProfiles.setTimeSeries(self.mTimeSeries)
         self.ui.dockProfiles.setVectorLayerTools(self.mVectorLayerTools)
+        self.ui.dockProfiles.layerAttributeTableRequest.connect(self.showAttributeTables)
+
         mw.setTimeSeries(self.mTimeSeries)
         # mvd.setTimeSeries(self.mTimeSeries)
         mvd.setMapWidget(mw)
@@ -633,17 +639,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         alg = QgsApplication.instance().processingRegistry().createAlgorithmById(alg_id, config)
 
         return None
-
-        if alg is not None:
-            ok, message = alg.canExecute()
-            if not ok:
-                dlg = MessageDialog()
-                dlg.setTitle(self.tr('Error executing algorithm'))
-                dlg.setMessage(
-                    self.tr('<h3>This algorithm cannot '
-                            'be run :-( </h3>\n{0}').format(message))
-                dlg.exec()
-                return
 
     def taskManager(self) -> QgsTaskManager:
         return self.mTaskManager
@@ -1021,12 +1016,15 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             if len(files) > 0:
                 self.addTimeSeriesImages(files)
 
-    def close(self):
+    def beforeClose(self):
         self._stopTasks()
         self.mapWidget().close()
         self.mapLayerStore().removeAllMapLayers()
-        self.ui.close()
         EOTimeSeriesViewer._instance = None
+
+    def close(self):
+        self.beforeClose()
+        self.ui.close()
 
     def _stopTasks(self):
 
@@ -1038,6 +1036,18 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                     task.cancel()
             QgsApplication.instance().processEvents()
         s = ""
+
+    def browserModel(self):
+        return None
+
+    def mainWindow(self):
+        return self.ui
+
+    def activeLayer(self):
+        return self.currentLayer()
+
+    def setActiveLayer(self, layer: QgsMapLayer):
+        self.setCurrentLayer(layer)
 
     def actionCopyLayerStyle(self) -> QAction:
         return self.ui.mActionCopyLayerStyle
@@ -1637,6 +1647,12 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         return self.mapWidget().currentLayer()
 
+    def layerTreeView(self) -> Optional[QgsLayerTreeView]:
+        for mv in self.mapViews():
+            return mv.layerTreeView()
+
+        return None
+
     def createMapView(self, *args, **kwds) -> MapView:
         """
         Creates a new MapView.
@@ -1922,6 +1938,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
     def show(self):
         self.ui.show()
 
+    def showAttributeTables(self, layers: List[QgsMapLayer]):
+        for lyr in layers:
+            if isinstance(lyr, QgsVectorLayer):
+                self.showAttributeTable(lyr)
+
     def showAttributeTable(self, lyr: QgsVectorLayer, filterExpression: str = "") -> QgsDockWidget:
         assert isinstance(lyr, QgsVectorLayer)
 
@@ -1994,10 +2015,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     def loadTemporalProfilesForPoints(self):
 
-        from eotimeseriesviewer.processingalgorithms import ReadTemporalProfiles
-        conf = {}
-        alg = ReadTemporalProfiles()
-        alg.initAlgorithm(conf)
+        reg: QgsProcessingRegistry = QgsApplication.processingRegistry()
+        alg = reg.createAlgorithmById(f'{EOTSVProcessingProvider.name()}:{ReadTemporalProfiles.name()}')
+        assert isinstance(alg, ReadTemporalProfiles)
+        # alg = alg.createInstance()
 
         feedback = QgsProcessingFeedback()
         context = QgsProcessingContext()
@@ -2006,8 +2027,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         layer = None
 
-        d = AlgorithmDialog(alg)
-        d.context = context
+        context = QgsProcessingContext()
+        context.setProject(self.project())
+
+        d = AlgorithmDialog(alg, context=context, iface=self)
 
         def onExecuted(success, results):
             nonlocal layer
@@ -2025,12 +2048,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         :return:
         """
 
-        from eotimeseriesviewer.processingalgorithms import CreateEmptyTemporalProfileLayer
-
-        alg = CreateEmptyTemporalProfileLayer()
-        conf = {}
-        alg.initAlgorithm(conf)
-
+        reg: QgsProcessingRegistry = QgsApplication.processingRegistry()
+        alg = reg.createAlgorithmById(f'{EOTSVProcessingProvider.name()}:{CreateEmptyTemporalProfileLayer.name()}')
+        assert isinstance(alg, CreateEmptyTemporalProfileLayer)
         feedback = QgsProcessingFeedback()
         context = QgsProcessingContext()
         context.setFeedback(feedback)
@@ -2045,8 +2065,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 layer = QgsProcessingUtils.mapLayerFromString(results[alg.OUTPUT], context)
                 s = ""
         else:
-            d = AlgorithmDialog(alg)
-            d.context = context
+            d = AlgorithmDialog(alg, context=context)
 
             def onExecuted(success, results):
                 nonlocal layer
@@ -2117,8 +2136,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         :param image_sources:
         """
         if image_sources is None:
-            s = settings.settings()
-            defDir = s.value('dir_datasources')
+            settings = EOTSVSettingsManager.settings()
+            defDir = settings.dirRasterSources
+            if defDir:
+                defDir = str(defDir)
 
             filters = QgsProviderRegistry.instance().fileRasterFilters()
 
@@ -2131,7 +2152,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
             if len(image_sources) > 0 and os.path.exists(image_sources[0]):
                 dn = os.path.dirname(image_sources[0])
-                s.setValue('dir_datasources', dn)
+                settings.dirRasterSources = Path(dn)
+                EOTSVSettingsManager.saveSettings(settings)
 
         if image_sources:
             self.mTimeSeries.addSources(image_sources, runAsync=loadAsync)

@@ -102,7 +102,8 @@ class TimeSeriesTreeView(QTreeView):
         elif isinstance(node, TimeSeriesSource):
 
             a = menu.addAction('Show {}'.format(node.name()))
-            a.setToolTip(f'Sets the current map date to {node.dtg()} and zooms\nto the spatial extent of {node.uri()}')
+            a.setToolTip(
+                f'Sets the current map date to {node.dtg()} and zooms\nto the spatial extent of {node.source()}')
             a.triggered.connect(lambda *args, tss=node: self.sigMoveToSource.emit(tss))
 
             a = menu.addAction(f'Set map CRS from {node.name()}')
@@ -141,7 +142,7 @@ class TimeSeriesTreeView(QTreeView):
         urls = []
         paths = []
         for tss in tssList:
-            uri = tss.uri()
+            uri = tss.source()
             if os.path.isfile(uri):
                 url = QUrl.fromLocalFile(uri)
                 paths.append(QDir.toNativeSeparators(uri))

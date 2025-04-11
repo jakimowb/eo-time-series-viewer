@@ -3,7 +3,6 @@ import math
 from typing import Dict, List, Optional
 
 import numpy as np
-
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractTableModel, QDate, QDateTime, QModelIndex, QSortFilterProxyModel, Qt, \
     QTime, QVariant
 from qgis.gui import QgsAttributeTableModel, QgsAttributeTableView, QgsDateEdit, QgsDateTimeEdit, QgsDoubleSpinBox, \
@@ -14,6 +13,7 @@ from qgis.PyQt.QtWidgets import QAction, QComboBox, QLineEdit, QMenu, QStyledIte
     QToolButton, QWidget
 from qgis.core import QgsCategorizedSymbolRenderer, QgsEditorWidgetSetup, QgsFeature, QgsField, QgsFields, \
     QgsProject, QgsRendererCategory, QgsSymbol, QgsVectorLayer
+
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
@@ -71,7 +71,6 @@ def shortcuts(field: QgsField) -> List[LabelShortcutType]:
     Returns the possible LabelShortCutTypes for a certain field
     :param field:
     :type field:
-    :param fieldName: str
     :return: [list]
     """
     assert isinstance(field, QgsField)

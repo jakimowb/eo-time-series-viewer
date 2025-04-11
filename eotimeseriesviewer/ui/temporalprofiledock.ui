@@ -70,6 +70,8 @@
       <addaction name="actionPanToSelected"/>
       <addaction name="actionZoomToSelected"/>
       <addaction name="actionDeselect"/>
+      <addaction name="separator"/>
+      <addaction name="actionShowAttributeTable"/>
      </widget>
     </item>
     <item>
@@ -204,7 +206,7 @@
     <string>Add temporal profile visualization</string>
    </property>
    <property name="toolTip">
-    <string>Adds a new profile visualization, e.g. to show different raster bands for the same temporal profile coordinate.</string>
+    <string>Adds a new profile visualization.</string>
    </property>
   </action>
   <action name="actionRemoveVisualization">
@@ -216,7 +218,7 @@
     <string>Remove profile visualization</string>
    </property>
    <property name="toolTip">
-    <string>Removes selected profile visualization</string>
+    <string>Removes selected profile visualizations.</string>
    </property>
   </action>
   <action name="actionLoadProfileRequest">
@@ -264,7 +266,7 @@
     <string>Save Temporal Profiles</string>
    </property>
    <property name="toolTip">
-    <string>Save temporal profiles</string>
+    <string>Save temporal profiles.</string>
    </property>
   </action>
   <action name="actionAcceptCandidate">
@@ -276,7 +278,7 @@
     <string>Accept candidate</string>
    </property>
    <property name="toolTip">
-    <string>Accepts the profile candidate and adds it permanently to the vector layer</string>
+    <string>Accepts the profile candidate as vector feature.</string>
    </property>
   </action>
   <action name="actionPanToSelected">
@@ -288,7 +290,7 @@
     <string>panToSelected</string>
    </property>
    <property name="toolTip">
-    <string>Pan maps to location of selected profile(s)</string>
+    <string>Pan maps to location of selected profile(s).</string>
    </property>
   </action>
   <action name="actionZoomToSelected">
@@ -300,7 +302,7 @@
     <string>Zoom to selected profiles</string>
    </property>
    <property name="toolTip">
-    <string>Zoom maps to location of selecte profile(s)</string>
+    <string>Zoom maps to locations of selecte profiles.</string>
    </property>
   </action>
   <action name="actionDeselect">
@@ -312,7 +314,7 @@
     <string>Deselect</string>
    </property>
    <property name="toolTip">
-    <string>Unselect selected profiles</string>
+    <string>Unselect selected profiles.</string>
    </property>
   </action>
   <action name="actionSettings">
@@ -337,6 +339,33 @@
    </property>
    <property name="text">
     <string>ShowSelectedProfilesOnly</string>
+   </property>
+   <property name="toolTip">
+    <string>Show profiles from selected vector features only.</string>
+   </property>
+  </action>
+  <action name="actionShowAttributeTable">
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/propertyicons/attributes.svg</normaloff>:/images/themes/default/propertyicons/attributes.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Show Attribute Table</string>
+   </property>
+   <property name="toolTip">
+    <string>Opens an attribute table for the vectorlayer(s) of selected profile(s).</string>
+   </property>
+  </action>
+  <action name="actionShowLayerProperties">
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/propertyicons/settings.svg</normaloff>:/images/themes/default/propertyicons/settings.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Show Layer Properties</string>
+   </property>
+   <property name="toolTip">
+    <string>Opens the layer properties</string>
    </property>
   </action>
  </widget>

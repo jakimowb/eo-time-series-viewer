@@ -27,6 +27,13 @@ from typing import Any, Iterator, List, Optional, Set, Union
 
 import numpy as np
 from osgeo import gdal
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QModelIndex, Qt
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QTreeView
+from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDateTimeRange, \
+    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsRasterLayer, QgsRectangle, QgsTask, \
+    QgsTaskManager
 
 from eotimeseriesviewer import messageLog
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
@@ -35,13 +42,6 @@ from eotimeseriesviewer.sensors import sensorIDtoProperties, SensorInstrument, S
 from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.timeseries.tasks import TimeSeriesFindOverlapTask, TimeSeriesLoadingTask
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QModelIndex, Qt
-from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import QTreeView
-from qgis.PyQt.QtXml import QDomDocument
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDateTimeRange, \
-    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsRasterLayer, QgsRectangle, QgsTask, \
-    QgsTaskManager
 
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
 
@@ -211,11 +211,6 @@ class TimeSeries(QAbstractItemModel):
         Changes TSDs visibility according to its intersection with a SpatialExtent
         :param date_of_interest:
         :type date_of_interest:
-        :param max_after:
-        :type max_after:
-        :param max_before:
-        :type max_before:
-        :param runAsync: if True (default), the visibility check is run in a parallel task
         :param ext: SpatialExtent
         """
         assert isinstance(ext, SpatialExtent)
@@ -678,9 +673,9 @@ class TimeSeries(QAbstractItemModel):
                    n_threads: Optional[int] = None):
         """
         Adds source images to the TimeSeries
-        :param visibility:
         :param sources: list of source images, e.g. a list of file paths
         :param runAsync: bool
+        :param n_threads:
         """
 
         if runAsync is None:
@@ -747,7 +742,7 @@ class TimeSeries(QAbstractItemModel):
 
     def addTimeSeriesSource(self, tss: TimeSeriesSource) -> TimeSeriesDate:
         """
-        :param source:
+        :param tss:
         :return: TimeSeriesDate (if new created)
         """
         assert isinstance(tss, TimeSeriesSource)
