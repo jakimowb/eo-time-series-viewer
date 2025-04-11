@@ -4,15 +4,16 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Union
 
-from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer.qgispluginsupport.qps.models import Option, OptionListModel
-from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, loadUi
-from eotimeseriesviewer.tasks import EOTSVTask
 from qgis.PyQt.QtCore import pyqtSignal, QDate, Qt
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QComboBox, QDialog, QDialogButtonBox, QLabel
 from qgis.core import QgsApplication, QgsTask
 from qgis.gui import QgsFileWidget
+
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.qgispluginsupport.qps.models import Option, OptionListModel
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, loadUi
+from eotimeseriesviewer.tasks import EOTSVTask
 
 FORCE_PRODUCTS = {
     'BOA': (r'.*_BOA\.(vrt|tif|dat|hdr)$', 'Bottom of Atmosphere (BOA)'),
@@ -49,7 +50,7 @@ def read_tileids(text: str) -> List[str]:
 def find_tile_folders(root: Union[str, Path]) -> List[Path]:
     root = Path(root)
     if rx_FORCE_TILEFOLDER.match(root.name):
-        return root
+        return [root]
     else:
         folders = []
         for f in file_search(root, rx_FORCE_TILEFOLDER, directories=True):
