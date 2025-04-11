@@ -258,7 +258,7 @@ class TemporalProfileVisualization(QObject):
 
         trans = QgsCoordinateTransform(point.crs(), layer.crs(), QgsProject.instance())
         if not trans.isValid():
-            print(f'Unable to do coordinate transformation: {trans}', file=sys.stderr)
+            print(f'Unable to transform coordinates: {trans}', file=sys.stderr)
             return False
         point = point.toCrs(layer.crs())
         if not isinstance(point, SpatialPoint):

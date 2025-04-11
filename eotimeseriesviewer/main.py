@@ -42,7 +42,7 @@ from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDial
 from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
 
 import eotimeseriesviewer
-from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
+from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG
 from eotimeseriesviewer.processing.algorithmdialog import AlgorithmDialog
 from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
 from eotimeseriesviewer.mapcanvas import MapCanvas
@@ -230,6 +230,7 @@ class EOTimeSeriesViewerUI(QMainWindow):
 
     def closeEvent(self, a0: QCloseEvent):
         self.sigAboutToBeClosed.emit()
+        super().closeEvent(a0)
 
     """
     def resizeEvent(self, event:QResizeEvent):
@@ -422,7 +423,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         assert isinstance(mw, MapWidget)
         assert isinstance(tswidget, TimeSeriesWidget)
 
-        self.ui.sigAboutToBeClosed.connect(self.onClose)
+        self.ui.sigAboutToBeClosed.connect(self.beforeClose)
 
         import qgis.utils
         assert isinstance(qgis.utils.iface, QgisInterface)
@@ -638,17 +639,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         alg = QgsApplication.instance().processingRegistry().createAlgorithmById(alg_id, config)
 
         return None
-
-        if alg is not None:
-            ok, message = alg.canExecute()
-            if not ok:
-                dlg = MessageDialog()
-                dlg.setTitle(self.tr('Error executing algorithm'))
-                dlg.setMessage(
-                    self.tr('<h3>This algorithm cannot '
-                            'be run :-( </h3>\n{0}').format(message))
-                dlg.exec()
-                return
 
     def taskManager(self) -> QgsTaskManager:
         return self.mTaskManager
@@ -1026,12 +1016,15 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             if len(files) > 0:
                 self.addTimeSeriesImages(files)
 
-    def close(self):
+    def beforeClose(self):
         self._stopTasks()
         self.mapWidget().close()
         self.mapLayerStore().removeAllMapLayers()
-        self.ui.close()
         EOTimeSeriesViewer._instance = None
+
+    def close(self):
+        self.beforeClose()
+        self.ui.close()
 
     def _stopTasks(self):
 
@@ -2143,8 +2136,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         :param image_sources:
         """
         if image_sources is None:
-            s = settings.settings()
-            defDir = s.value('dir_datasources')
+            settings = EOTSVSettingsManager.settings()
+            defDir = settings.dirRasterSources
+            if defDir:
+                defDir = str(defDir)
 
             filters = QgsProviderRegistry.instance().fileRasterFilters()
 
@@ -2157,7 +2152,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
             if len(image_sources) > 0 and os.path.exists(image_sources[0]):
                 dn = os.path.dirname(image_sources[0])
-                s.setValue('dir_datasources', dn)
+                settings.dirRasterSources = Path(dn)
+                EOTSVSettingsManager.saveSettings(settings)
 
         if image_sources:
             self.mTimeSeries.addSources(image_sources, runAsync=loadAsync)

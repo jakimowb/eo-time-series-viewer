@@ -10,6 +10,7 @@ import unittest
 from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsFeature, QgsField, QgsFields, QgsProject, \
     QgsRasterLayer, QgsTaskManager, QgsVectorLayer
 from qgis.PyQt.QtWidgets import QComboBox
+
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.force import FORCEUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
@@ -68,7 +69,7 @@ class TestTemporalProfilesV2(EOTSVTestCase):
 
         nFiles = len(files)
         info = dict(id=1)
-        task = LoadTemporalProfileTask(['does_not_exists.tif'] + files, points, crs=crs, info=info)
+        task = LoadTemporalProfileTask(['does_not_exists.tif'] + files, points, crs=crs, info=info, save_sources=True)
 
         tm: QgsTaskManager = QgsApplication.instance().taskManager()
         tm.addTask(task)

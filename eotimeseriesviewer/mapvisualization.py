@@ -28,11 +28,6 @@ from threading import Lock
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 import qgis.utils
-from eotimeseriesviewer import debugLog, DIR_UI
-from eotimeseriesviewer.timeseries.source import TimeSeriesDate
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries
-from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, layerStyleString, \
-    setFontButtonPreviewBackgroundColor, setLayerStyleString
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QMimeData, QModelIndex, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
 from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
@@ -44,6 +39,12 @@ from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsExpressio
     QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
 from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
     QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
+
+from eotimeseriesviewer import debugLog, DIR_UI
+from eotimeseriesviewer.timeseries.source import TimeSeriesDate
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
+from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, layerStyleString, \
+    setFontButtonPreviewBackgroundColor, setLayerStyleString
 from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem, STYLE_CATEGORIES
 from .maplayerproject import EOTimeSeriesViewerProject
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairMapCanvasItem, CrosshairStyle, getCrosshairStyle
@@ -785,7 +786,11 @@ class MapView(QFrame):
                 toRemove.append(t)
 
         for t in toRemove:
-            self.mLayerTreeSensorNode.removeLayer(t[1])
+            sensor, sensorLayer = t
+            sensorLayer.setDataSource('', '', 'gdal')
+            self.mLayerTree.removeLayer(sensorLayer)
+            self.mLayerTreeSensorNode.removeLayer(sensorLayer)
+            self.mLayerTreeMapCanvasBridge.setCanvasLayers()
             self.mSensorLayerList.remove(t)
 
     def hasSensor(self, sensor: SensorInstrument) -> bool:
@@ -1226,9 +1231,34 @@ class MapWidget(QFrame):
         self.mBlockExtentChange: bool = False
 
     def close(self):
+
+        # for c in self.mapCanvases():
+        #    c.setLayers([])
+        #    c.blockSignals(True)
+
+        while len(self.mapViews()) > 0:
+
+            mapView: MapView = self.mapViews()[0]
+            debugLog(f'Remove map view {mapView}')
+            sensors = list(mapView.sensors())
+            for s in sensors:
+                mapView.removeSensor(s)
+            for c in mapView.mapCanvases():
+                c.setLayers([])
+            self.removeMapView(mapView)
+
+        self._freeUnusedMapLayers()
         self.mMapRefreshTimer.stop()
-        self.mMapLayerStore.removeAllMapLayers()
+
+        QgsApplication.processEvents()
+        import gc
+        gc.collect()
+        # SensorMockupDataProvider.ALL_INSTANCES
+        SensorMockupDataProvider._release_sip_deleted()
+
         self.mMapLayerCache.clear()
+        self.mMapLayerStore.removeAllMapLayers()
+
         super().close()
 
     def clearCanvasGrid(self):
@@ -2226,20 +2256,6 @@ QSlider::add-page {{
         # mapCanvas.mapTools().mtCursorLocation.sigLocationRequest.disconnect(
         #    self.sigCurrentLocationChanged)
 
-    def onClose(self):
-        """
-        Removes all remaining mapviews and canvases etc.
-        """
-        for c in self.mapCanvases():
-            c.blockSignals(True)
-
-        while len(self.mapViews()) > 0:
-            mapView: MapView = self.mapViews()[0]
-            debugLog(f'Remove map view {mapView}')
-
-            self.mMapViews.remove(mapView)
-            mapView.setMapWidget(None)
-
     def onCanvasLocationRequest(self, canvas: QgsMapCanvas, crs: QgsCoordinateReferenceSystem, pt: QgsPointXY):
         self.sigCurrentLocationChanged[QgsCoordinateReferenceSystem, QgsPointXY].emit(crs, pt)
         self.sigCurrentLocationChanged[QgsCoordinateReferenceSystem, QgsPointXY, QgsMapCanvas].emit(crs, pt, canvas)
@@ -2391,8 +2407,6 @@ QSlider::add-page {{
         layers = [lyr for lyr in self.mMapLayerStore.mapLayers().values() if has_sensor_id(lyr)]
         needed = self.usedLayers()
         toRemove = [lyr for lyr in layers if has_sensor_id(lyr) and lyr not in needed]
-
-        # todo: use a kind of caching
 
         # remove layers from MapLayerCache and MapLayerStore
         for mv in self.mMapLayerCache.keys():
