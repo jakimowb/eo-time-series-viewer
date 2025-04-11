@@ -75,7 +75,7 @@ def debugLog(msg: str = '', skip_prefix: bool = False):
                 stack_class = stack[1][0].f_locals['__file__']
             else:
                 stack_class = ''
-            stack_method = stack[1][0].f_code.co_name
+            # stack_method = stack[1][0].f_code.co_name
             prefix = f'{stack_class}.{FOI.function}: {os.path.basename(FOI.filename)}:{FOI.lineno}:'
 
         msg = f'DEBUG::{prefix}{msg}'

@@ -119,7 +119,7 @@ class _SensorPoints(pg.PlotDataItem):
     def getContextMenus(self, event=None):
         if self.menu is None:
             self.menu = QMenu()
-            self.menu.setTitle(self.name + " options..")
+            self.menu.setTitle(self.name() + " options..")
 
             green = QAction("Turn green", self.menu)
             green.triggered.connect(self.setGreen)

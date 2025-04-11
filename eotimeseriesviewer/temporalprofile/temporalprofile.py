@@ -759,7 +759,9 @@ class LoadTemporalProfileSubTask(QgsTask):
                        crs: QgsCoordinateReferenceSystem) -> Tuple[Optional[dict], Optional[str]]:
         """
         Returns the profiles + meta infos from a single source
-        :param src:
+        :param source: str
+        :param points:
+        :param crs:
         :return: profiles (in order of points), sensor-id, list of errors
         """
         error = None

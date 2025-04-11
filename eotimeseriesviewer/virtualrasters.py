@@ -675,7 +675,7 @@ class VRTRaster(QObject):
 
                 warpedFileName = 'warped.{}.vrt'.format(os.path.basename(pathSrc))
                 if inMemory:
-                    warpedFileName = dirWarped + warpedFileName
+                    warpedFileName = dirWarped / warpedFileName
                 else:
                     os.makedirs(dirWarped, exist_ok=True)
                     warpedFileName = os.path.join(dirWarped, warpedFileName)
