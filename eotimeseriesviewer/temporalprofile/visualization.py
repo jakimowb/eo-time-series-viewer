@@ -484,8 +484,11 @@ class TemporalProfileVisualization(QObject):
         new_plotitems = []
         project = self.project()
         PROFILE_CANDIDATES = self.profileCandidates()
+
         # collects information required to calculate the x and y values for each sensor
         # using use-defined expressions
+
+        # Lookup for spensor specifications
         SENSOR_SPECS: Dict[str, Dict] = dict()
 
         selectedProfiles = dict()
@@ -573,35 +576,46 @@ class TemporalProfileVisualization(QObject):
                     if sid not in SENSOR_SPECS:
                         spec = TemporalProfileUtils.sensorSpecs(sid)
                         SENSOR_SPECS[sid] = spec
+
+                        # check if the same sensor is already known,
+                        # e.g. with different name from the sensor panels
                         match = self.timeSeries().findMatchingSensor(sid)
                         if isinstance(match, SensorInstrument):
                             if match.id() not in SENSOR_SPECS:
                                 SENSOR_SPECS[match.id()] = spec
-                        else:
-                            s = ""
-                        requires_sensor_vis = True
+
+                        requires_new_sensor_vis = True
                         for vis_sensor in vis['sensors']:
-                            vsid = vis_sensor['sensor_id']
-                            if vsid in [match.id(), sid]:
+                            vis_sensor_id = vis_sensor['sensor_id']
+                            if vis_sensor_id in SENSOR_SPECS:
                                 if vis_sensor['show']:
                                     prepared_expr, error = TemporalProfileUtils.prepareBandExpression(
                                         vis_sensor['expression'])
                                 else:
                                     # skip values of this sensor
                                     prepared_expr = None
-                                requires_sensor_vis = False
-                                BAND_EXPRESSIONS[sid] = prepared_expr
-                                BAND_EXPRESSIONS[vsid] = prepared_expr
-                                BAND_EXPRESSIONS[match.id()] = prepared_expr
-                                SENSOR_VISUALS[sid] = SENSOR_VISUALS[vsid] = SENSOR_VISUALS[match.id()] = vis_sensor
 
-                        if requires_sensor_vis:
+                                BAND_EXPRESSIONS[sid] = prepared_expr
+                                BAND_EXPRESSIONS[vis_sensor_id] = prepared_expr
+                                SENSOR_VISUALS[sid] = vis_sensor
+                                SENSOR_VISUALS[vis_sensor_id] = vis_sensor
+
+                                if isinstance(match, SensorInstrument):
+                                    BAND_EXPRESSIONS[match.id()] = prepared_expr
+                                    SENSOR_VISUALS[match.id()] = vis_sensor
+
+                                requires_new_sensor_vis = False
+
+                        # no sensor visualization (e.g. plot styles etc.) found for this sensor?
+                        if requires_new_sensor_vis:
                             missing_sensor_settings.append(sid)
+
                 if len(missing_sensor_settings) > 0:
                     # stop here, add sensors to plot settings model and update again
                     missing_sensors = [SensorInstrument(s) for s in missing_sensor_settings]
                     self.mModel.addSensors(missing_sensors)
                     return
+
                 # get the x and y values to show
                 try:
                     results = TemporalProfileUtils.applyExpressions(tpData, feature, BAND_EXPRESSIONS, SENSOR_SPECS)

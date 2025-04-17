@@ -607,8 +607,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         # temporalProfileLayer.setName('EOTS Temporal Profiles')
         # self.mapLayerStore().addMapLayer(temporalProfileLayer)
 
-        eotimeseriesviewer.labeling.MAP_LAYER_STORES.append(self.mapLayerStore())
-        eotimeseriesviewer.labeling.registerLabelShortcutEditorWidget()
+        # eotimeseriesviewer.labeling.MAP_LAYER_STORES.append(self.mapLayerStore())
+        eotimeseriesviewer.labeling.editorconfig.registerLabelShortcutEditorWidget()
         self.applySettings()
 
         self.initQGISConnection()
@@ -1835,6 +1835,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         n = max(1, n)
 
         self.addTimeSeriesImages(rasterFiles[0:n], loadAsync=loadAsync)
+
+        if len(self.mapViews()) == 0:
+            self.createMapView()
 
         if len(vectorFiles) > 0:
 

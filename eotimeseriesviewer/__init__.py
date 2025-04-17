@@ -111,7 +111,7 @@ def initAll():
     from eotimeseriesviewer.qgispluginsupport.qps import initAll as initAllQps
     initAllQps()
 
-    from .labeling import registerLabelShortcutEditorWidget
+    from eotimeseriesviewer.labeling.editorconfig import registerLabelShortcutEditorWidget
     registerLabelShortcutEditorWidget()
 
     from eotimeseriesviewer.sensors import registerDataProvider

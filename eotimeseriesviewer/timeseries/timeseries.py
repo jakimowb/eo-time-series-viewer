@@ -286,7 +286,7 @@ class TimeSeries(QAbstractItemModel):
                 idx2 = self.index(idx.row(), self.columnCount() - 1)
                 self.dataChanged.emit(idx, idx2, [Qt.BackgroundColorRole])
 
-    def findMatchingSensor(self, sensorID: str) -> SensorInstrument:
+    def findMatchingSensor(self, sensorID: str) -> Optional[SensorInstrument]:
         if isinstance(sensorID, str):
             nb, px_size_x, px_size_y, dt, wl, wlu, name = sensorIDtoProperties(sensorID)
 

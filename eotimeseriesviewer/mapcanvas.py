@@ -41,7 +41,9 @@ from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QDir, QMimeData, QObject, QP
     QTime, QTimer
 from qgis.PyQt.QtGui import QColor, QFont, QIcon, QMouseEvent, QPainter
 from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QMenu, QSizePolicy, QStyle, QStyleOptionProgressBar
-from .labeling import quickLabelLayers, setQuickTSDLabelsForRegisteredLayers
+
+from .labeling.utils import layerClassSchemes
+from .labeling.quicklabeling import isQuickLabelLayer, quickLayerGroups, setAllQuickLabels, setQuickClassInfo
 from .qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairDialog, CrosshairMapCanvasItem, CrosshairStyle
 from .qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
@@ -916,52 +918,52 @@ class MapCanvas(QgsMapCanvas):
                     tss = self.tsd()[sourceUris.index(sl.source())]
                     break
 
-            lyrWithSelectedFeatures = [l for l in quickLabelLayers() if l.selectedFeatureCount() > 0]
-            lyrWithSelectedFeatures = [l for l in lyrWithSelectedFeatures if l in self.layers() and l.isEditable()]
+            quick_label_layers = [l for l in self.layers() if isQuickLabelLayer(l)]
+            selected_quick_label_layer = [l for l in quick_label_layers if l.selectedFeatureCount() > 0]
 
-            layerNames = ', '.join([l.name() for l in lyrWithSelectedFeatures])
-            m = menu.addMenu('Quick Labels')
+            layerNames = ', '.join([l.name() for l in selected_quick_label_layer])
+            m: QMenu = menu.addMenu('Quick Labels')
             m.setToolTipsVisible(True)
-            nQuickLabelLayers = len(lyrWithSelectedFeatures)
+            nQuickLabelLayers = len(selected_quick_label_layer)
             m.setEnabled(nQuickLabelLayers > 0)
-
-            from qgis.gui import QgsGui
-            from eotimeseriesviewer.labeling import EDITOR_WIDGET_REGISTRY_KEY
-            reg = QgsGui.editorWidgetRegistry()
-            factory = reg.factory(EDITOR_WIDGET_REGISTRY_KEY)
-            observation_indices = []
-            from .labeling import layerClassSchemes, setQuickClassInfo, quickLayerGroups
-
-            if len(lyrWithSelectedFeatures) == 0:
-                a = m.addAction('No features selected.')
-                a.setToolTip('Select feature in the labeling panel to apply Quick label value on.')
-                a.setEnabled(False)
+            if nQuickLabelLayers == 0:
+                m.setToolTip(
+                    'Add (i) vector layers with quick label fields<br>and (ii) select features to enable quick labeling.')
             else:
-                quickLabelGroups = quickLayerGroups(lyrWithSelectedFeatures)
-                for grp in quickLabelGroups:
+                # add shortcuts for automatically derived attributes per label group
+                quick_label_groups = quickLayerGroups(quick_label_layers)
+                for grp, lyr_fields in quick_label_groups.items():
+                    grp_layers = []
+                    for (lyr, field) in lyr_fields:
+                        if lyr not in grp_layers:
+                            grp_layers.append(lyr)
 
                     if grp == '':
                         grp_info = ''
-                        grp_info_tt = ''
                     else:
                         grp_info = f'"{grp}"'
-                        grp_info_tt = f' from group "{grp}"'
 
-                    a = m.addAction(f'Set Date/Sensor attributes {grp_info}'.strip())
-                    a.setToolTip(
-                        f'Writes dates/sensor information to selected features in layer(s): {layerNames}.')
-                    a.triggered.connect(lambda *args, tsd=self.tsd(), layer_group=grp, _tss=tss:
-                                        setQuickTSDLabelsForRegisteredLayers(tsd, _tss, label_group=layer_group))
+                    a = m.addAction(f'Set quick labels {grp_info}'.strip())
+                    layerNames = [lyr.name() for lyr in grp_layers if lyr.selectedFeatureCount() > 0]
+                    if len(layerNames) > 0:
+                        a.setToolTip(
+                            f'Writes date / sensor information to quick label fields in: {layerNames}.')
+                        a.triggered.connect(lambda *args, tsd=self.tsd(), layer_group=grp, _tss=tss:
+                                            setAllQuickLabels(grp_layers, _tss, label_group=layer_group))
+                    else:
+                        a.setEnabled(False)
+                        a.setToolTip('No features selected')
 
-                for layer in lyrWithSelectedFeatures:
+                for layer in quick_label_layers:
                     assert isinstance(layer, QgsVectorLayer)
                     csf = layerClassSchemes(layer)
                     if len(csf) > 0:
                         m.addSection(layer.name())
-                        for (cs, field) in csf:
+                        for fieldname, cs in csf.items():
                             assert isinstance(cs, ClassificationScheme)
+                            field: QgsField = layer.fields()[fieldname]
                             assert isinstance(field, QgsField)
-                            classMenu = m.addMenu('{} [{}]'.format(field.name(), field.typeName()))
+                            classMenu = m.addMenu('{} [{}]'.format(fieldname, field.typeName()))
                             for classInfo in cs:
                                 assert isinstance(classInfo, ClassInfo)
                                 a = classMenu.addAction('{} "{}"'.format(classInfo.label(), classInfo.name()))
