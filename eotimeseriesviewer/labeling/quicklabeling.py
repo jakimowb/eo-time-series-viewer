@@ -1,9 +1,11 @@
 import os.path
 from typing import Dict, List, Optional, Tuple, Union
 
+from qgis.PyQt.QtWidgets import QAction, QMenu
+from qgis.core import QgsCategorizedSymbolRenderer, QgsEditorWidgetSetup, QgsExpression, QgsExpressionContext, \
+    QgsExpressionContextScope, QgsExpressionContextUtils, QgsFeature, QgsField, QgsFields, QgsIconUtils, QgsMapLayer, \
+    QgsProject, QgsRendererCategory, QgsSymbol, QgsVectorLayer
 from qgis.PyQt.QtCore import QDateTime, QMetaType
-from qgis.core import QgsEditorWidgetSetup, QgsExpression, QgsExpressionContext, QgsExpressionContextScope, \
-    QgsExpressionContextUtils, QgsFeature, QgsField, QgsMapLayer, QgsProject, QgsVectorLayer
 
 from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.labeling.editorconfig import EDITOR_WIDGET_REGISTRY_KEY, LabelConfigurationKey, \
@@ -13,6 +15,67 @@ from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationschem
 from eotimeseriesviewer.qgispluginsupport.qps.fieldvalueconverter import GenericPropertyTransformer
 from eotimeseriesviewer.sensors import SensorInstrument
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
+
+
+def addQuickLabelMenu(menu: QMenu, layers, source):
+    m: QMenu = menu.addMenu('Quick Labels')
+    m.setToolTipsVisible(True)
+
+    quick_label_layers = [l for l in layers if isQuickLabelLayer(l)]
+    selected_quick_label_layer = [l for l in quick_label_layers if l.selectedFeatureCount() > 0]
+
+    nQuickLabelLayers = len(selected_quick_label_layer)
+    m.setEnabled(nQuickLabelLayers > 0)
+    if nQuickLabelLayers == 0:
+        m.setToolTip(
+            'Add (i) vector layers with quick label fields<br>and (ii) select features to enable quick labeling.')
+    else:
+        # add shortcuts for automatically derived attributes per label group
+        quick_label_groups = quickLayerGroups(quick_label_layers)
+        for grp, lyr_fields in quick_label_groups.items():
+            grp_layers = []
+            for (lyr, field) in lyr_fields:
+                if lyr not in grp_layers:
+                    grp_layers.append(lyr)
+
+            if grp == '':
+                grp_info = ''
+            else:
+                grp_info = f'"{grp}"'
+
+            a = m.addAction(f'Set quick labels {grp_info}'.strip())
+            layerNames = [lyr.name() for lyr in grp_layers if lyr.selectedFeatureCount() > 0]
+            if len(layerNames) > 0:
+                tt = ['Writes quick label values to:']
+                for lyr in grp_layers:
+                    tt.append(f'"{lyr.name()}" {lyr.source()}')
+                a.setToolTip('<br>'.join(tt))
+                a.triggered.connect(lambda *args, layer_group=grp, _src=source:
+                                    setAllQuickLabels(grp_layers, _src, label_group=layer_group))
+            else:
+                a.setEnabled(False)
+                a.setToolTip('No features selected')
+
+        for layer in quick_label_layers:
+            assert isinstance(layer, QgsVectorLayer)
+            csf = quickLabelClassSchemes(layer)
+            if len(csf) > 0:
+                a: QAction = m.addSection(layer.name())
+                a.setToolTip(f'"{layer.name()}" {layer.source()}')
+                a.setIcon(QgsIconUtils.iconForLayer(layer))
+                for fieldname, cs in csf.items():
+                    assert isinstance(cs, ClassificationScheme)
+                    field: QgsField = layer.fields()[fieldname]
+                    assert isinstance(field, QgsField)
+                    classMenu = m.addMenu('{} [{}]'.format(fieldname, field.typeName()))
+                    classMenu.setIcon(
+                        QgsFields.iconForFieldType(field.type(), field.subType(), field.typeName()))
+                    for classInfo in cs:
+                        assert isinstance(classInfo, ClassInfo)
+                        a = classMenu.addAction('{} "{}"'.format(classInfo.label(), classInfo.name()))
+                        a.setIcon(classInfo.icon())
+                        a.triggered.connect(
+                            lambda _, vl=layer, f=field, c=classInfo: setQuickClassInfo(vl, f, c))
 
 
 def isQuickLabelLayer(layer: QgsVectorLayer) -> bool:
@@ -93,7 +156,8 @@ def setQuickClassInfo(vectorLayer: QgsVectorLayer,
     :param class_value: ClassInfo
     """
     assert isinstance(vectorLayer, QgsVectorLayer)
-    assert vectorLayer.isEditable()
+    if not vectorLayer.isEditable():
+        vectorLayer.startEditing()
 
     if isinstance(field, QgsField):
         iField = vectorLayer.fields().lookupField(field.name())
@@ -180,7 +244,8 @@ def setQuickLabels(vectorLayer: QgsVectorLayer,
     """
 
     assert isinstance(vectorLayer, QgsVectorLayer)
-    assert vectorLayer.isEditable()
+    if not vectorLayer.isEditable():
+        vectorLayer.startEditing()
 
     vectorLayer.beginEditCommand('Set quick labels')
 
@@ -197,7 +262,7 @@ def setQuickLabels(vectorLayer: QgsVectorLayer,
 
             if labelType in LabelShortcutType.Autogenerated and config.get(LabelConfigurationKey.LabelGroup,
                                                                            '') == label_group:
-                expr = quickLabelExpression(config)
+                expr = quickLabelExpression(field)
                 if expr != '':
                     info = {'field': field,
                             'iField': vectorLayer.fields().lookupField(field.name()),
@@ -286,6 +351,7 @@ def quickLabelExpression(field: QgsField) -> Optional[str]:
     :param field: QgsField
     :return: str
     """
+    assert isinstance(field, QgsField)
     if not isQuickLabelField(field):
         return None
 
@@ -300,3 +366,70 @@ def quickLabelExpression(field: QgsField) -> Optional[str]:
         return f'@{QUICK_LABEL_EXPRESSION_VARIABLES[labelType]}'
     else:
         return None
+
+
+def quickLabelClassSchemes(layer: QgsVectorLayer) -> Dict[str, ClassificationScheme]:
+    """
+    Returns a list of (ClassificationScheme, QgsField) for all QgsFields with QgsEditorWidget
+    being QgsClassificationWidgetWrapper, RasterClassification or EOTSV Quick Label with classification..
+    :param layer: QgsVectorLayer
+    :return: list [(ClassificationScheme, QgsField), ...]
+    """
+    assert isinstance(layer, QgsVectorLayer)
+    from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationscheme import \
+        EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
+    from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationscheme import classSchemeFromConfig
+
+    schemes: Dict[str, ClassificationScheme] = dict()
+
+    for i in range(layer.fields().count()):
+        setup = layer.editorWidgetSetup(i)
+        field: QgsField = layer.fields().at(i)
+
+        assert isinstance(field, QgsField)
+        assert isinstance(setup, QgsEditorWidgetSetup)
+
+        field_name: str = field.name()
+
+        cs = None
+
+        if setup.type() == EDITOR_WIDGET_REGISTRY_KEY:
+            config = setup.config()
+            if LabelConfigurationKey.LabelClassification in config:
+                cs = ClassificationScheme.fromMap(config[LabelConfigurationKey.LabelClassification])
+
+        if setup.type() == CS_KEY:
+            cs = classSchemeFromConfig(setup.config())
+
+        elif setup.type() == 'Classification' and isinstance(layer.renderer(), QgsCategorizedSymbolRenderer):
+            renderer = layer.renderer()
+            cs = ClassificationScheme()
+            for l, cat in enumerate(renderer.categories()):
+                assert isinstance(cat, QgsRendererCategory)
+                symbol = cat.symbol()
+                assert isinstance(symbol, QgsSymbol)
+                cs.insertClass(ClassInfo(l, name=cat.value(), color=symbol.color()))
+
+        if isinstance(cs, ClassificationScheme) and len(cs) > 0:
+            schemes[field_name] = cs
+    return schemes
+
+
+def labelShortcutLayerClassificationSchemes(layer: QgsVectorLayer):
+    """
+    Returns the ClassificationSchemes + QgsField used for labeling shortcuts
+    :param layer: QgsVectorLayer
+    :return: [(ClassificationScheme, QgsField), (ClassificationScheme, QgsField), ...]
+    """
+    classSchemes = []
+    assert isinstance(layer, QgsVectorLayer)
+    for i in range(layer.fields().count()):
+        setup = layer.editorWidgetSetup(i)
+        assert isinstance(setup, QgsEditorWidgetSetup)
+        if setup.type() == EDITOR_WIDGET_REGISTRY_KEY:
+            conf = setup.config()
+            ci = conf.get(LabelConfigurationKey.ClassificationScheme.value)
+            if isinstance(ci, ClassificationScheme) and ci not in classSchemes:
+                classSchemes.append((ci, layer.fields().at(i)))
+
+    return classSchemes

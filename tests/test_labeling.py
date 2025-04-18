@@ -23,7 +23,7 @@ import unittest
 from qgis.core import edit, QgsEditorWidgetSetup, QgsExpression, QgsExpressionContext, QgsExpressionContextScope, \
     QgsFeature, QgsField, QgsFields, QgsGeometry, QgsMapLayer, QgsMarkerSymbol, QgsPointXY, QgsProject, QgsVectorLayer, \
     QgsWkbTypes
-from qgis.PyQt.QtCore import QEvent, QMetaType, QPoint, QPointF, Qt
+from qgis.PyQt.QtCore import NULL, QEvent, QMetaType, QPoint, QPointF, Qt
 from qgis.PyQt.QtTest import QAbstractItemModelTester
 from qgis.PyQt.QtWidgets import QAction, QComboBox, QLabel, QListView, QMenu, QVBoxLayout, QWidget
 from qgis.gui import QgsDualView, QgsFieldComboBox, QgsMapCanvas, QgsMapLayerStyleManagerWidget
@@ -32,9 +32,9 @@ from qgis.PyQt.QtGui import QMouseEvent, QStandardItem, QStandardItemModel
 from eotimeseriesviewer.labeling.editorconfig import createWidgetSetup, LabelConfigurationKey, \
     LabelShortcutEditorConfigWidget, LabelShortcutType, LabelShortcutTypeModel, \
     LabelShortcutWidgetFactory, shortcuts
-from eotimeseriesviewer.labeling.quicklabeling import isQuickLabelField, isQuickLabelLayer, quickLabelExpression, \
-    quickLabelExpressionContextScope, quickLabelLayers, setQuickClassInfo
-from eotimeseriesviewer.labeling.attributetable import LabelAttributeTableModel, QuickLabelAttributeTableWidget
+from eotimeseriesviewer.labeling.quicklabeling import addQuickLabelMenu, isQuickLabelField, isQuickLabelLayer, \
+    quickLabelClassSchemes, quickLabelExpression, quickLabelExpressionContextScope, quickLabelLayers, setQuickClassInfo
+from eotimeseriesviewer.labeling.attributetable import QuickLabelAttributeTableWidget
 from eotimeseriesviewer import initAll
 from eotimeseriesviewer.qgispluginsupport.qps.fieldvalueconverter import GenericPropertyTransformer
 from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_DOUBLE, QMETATYPE_INT, \
@@ -59,7 +59,7 @@ class TestLabeling(EOTSVTestCase):
 
     def createVectorLayer(self, path=None) -> QgsVectorLayer:
 
-        lyr = TestObjects.createVectorLayer(path=path)
+        lyr = TestObjects.createVectorLayer(path=path, n_features=5)
         self.assertIsInstance(lyr, QgsVectorLayer)
         self.assertTrue(lyr.featureCount() > 0)
         lyr.startEditing()
@@ -97,28 +97,51 @@ class TestLabeling(EOTSVTestCase):
         self.showGui(w)
 
     def test_menu(self):
+
+        ts = TestObjects.createTimeSeries()
+        tss = list(ts.sources())[0]
+
+        menu = QMenu()
+        vl = self.createVectorLayer()
+        fid = vl.allFeatureIds()[0]
+        vl.selectByIds([fid])
+        self.setupEditWidgets(vl)
+
+        addQuickLabelMenu(menu, [vl], tss)
+
+        for a in menu.findChildren(QAction):
+            a: QAction
+            a.trigger()
+
+        self.assertTrue(vl.isEditable())
+
+        f: QgsFeature = vl.getFeature(fid)
+
+        attr = f.attributeMap()
+        for k, v in attr.items():
+            self.assertTrue(v != NULL, msg=f'{k} = NULL')
+
+        self.showGui(menu)
+
+    def test_menu2(self):
         print('## test_menu')
         ts = TestObjects.createTimeSeries()
 
         mv = MapView()
 
         lyr = self.createVectorLayer()
-        model = LabelAttributeTableModel()
-        model.setVectorLayer(lyr)
+        self.setupEditWidgets(lyr)
 
-        model.setFieldShortCut('sensor', LabelShortcutType.Sensor)
-        model.setFieldShortCut('date', LabelShortcutType.Date)
-        model.setFieldShortCut('DOY', LabelShortcutType.DOY)
-        model.setFieldShortCut('decyr', LabelShortcutType.Off)
-
-        self.assertIsInstance(lyr, QgsVectorLayer)
+        lyr.selectByIds([lyr.allFeatureIds()[0]])
 
         tsd = ts[10]
         # menu = model.menuForTSD(tsd)
         # self.assertIsInstance(menu, QMenu)
 
         canvas = MapCanvas()
+
         canvas.setTSD(tsd)
+        canvas.setLayers([lyr])
         canvas.setMapView(mv)
         pos = QPoint(int(canvas.width() * 0.5), int(canvas.height() * 0.5))
         menu = QMenu()
@@ -133,13 +156,15 @@ class TestLabeling(EOTSVTestCase):
 
         self.showGui(menu)
 
+        QgsProject.instance().removeAllMapLayers()
+
     @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Blocking UI')
-    def test_shortcuts_2(self):
+    def test_shortcuts_eotsv(self):
 
         eotsv = EOTimeSeriesViewer()
         eotsv.loadExampleTimeSeries(loadAsync=False)
 
-        vl = TestObjects.createVectorLayer(wkbType=QgsWkbTypes.Point)
+        vl = TestObjects.createEmptyMemoryLayer(QgsFields(), wkbType=QgsWkbTypes.Point)
         vl.setName('My Labeling Layer')
         cs = ClassificationScheme()
         cs.insertClass(ClassInfo(label=1, name='classA', color='green'))
@@ -155,11 +180,11 @@ class TestLabeling(EOTSVTestCase):
             vl.addAttribute(field)
             vl.addAttribute(field)
 
-            field = QgsField('my_label1', QMetaType.QString, 'varchar')
+            field = QgsField('my_date', QMetaType.QString, 'varchar')
             field.setEditorWidgetSetup(createWidgetSetup(LabelShortcutType.Date))
             vl.addAttribute(field)
 
-            field = QgsField('my_label2', QMetaType.QString, 'varchar')
+            field = QgsField('my_datetime', QMetaType.QString, 'varchar')
             field.setEditorWidgetSetup(createWidgetSetup(LabelShortcutType.DateTime, group='grp2'))
             vl.addAttribute(field)
 
@@ -176,8 +201,9 @@ class TestLabeling(EOTSVTestCase):
                 feature = QgsFeature(vl.fields())
                 feature.setGeometry(geometry)
                 assert vl.addFeature(feature)
-        eotsv.addMapLayers([vl])
 
+        eotsv.addMapLayers([vl])
+        eotsv.showAttributeTable(vl)
         assert vl.featureCount() > 0
 
         vl.selectByIds([vl.allFeatureIds()[0]])
@@ -420,18 +446,17 @@ class TestLabeling(EOTSVTestCase):
             vl.setEditorWidgetSetup(vl.fields().lookupField('decyr'), createWidgetSetup(LabelShortcutType.DecimalYear))
 
             # set different types of classifications
-            if False:
-                vl.setEditorWidgetSetup(vl.fields().lookupField('class1l'),
-                                        QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
+            vl.setEditorWidgetSetup(vl.fields().lookupField('class1l'),
+                                    QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
 
-                vl.setEditorWidgetSetup(vl.fields().lookupField('class1n'),
-                                        QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
+            vl.setEditorWidgetSetup(vl.fields().lookupField('class1n'),
+                                    QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
 
-                vl.setEditorWidgetSetup(vl.fields().lookupField('class2l'),
-                                        QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
+            vl.setEditorWidgetSetup(vl.fields().lookupField('class2l'),
+                                    QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
 
-                vl.setEditorWidgetSetup(vl.fields().lookupField('class2n'),
-                                        QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
+            vl.setEditorWidgetSetup(vl.fields().lookupField('class2n'),
+                                    QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
 
         self.assertTrue(vl.saveDefaultStyle(QgsMapLayer.StyleCategory.AllStyleCategories))
         self.assertTrue(isQuickLabelLayer(vl))
@@ -509,7 +534,7 @@ class TestLabeling(EOTSVTestCase):
 
         features = list(lyr.getFeatures())
 
-        lyr.selectByIds([features[10].id()])
+        lyr.selectByIds([features[0].id()])
         attrTable.mLabelWidget.mActionZoomMapToSelectedRows.trigger()
         self.showGui(EOTSV.ui)
 
@@ -574,6 +599,9 @@ class TestLabeling(EOTSVTestCase):
             vl.addAttribute(field)
 
         vl.removeSelection()
+
+        class_schemes = quickLabelClassSchemes(vl)
+        self.assertEqual(len(class_schemes), 6)
 
         class_field_names = [f for f in vl.fields() if f.name().startswith('cs_')]
 
