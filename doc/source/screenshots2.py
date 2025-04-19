@@ -5,18 +5,18 @@ from pathlib import Path
 import re
 
 import numpy as np
+from eotimeseriesviewer.profilevisualization import ProfileViewDock, TemporalProfilePlotStyle
+
 from qgis.core import QgsApplication, QgsFillSymbolLayer, QgsMultiBandColorRenderer, QgsProject, QgsRasterLayer, \
     QgsVectorLayer
 from qgis.gui import QgsMapCanvas, QgsRasterLayerProperties
 from qgis.PyQt.QtCore import QSize, Qt
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QWidget
-
 from eotimeseriesviewer import DIR_REPO
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.mapvisualization import MapViewDock
-from eotimeseriesviewer.profilevisualization import ProfileViewDock, TemporalProfilePlotStyle
 from eotimeseriesviewer.qgispluginsupport.qps.testing import start_app
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
 from eotimeseriesviewer.sensors import SensorInstrument
@@ -155,7 +155,7 @@ if __name__ == '__main__':
     # set vectorlayer style
     vectorLayers = [l for l in QgsProject.instance().mapLayers().values() if isinstance(l, QgsVectorLayer)]
     vlNames = [l.name() for l in vectorLayers]
-    # make testdata "exampleEvents" polygon fill-color transparent
+
     vlEventPolygons = vectorLayers[0]
     vlPOIs = vectorLayers[1]
 

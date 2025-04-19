@@ -25,6 +25,7 @@ from itertools import chain
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
+
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QItemSelectionModel, QModelIndex, QObject, \
     QPoint, Qt, QTimer
 from qgis.PyQt.QtGui import QColor
@@ -33,7 +34,6 @@ from qgis.core import QgsApplication, QgsCoordinateTransform, QgsExpression, Qgs
     QgsExpressionContextUtils, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsProject, \
     QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
 from qgis.gui import QgsDockWidget, QgsFilterLineEdit
-
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from .datetimeplot import DateTimePlotDataItem, DateTimePlotWidget
@@ -159,6 +159,7 @@ class TemporalProfileVisualization(QObject):
         self.mTreeView = treeView
         self.mPlotWidget = plotWidget
         self.mPlotWidget.plotItem.vb.moveToDate.connect(self.moveToDate)
+        self.mPlotWidget.preUpdateTask.connect(self.addPreUpdateTask)
         # plotWidget.setBackground('white')
         self.mPreUpdateTasks = list()
 
@@ -439,10 +440,16 @@ class TemporalProfileVisualization(QObject):
         if settings != self.mLastStyle:
             # print(f'STYLE CHANGE {args} {id(args[0])}')
             self.updatePlot(settings)
+            # self.mLastStyle = settings
+
+    def addPreUpdateTask(self, task_name: str, task_kwds: dict):
+
+        self.mPreUpdateTasks.append((task_name, task_kwds))
 
     def preUpdates(self):
-        """Handles task that need to be done before upatePlot()"""
+        """Handles task that need to be done before updatePlot()"""
         self.mUpdateTimer.stop()
+
         updates = self.mPreUpdateTasks[:]
 
         for update in updates:
@@ -484,8 +491,11 @@ class TemporalProfileVisualization(QObject):
         new_plotitems = []
         project = self.project()
         PROFILE_CANDIDATES = self.profileCandidates()
+
         # collects information required to calculate the x and y values for each sensor
         # using use-defined expressions
+
+        # Lookup for spensor specifications
         SENSOR_SPECS: Dict[str, Dict] = dict()
 
         selectedProfiles = dict()
@@ -573,35 +583,46 @@ class TemporalProfileVisualization(QObject):
                     if sid not in SENSOR_SPECS:
                         spec = TemporalProfileUtils.sensorSpecs(sid)
                         SENSOR_SPECS[sid] = spec
+
+                        # check if the same sensor is already known,
+                        # e.g. with different name from the sensor panels
                         match = self.timeSeries().findMatchingSensor(sid)
                         if isinstance(match, SensorInstrument):
                             if match.id() not in SENSOR_SPECS:
                                 SENSOR_SPECS[match.id()] = spec
-                        else:
-                            s = ""
-                        requires_sensor_vis = True
+
+                        requires_new_sensor_vis = True
                         for vis_sensor in vis['sensors']:
-                            vsid = vis_sensor['sensor_id']
-                            if vsid in [match.id(), sid]:
+                            vis_sensor_id = vis_sensor['sensor_id']
+                            if vis_sensor_id in SENSOR_SPECS:
                                 if vis_sensor['show']:
                                     prepared_expr, error = TemporalProfileUtils.prepareBandExpression(
                                         vis_sensor['expression'])
                                 else:
                                     # skip values of this sensor
                                     prepared_expr = None
-                                requires_sensor_vis = False
-                                BAND_EXPRESSIONS[sid] = prepared_expr
-                                BAND_EXPRESSIONS[vsid] = prepared_expr
-                                BAND_EXPRESSIONS[match.id()] = prepared_expr
-                                SENSOR_VISUALS[sid] = SENSOR_VISUALS[vsid] = SENSOR_VISUALS[match.id()] = vis_sensor
 
-                        if requires_sensor_vis:
+                                BAND_EXPRESSIONS[sid] = prepared_expr
+                                BAND_EXPRESSIONS[vis_sensor_id] = prepared_expr
+                                SENSOR_VISUALS[sid] = vis_sensor
+                                SENSOR_VISUALS[vis_sensor_id] = vis_sensor
+
+                                if isinstance(match, SensorInstrument):
+                                    BAND_EXPRESSIONS[match.id()] = prepared_expr
+                                    SENSOR_VISUALS[match.id()] = vis_sensor
+
+                                requires_new_sensor_vis = False
+
+                        # no sensor visualization (e.g. plot styles etc.) found for this sensor?
+                        if requires_new_sensor_vis:
                             missing_sensor_settings.append(sid)
+
                 if len(missing_sensor_settings) > 0:
                     # stop here, add sensors to plot settings model and update again
                     missing_sensors = [SensorInstrument(s) for s in missing_sensor_settings]
                     self.mModel.addSensors(missing_sensors)
                     return
+
                 # get the x and y values to show
                 try:
                     results = TemporalProfileUtils.applyExpressions(tpData, feature, BAND_EXPRESSIONS, SENSOR_SPECS)
@@ -638,8 +659,10 @@ class TemporalProfileVisualization(QObject):
                 if np.any(np.isfinite(all_y)):
                     feature_line_style = layer_line_style.clone()
                     if is_candidate:
+                        # style profile candidate
                         feature_line_style.setLinePen(cand_linestyle.linePen)
                     if feature.id() in selected_fids:
+                        # style selected feature profiles
                         selectedProfiles[lyr.id()] = selectedProfiles.get(lyr.id(), []) + [feature.id()]
                         feature_line_style.setLineColor(QColor('yellow'))
                         feature_line_style.setLineWidth(layer_line_style.lineWidth() + 3)
@@ -669,6 +692,7 @@ class TemporalProfileVisualization(QObject):
                                                hoverable=True,
                                                pxMode=True,
                                                )
+                    # print(f'#PDI={pdi}')
                     pdi.setTemporalProfile(tpData, results['indices'])
                     pdi.curve.setClickable(True)
                     # pdi = DateTimePlotDataItem(data)
@@ -701,9 +725,9 @@ class TemporalProfileVisualization(QObject):
 
         self.mPlotWidget.plotItem.clear()
         for item in new_plotitems:
-            item.sigClicked.connect(self.itemClicked)
-            item.scatter.sigHovered.connect(self.mPlotWidget.onPointsHovered)
-            item.scatter.sigClicked.connect(self.mPlotWidget.onPointsClicked)
+            # item.scatter.sigHovered.connect(self.mPlotWidget.onPointsHovered)
+            # item.scatter.sigClicked.connect(self.mPlotWidget.onPointsClicked)
+            # item.sigClicked.connect(self.itemClicked)
             # item.sigPointsHovered.connect(self.pointsHovered)
             self.mPlotWidget.plotItem.addItem(item)
 
@@ -728,7 +752,7 @@ class TemporalProfileVisualization(QObject):
     def selectedFeatures(self) -> dict:
         return self.mSelectedFeatures
 
-    def itemClicked(self, item: Union[PlotCurveItem], event: MouseClickEvent):
+    def __depr__itemClicked(self, item: Union[PlotCurveItem], event: MouseClickEvent):
         s = ""
         # print(f'Clicked {item}')
 

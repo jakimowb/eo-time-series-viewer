@@ -25,7 +25,7 @@ import pathlib
 from qgis.core import Qgis, QgsApplication
 from qgis.PyQt.QtGui import QIcon
 
-__version__ = '2.0'  # sub-subversion number is added automatically
+__version__ = '2.0.0'  # sub-subversion number is added automatically
 
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
@@ -111,7 +111,7 @@ def initAll():
     from eotimeseriesviewer.qgispluginsupport.qps import initAll as initAllQps
     initAllQps()
 
-    from .labeling import registerLabelShortcutEditorWidget
+    from eotimeseriesviewer.labeling.editorconfig import registerLabelShortcutEditorWidget
     registerLabelShortcutEditorWidget()
 
     from eotimeseriesviewer.sensors import registerDataProvider

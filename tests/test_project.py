@@ -21,6 +21,7 @@ import random
 import unittest
 from typing import List, Optional
 
+from example import examplePoints
 from qgis.PyQt.QtCore import QSize
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsProject, QgsVectorLayer
 from qgis.gui import QgsMapCanvas
@@ -159,8 +160,7 @@ class TestProjectIO(EOTSVTestCase):
             tsd = TSV.timeSeries()[-1]
             TSV.setCurrentDate(tsd)
 
-        from example import exampleEvents
-        lyr = QgsVectorLayer(exampleEvents.as_posix())
+        lyr = QgsVectorLayer(examplePoints.as_posix())
         lyr.setName('MyTestLayer')
         TSV.mapViews()[0].setName('True Color')
         TSV.addMapLayers([lyr])
