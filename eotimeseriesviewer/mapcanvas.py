@@ -23,34 +23,34 @@ import math
 import os
 import re
 import sys
-# noinspection PyPep8Naming
 import time
 import warnings
+from pathlib import Path
 from typing import Dict, List, Optional, Union
 
+from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QMenu, QSizePolicy, QStyle, QStyleOptionProgressBar
 from qgis.core import Qgis, QgsApplication, QgsContrastEnhancement, QgsCoordinateReferenceSystem, QgsDateTimeRange, \
-    QgsExpression, QgsField, QgsLayerTreeGroup, QgsMapLayer, QgsMapLayerStore, QgsMapSettings, QgsMapToPixel, \
-    QgsMimeDataUtils, QgsMultiBandColorRenderer, QgsPalettedRasterRenderer, QgsPointXY, QgsPolygon, QgsProject, \
-    QgsRasterBandStats, QgsRasterDataProvider, QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRasterRenderer, \
-    QgsRectangle, QgsRenderContext, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsTextFormat, \
-    QgsTextRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes
+    QgsExpression, QgsLayerTreeGroup, QgsMapLayer, QgsMapLayerStore, QgsMapSettings, \
+    QgsMapToPixel, QgsMimeDataUtils, QgsMultiBandColorRenderer, QgsPalettedRasterRenderer, QgsPointXY, QgsPolygon, \
+    QgsProject, QgsRasterBandStats, QgsRasterDataProvider, QgsRasterLayer, QgsRasterLayerTemporalProperties, \
+    QgsRasterRenderer, QgsRectangle, QgsRenderContext, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, \
+    QgsTextFormat, QgsTextRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes
 import qgis.utils
 from qgis.gui import QgisInterface, QgsAdvancedDigitizingDockWidget, QgsFloatingWidget, QgsGeometryRubberBand, \
     QgsMapCanvas, QgsMapCanvasItem, QgsMapTool, QgsMapToolCapture, QgsMapToolPan, QgsMapToolZoom, QgsUserInputWidget
 from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QDir, QMimeData, QObject, QPoint, QPointF, QRect, QRectF, QSize, Qt, \
     QTime, QTimer
 from qgis.PyQt.QtGui import QColor, QFont, QIcon, QMouseEvent, QPainter
-from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QMenu, QSizePolicy, QStyle, QStyleOptionProgressBar
-import eotimeseriesviewer.settings
-from .labeling import quickLabelLayers, setQuickTSDLabelsForRegisteredLayers
-from .qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
+from .labeling.quicklabeling import addQuickLabelMenu
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairDialog, CrosshairMapCanvasItem, CrosshairStyle
 from .qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
 from .qgispluginsupport.qps.maptools import CursorLocationMapTool, FullExtentMapTool, MapToolCenter, \
     PixelScaleExtentMapTool, QgsMapToolAddFeature, QgsMapToolSelect, QgsMapToolSelectionHandler
 from .qgispluginsupport.qps.qgisenums import QGIS_RASTERBANDSTATISTIC
 from .qgispluginsupport.qps.utils import filenameFromString, findParent, SpatialExtent, SpatialPoint
-from .timeseries import has_sensor_id, sensor_id, SensorMockupDataProvider, TimeSeriesDate
+from .settings.settings import EOTSVSettingsManager
+from .sensors import has_sensor_id, sensor_id, SensorMockupDataProvider
+from .timeseries.source import TimeSeriesDate
 from .utils import copyMapLayerStyle, layerStyleString, setLayerStyleString
 
 KEY_LAST_CLICKED = 'LAST_CLICKED'
@@ -433,8 +433,7 @@ class MapCanvas(QgsMapCanvas):
         self.mapCanvasRefreshed.connect(onMapCanvasRefreshed)
 
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        bg = eotimeseriesviewer.settings.value(
-            eotimeseriesviewer.settings.Keys.MapBackgroundColor, default=QColor(0, 0, 0))
+        bg = EOTSVSettingsManager.settings().mapBackgroundColor
         self.setCanvasColor(bg)
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
 
@@ -529,7 +528,7 @@ class MapCanvas(QgsMapCanvas):
         self.mTSD = tsd
 
         if isinstance(tsd, TimeSeriesDate):
-            self.setTemporalRange(tsd.temporalRange())
+            self.setTemporalRange(tsd.dateTimeRange())
             self.mTSD.sensor().sigNameChanged.connect(self.updateScope)
 
         self.updateScope()
@@ -549,7 +548,7 @@ class MapCanvas(QgsMapCanvas):
 
         tsd = self.tsd()
         if isinstance(tsd, TimeSeriesDate):
-            varDate = str(tsd.date())
+            varDate = tsd.dtg().date().toString(Qt.ISODate)
             varDOY = tsd.doy()
             varSensor = tsd.sensor().name()
 
@@ -677,7 +676,7 @@ class MapCanvas(QgsMapCanvas):
         existing: List[QgsMapLayer] = self.layers()
         existingSources = [l.source() for l in existing]
         from .mapvisualization import MapView
-        from .timeseries import SensorInstrument
+        from .sensors import SensorInstrument
 
         mapView: MapView = self.mapView()
 
@@ -697,7 +696,7 @@ class MapCanvas(QgsMapCanvas):
                     # check if we need to add a new source
                     for tss in [s for s in self.tsd() if s.isVisible()]:
 
-                        source = tss.uri()
+                        source = tss.source()
                         if source in existingSources:
                             sourceLayer = existing[existingSources.index(source)]
                         else:
@@ -711,7 +710,7 @@ class MapCanvas(QgsMapCanvas):
                             sourceLayer.setCustomProperty(SensorInstrument.PROPERTY_KEY, sid)
 
                             s_range1 = sourceLayer.temporalProperties().fixedTemporalRange()
-                            assert self.tsd().temporalRange().contains(
+                            assert self.tsd().dateTimeRange().contains(
                                 sourceLayer.temporalProperties().fixedTemporalRange())
 
                             if use_as_masterstyle:
@@ -888,7 +887,7 @@ class MapCanvas(QgsMapCanvas):
         date = None
 
         if isinstance(tsd, TimeSeriesDate):
-            date = tsd.date()
+            date = tsd.dtg()
 
         from .main import EOTimeSeriesViewer
         eotsv = EOTimeSeriesViewer.instance()
@@ -915,59 +914,7 @@ class MapCanvas(QgsMapCanvas):
                 if sl.source() in sourceUris:
                     tss = self.tsd()[sourceUris.index(sl.source())]
                     break
-
-            lyrWithSelectedFeatures = [l for l in quickLabelLayers() if l.selectedFeatureCount() > 0]
-            lyrWithSelectedFeatures = [l for l in lyrWithSelectedFeatures if l in self.layers() and l.isEditable()]
-
-            layerNames = ', '.join([l.name() for l in lyrWithSelectedFeatures])
-            m = menu.addMenu('Quick Labels')
-            m.setToolTipsVisible(True)
-            nQuickLabelLayers = len(lyrWithSelectedFeatures)
-            m.setEnabled(nQuickLabelLayers > 0)
-
-            from qgis.gui import QgsGui
-            from eotimeseriesviewer.labeling import EDITOR_WIDGET_REGISTRY_KEY
-            reg = QgsGui.editorWidgetRegistry()
-            factory = reg.factory(EDITOR_WIDGET_REGISTRY_KEY)
-            observation_indices = []
-            from .labeling import layerClassSchemes, setQuickClassInfo, quickLayerGroups
-
-            if len(lyrWithSelectedFeatures) == 0:
-                a = m.addAction('No features selected.')
-                a.setToolTip('Select feature in the labeling panel to apply Quick label value on.')
-                a.setEnabled(False)
-            else:
-                quickLabelGroups = quickLayerGroups(lyrWithSelectedFeatures)
-                for grp in quickLabelGroups:
-
-                    if grp == '':
-                        grp_info = ''
-                        grp_info_tt = ''
-                    else:
-                        grp_info = f'"{grp}"'
-                        grp_info_tt = f' from group "{grp}"'
-
-                    a = m.addAction(f'Set Date/Sensor attributes {grp_info}'.strip())
-                    a.setToolTip(
-                        f'Writes dates/sensor information to selected features in layer(s): {layerNames}.')
-                    a.triggered.connect(lambda *args, tsd=self.tsd(), layer_group=grp, _tss=tss:
-                                        setQuickTSDLabelsForRegisteredLayers(tsd, _tss, layer_group=layer_group))
-
-                for layer in lyrWithSelectedFeatures:
-                    assert isinstance(layer, QgsVectorLayer)
-                    csf = layerClassSchemes(layer)
-                    if len(csf) > 0:
-                        m.addSection(layer.name())
-                        for (cs, field) in csf:
-                            assert isinstance(cs, ClassificationScheme)
-                            assert isinstance(field, QgsField)
-                            classMenu = m.addMenu('{} [{}]'.format(field.name(), field.typeName()))
-                            for classInfo in cs:
-                                assert isinstance(classInfo, ClassInfo)
-                                a = classMenu.addAction('{} "{}"'.format(classInfo.label(), classInfo.name()))
-                                a.setIcon(classInfo.icon())
-                                a.triggered.connect(
-                                    lambda _, vl=layer, f=field, c=classInfo: setQuickClassInfo(vl, f, c))
+            addQuickLabelMenu(menu, self.layers(), tss)
 
         if has_sensor_id(refSensorLayer):
             m: QMenu = menu.addMenu('Raster stretch...')
@@ -1040,9 +987,15 @@ class MapCanvas(QgsMapCanvas):
             a.setToolTip('Copy layer style to clipboard')
             a.triggered.connect(lambda *args, lyr=mapLayer: pasteStyleToClipboard(lyr))
 
+            canPasteStyle = False
+            md: QMimeData = QApplication.clipboard().mimeData()
+            if isinstance(md, QMimeData):
+                if 'application/qgis.style' in md.formats():
+                    canPasteStyle = True
+
             a = sub.addAction('Paste Style')
             a.setToolTip('Paster layer style from clipboard')
-            a.setEnabled('application/qgis.style' in QApplication.clipboard().mimeData().formats())
+            a.setEnabled(canPasteStyle)
             a.triggered.connect(lambda *args, lyr=mapLayer: self.onPasteStyleFromClipboard(lyr))
 
             iface = qgis.utils.iface
@@ -1087,8 +1040,10 @@ class MapCanvas(QgsMapCanvas):
             m: QMenu = menu.addMenu('Copy...')
             m.setToolTipsVisible(True)
             action = m.addAction('Date')
-            action.triggered.connect(lambda: QApplication.clipboard().setText(str(tsd.date())))
-            action.setToolTip('Sends "{}" to the clipboard.'.format(str(tsd.date())))
+
+            txt = tsd.dtgString()
+            action.triggered.connect(lambda: QApplication.clipboard().setText(txt))
+            action.setToolTip('Sends "{}" to the clipboard.'.format(txt))
 
             action = m.addAction('Sensor')
             action.triggered.connect(lambda: QApplication.clipboard().setText(tsd.sensor().name()))
@@ -1190,17 +1145,6 @@ class MapCanvas(QgsMapCanvas):
             else:
                 n_max = 5
             action = menu.addAction('Update source visibility')
-            action.setToolTip(
-                'Hides from the observations shown those observations that do <br>'
-                'not have valid pixels for the currently displayed map extent')
-            action.triggered.connect(lambda *args, ext=self.spatialExtent():
-                                     ts.focusVisibility(ext,
-                                                        date_of_interest=date,
-                                                        max_after=n_max,
-                                                        max_before=n_max
-                                                        ))
-
-            action = menu.addAction('Update source visibility (all)')
             action.setToolTip(
                 'Hides all observations that do not have valid pixels for the currently displayed map extent.'
                 '<br><i>Depending on the length of your time series this may take some time</i>'
@@ -1362,7 +1306,11 @@ class MapCanvas(QgsMapCanvas):
         assert isinstance(dp, QgsRasterDataProvider)
 
         def getCE(band) -> Optional[QgsContrastEnhancement]:
-            stats: QgsRasterBandStats = dp.bandStatistics(band, QGIS_RASTERBANDSTATISTIC.All, extent, 256)
+
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore', category=DeprecationWarning)
+                stats: QgsRasterBandStats = dp.bandStatistics(band, QGIS_RASTERBANDSTATISTIC.All, extent, 256)
+
             if math.nan in [stats.minimumValue, stats.maximumValue]:
                 return None
 
@@ -1431,9 +1379,8 @@ class MapCanvas(QgsMapCanvas):
         :param fileType:
         :return:
         """
-        import eotimeseriesviewer.settings
-        lastDir = eotimeseriesviewer.settings.value(eotimeseriesviewer.settings.Keys.ScreenShotDirectory,
-                                                    os.path.expanduser('~'))
+
+        lastDir = EOTSVSettingsManager.settings().dirScreenShots
         from eotimeseriesviewer.mapvisualization import MapView
         if isinstance(self.mTSD, TimeSeriesDate) and isinstance(self.mMapView, MapView):
             path = filenameFromString('{}.{}'.format(self.mTSD.date(), self.mMapView.title()))
@@ -1443,8 +1390,9 @@ class MapCanvas(QgsMapCanvas):
         path, _ = QFileDialog.getSaveFileName(self, 'Save map as {}'.format(fileType), path)
         if len(path) > 0:
             self.saveAsImage(path, None, fileType)
-            eotimeseriesviewer.settings.setValue(eotimeseriesviewer.settings.Keys.ScreenShotDirectory,
-                                                 os.path.dirname(path))
+            settings = EOTSVSettingsManager.settings()
+            settings.dirScreenShots = Path(path)
+            EOTSVSettingsManager.saveSettings(settings)
 
     def setSpatialExtent(self, spatialExtent: SpatialExtent):
         """

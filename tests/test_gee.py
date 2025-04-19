@@ -1,7 +1,6 @@
 import unittest
-from eotimeseriesviewer.tests import start_app
 
-start_app()
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 
 EE_Available = False
 try:
@@ -9,7 +8,8 @@ try:
     EE_Available = True
 except ModuleNotFoundError:
     EE_Available = False
-from eotimeseriesviewer.tests import EOTSVTestCase
+
+start_app()
 
 
 # @unittest.skipIf(not EE_Available, 'GEE not available')
@@ -32,4 +32,3 @@ class TestLabeling(EOTSVTestCase):
 
 if __name__ == "__main__":
     unittest.main(buffer=False)
-

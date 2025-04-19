@@ -1,0 +1,12 @@
+[
+  {
+    "name": "CreateEmptyTemporalProfileLayer",
+    "parameters": [
+      {
+        "name": "CRS",
+        "description": "The coordinate reference system"
+      }
+    ],
+    "shortHelpString": "Creates an empty Temporal Profile Layer"
+  }
+]

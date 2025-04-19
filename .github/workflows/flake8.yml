@@ -19,7 +19,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v2.3.1
         with:
-          python-version: 3.8
+          python-version: 3.12
           architecture: x64
       - name: Checkout
         uses: actions/checkout@v3
@@ -28,6 +28,6 @@ jobs:
         with:
           checkName: 'Python Lint'
           plugins: flake8-qgis
-          config: .flake8
+          config: tox.ini
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

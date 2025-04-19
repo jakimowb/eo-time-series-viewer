@@ -18,8 +18,6 @@
 *                                                                         *
 ***************************************************************************
 """
-# noinspection PyPep8Naming
-
 import argparse
 import os
 import re
@@ -32,9 +30,9 @@ from typing import Iterator, Optional, Union
 import git
 import markdown
 
+from qgis.core import QgsUserProfile, QgsUserProfileManager
 from eotimeseriesviewer.qgispluginsupport.qps.make.deploy import QGISMetadataFileWriter, userProfileManager
 from eotimeseriesviewer.qgispluginsupport.qps.utils import zipdir
-from qgis.core import QgsUserProfile, QgsUserProfileManager
 
 site.addsitedir(Path(__file__).parents[1].as_posix())
 import eotimeseriesviewer
@@ -56,7 +54,7 @@ MD.mHomepage = eotimeseriesviewer.HOMEPAGE
 MD.mAbout = ''
 MD.mTracker = eotimeseriesviewer.ISSUE_TRACKER
 MD.mRepository = eotimeseriesviewer.REPOSITORY
-MD.mQgisMinimumVersion = '3.34'
+MD.mQgisMinimumVersion = '3.40'
 MD.mEmail = eotimeseriesviewer.MAIL
 MD.mIsExperimental = False
 
@@ -102,12 +100,12 @@ def create_plugin(include_testdata: bool = False,
 
     if build_name is None:
         # we are on release branch
-        if re.search(r'release_\d+\.\d+', active_branch):
-            BUILD_NAME = VERSION
-        else:
-            BUILD_NAME = '{}.{}.{}'.format(VERSION, timestamp, active_branch)
-            BUILD_NAME = re.sub(r'[:-]', '', BUILD_NAME)
-            BUILD_NAME = re.sub(r'[\\/]', '_', BUILD_NAME)
+        BUILD_NAME = f'{VERSION}.{VERSION_SHA[0:7]}'
+        if active_branch != 'main':
+            BUILD_NAME += f'.{active_branch}'
+
+        BUILD_NAME = re.sub(r'[:-]', '', BUILD_NAME)
+        BUILD_NAME = re.sub(r'[\\/]', '_', BUILD_NAME)
     else:
         BUILD_NAME = build_name
 
@@ -142,6 +140,7 @@ def create_plugin(include_testdata: bool = False,
     files.append(DIR_REPO / 'LICENSE.md')
     files.append(DIR_REPO / 'requirements.txt')
     files.append(DIR_REPO / 'requirements_dev.txt')
+    files.append(DIR_REPO / 'tox.ini')
 
     # exclude
     files = [f for f in files
@@ -187,7 +186,15 @@ def create_plugin(include_testdata: bool = False,
 
     # Copy to other deploy directory
     if copy_to_profile:
-        profileManager: QgsUserProfileManager = userProfileManager()
+
+        if 'QGIS_PROFILE_FOLDER' in os.environ:
+            folder = Path(os.environ.get('QGIS_PROFILE_FOLDER'))
+            assert folder.is_dir()
+            assert (folder / 'profiles.ini').is_file()
+            profileManager = QgsUserProfileManager(str(folder))
+        else:
+            profileManager: QgsUserProfileManager = userProfileManager()
+
         assert len(profileManager.allProfiles()) > 0
         if isinstance(copy_to_profile, str):
             profileName = copy_to_profile
@@ -211,7 +218,11 @@ def create_plugin(include_testdata: bool = False,
             if QGIS_PROFILE_DEPLOY.is_dir():
                 print(f'Copy plugin to {QGIS_PROFILE_DEPLOY}...')
                 shutil.rmtree(QGIS_PROFILE_DEPLOY)
-            shutil.copytree(PLUGIN_DIR, QGIS_PROFILE_DEPLOY)
+
+            def ignore_func(dir, files):
+                return [f for f in files if "CC0 legal code" in f]
+
+            shutil.copytree(PLUGIN_DIR, QGIS_PROFILE_DEPLOY, ignore=ignore_func)
 
     # 5. create a zip
     # Create a zip

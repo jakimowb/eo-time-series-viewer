@@ -1,14 +1,14 @@
+from eotimeseriesviewer.dateparser import DateTimePrecision
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
-from eotimeseriesviewer.timeseries import has_sensor_id
-
-start_app()
-
+from eotimeseriesviewer.sensors import has_sensor_id
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibraryplotitems import SpectralProfilePlotWidget, \
-    SpectralProfilePlotDataItem
+from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibraryplotitems import SpectralProfilePlotDataItem, \
+    SpectralProfilePlotWidget
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
 from qgis.core import QgsProject, QgsVectorLayer
+
+start_app()
 
 
 class TestSpectralProfiles(EOTSVTestCase):
@@ -16,6 +16,7 @@ class TestSpectralProfiles(EOTSVTestCase):
     def test_load_spectral_profiles(self):
         n = 3
         EOTSV = EOTimeSeriesViewer()
+        EOTSV.timeSeries().setDateTimePrecision(DateTimePrecision.Day)
         self.assertEqual(len(EOTSV.mapViews()), 0, msg=f'MapViews: {EOTSV.mapViews()}')
         EOTSV.loadExampleTimeSeries(n, filter_raster='re_*.tif', loadAsync=False)
         self.assertEqual(len(EOTSV.timeSeries()), n)

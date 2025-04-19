@@ -2,7 +2,7 @@
 
 """
 ***************************************************************************
-    
+
     ---------------------
     Date                 : 30.11.2017
     Copyright            : (C) 2017 by Benjamin Jakimow
@@ -17,63 +17,63 @@
 ***************************************************************************
 """
 import json
-# noinspection PyPep8Naming
 import unittest
 
-from qgis.PyQt.QtCore import QSettings, QByteArray
 from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtXml import QDomDocument
-
-from eotimeseriesviewer.timeseries import SensorMatching
+from qgis.gui import QgsOptionsWidgetFactory
 from qgis.PyQt.QtWidgets import QTableView
-
-from eotimeseriesviewer.settings import values, SettingsDialog, Keys, defaultValues, value, setValues, \
-    SensorSettingsTableModel, setValue
+from eotimeseriesviewer.settings.widget import EOTSVSettingsWidget, EOTSVSettingsWidgetFactory, SensorSettingsTableModel
+from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
+from eotimeseriesviewer.sensors import SensorMatching
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
-from qgis.core import QgsTextFormat, QgsReadWriteContext
-
+from eotimeseriesviewer.timeseries.source import TimeSeriesSource
 
 start_app()
 
+
 class TestSettings(EOTSVTestCase):
 
-    def test_Dialog(self):
-        allValues = values()
+    def setUp(self):
+        super().setUp()
 
-        d = SettingsDialog()
-        self.assertIsInstance(d, SettingsDialog)
+    def tearDown(self):
+        super().tearDown()
 
-        specs = value(Keys.SensorSpecs)
-        defaults = defaultValues()
-        self.assertIsInstance(defaults, dict)
+    def test_SettingsWidget(self):
 
-        dialogValues = d.values()
-        for k in Keys:
-            a, b = allValues[k], dialogValues[k]
-            if not a is None:
-                if isinstance(a, QgsTextFormat):
-                    self.assertIsInstance(b, QgsTextFormat)
-                    a = a.toMimeData().text()
-                    b = b.toMimeData().text()
-                self.assertEqual(a, b, msg='Dialog returns {} instead {} for settings key {}'.format(a, b, k))
+        w = EOTSVSettingsWidget(None)
 
-        defaultMapColor = dialogValues[Keys.MapBackgroundColor]
-        dialogValues[Keys.MapBackgroundColor] = QColor('yellow')
-        d.setValues(dialogValues)
-        self.assertTrue(d.mCanvasColorButton.color() == QColor('yellow'))
-        d.onAccept()
+        # w.apply()
+        # w.resetSettings()
 
-        d = SettingsDialog()
-        dialogValues = d.values()
-        self.assertTrue(dialogValues[Keys.MapBackgroundColor] == QColor('yellow'))
-        dialogValues[Keys.MapBackgroundColor] = defaultMapColor
-        setValues(dialogValues)
+        myPlotStyle = PlotStyle()
+        myPlotStyle.setLineWidth(10)
+        myPlotStyle.setLineColor(QColor('orange'))
 
-        d = SettingsDialog()
-        dialogValues = d.values()
-        self.assertTrue(dialogValues[Keys.MapBackgroundColor] == defaultMapColor)
+        w.btnProfileAdded.setPlotStyle(myPlotStyle.clone())
 
-        self.showGui(d)
+        w.apply()
+
+        w = EOTSVSettingsWidget(None)
+        style2 = w.btnProfileAdded.plotStyle()
+        self.assertIsInstance(style2, PlotStyle)
+        if style2 != myPlotStyle:
+            s1 = style2.map()
+            s2 = myPlotStyle.map()
+            self.assertEqual(s1, s2)
+        self.assertEqual(myPlotStyle, style2)
+        self.showGui(w)
+
+    @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Blocking dialog')
+    def test_init_factory(self):
+
+        factory = EOTSVSettingsWidgetFactory.instance()
+        self.assertIsInstance(factory, QgsOptionsWidgetFactory)
+        from qgis.utils import iface
+        # registerOptionsWidgetFactory()
+        d = iface.showOptionsDialog(currentPage='')
+        d.exec_()
+        # unregisterOptionsWidgetFactory()
 
     def test_SensorMatching(self):
 
@@ -102,47 +102,10 @@ class TestSettings(EOTSVTestCase):
 
         self.showGui(tb)
 
-    def test_MapTextFormat(self):
-
-        key = Keys.MapTextFormat
-        format0 = defaultValues()[key]
-        format1 = defaultValues()[key]
-        self.assertIsInstance(format1, QgsTextFormat)
-        color1 = QColor('yellow')
-        format1.setColor(color1)
-
-        doc = QDomDocument()
-        doc.appendChild(format1.writeXml(doc, QgsReadWriteContext()))
-        docBA = doc.toByteArray()
-        docStr = doc.toString()
-
-        doc2 = QDomDocument()
-        doc2.setContent(docBA)
-        format2 = QgsTextFormat()
-        format2.readXml(doc2.documentElement(), QgsReadWriteContext())
-        color2 = format2.color()
-        self.assertEqual(color1, color2)
-
-        QS = QSettings('TEST')
-        QS.setValue(key.value, doc.toByteArray())
-
-        docBA3 = QS.value(key.value)
-        self.assertIsInstance(docBA3, QByteArray)
-        doc3 = QDomDocument()
-        doc3.setContent(docBA3)
-        format3 = QgsTextFormat()
-        format3.readXml(doc3.documentElement(), QgsReadWriteContext())
-        self.assertEqual(color1, format3.color())
-
-        setValue(key, format1)
-        self.assertEqual(format1.color(), value(key).color())
-
-        s = ""
-
     def test_saveAndRestoreSensorNames(self):
 
         from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA
-        from eotimeseriesviewer.timeseries import TimeSeriesSource
+
         tss = TimeSeriesSource.create(Img_2014_01_15_LC82270652014015LGN00_BOA)
         self.assertIsInstance(tss, TimeSeriesSource)
         sensorID = tss.sid()

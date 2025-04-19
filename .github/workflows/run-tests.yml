@@ -3,13 +3,12 @@ name: 🧪 Code Testing
 on:
   push:
     branches:
-      - main
-      - release-**
+      - '**'
 
   pull_request:
     branches:
       - main
-      - release-**
+
   release:
     types: [ published ]
 
@@ -19,8 +18,8 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        qgis_version: [ 3.34, 3.36, 3.38 ]
-        python: [ 3.10 ]
+        qgis_version: ['3.40', '3.42' ]
+        python: [ '3.12' ]
     env:
       QGIS_VERSION: ${{ matrix.qgis_version}}
     steps:

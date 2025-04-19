@@ -19,14 +19,13 @@
  ***************************************************************************/
 """
 import inspect
-# noinspection PyPep8Naming
 import os
 import pathlib
 
 from qgis.core import Qgis, QgsApplication
 from qgis.PyQt.QtGui import QIcon
 
-__version__ = '1.20'  # sub-subversion number is added automatically
+__version__ = '2.0.0'  # sub-subversion number is added automatically
 
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
@@ -76,7 +75,7 @@ def debugLog(msg: str = '', skip_prefix: bool = False):
                 stack_class = stack[1][0].f_locals['__file__']
             else:
                 stack_class = ''
-            stack_method = stack[1][0].f_code.co_name
+            # stack_method = stack[1][0].f_code.co_name
             prefix = f'{stack_class}.{FOI.function}: {os.path.basename(FOI.filename)}:{FOI.lineno}:'
 
         msg = f'DEBUG::{prefix}{msg}'
@@ -112,11 +111,37 @@ def initAll():
     from eotimeseriesviewer.qgispluginsupport.qps import initAll as initAllQps
     initAllQps()
 
-    from .labeling import registerLabelShortcutEditorWidget
+    from eotimeseriesviewer.labeling.editorconfig import registerLabelShortcutEditorWidget
     registerLabelShortcutEditorWidget()
 
-    from eotimeseriesviewer.timeseries import registerDataProvider
+    from eotimeseriesviewer.sensors import registerDataProvider
+    from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileEditorWidgetFactory
+    TemporalProfileEditorWidgetFactory.register()
     registerDataProvider()
+    registerProcessingProvider()
+    registerOptionsWidgetFactory()
+
+
+def registerProcessingProvider():
+    from eotimeseriesviewer.processing.processingalgorithms import EOTSVProcessingProvider
+    EOTSVProcessingProvider.registerProvider()
+
+
+def unregisterProcessingProvider():
+    from eotimeseriesviewer.processing.processingalgorithms import EOTSVProcessingProvider
+    EOTSVProcessingProvider.unregisterProvider()
+
+
+def registerOptionsWidgetFactory():
+    from eotimeseriesviewer.settings.widget import EOTSVSettingsWidgetFactory
+    from qgis.utils import iface
+    iface.registerOptionsWidgetFactory(EOTSVSettingsWidgetFactory.instance())
+
+
+def unregisterOptionsWidgetFactory():
+    from eotimeseriesviewer.settings.widget import EOTSVSettingsWidgetFactory
+    from qgis.utils import iface
+    iface.unregisterOptionsWidgetFactory(EOTSVSettingsWidgetFactory.instance())
 
 
 def unloadAll():
@@ -125,6 +150,8 @@ def unloadAll():
     unregisterEditorWidgets()
     unregisterExpressionFunctions()
     unregisterMapLayerConfigWidgetFactories()
+    unregisterProcessingProvider()
+    unregisterOptionsWidgetFactory()
 
 
 def icon() -> QIcon:

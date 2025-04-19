@@ -20,9 +20,6 @@ from qgis.PyQt.QtCore import QPoint
 from qgis.PyQt.QtWidgets import QScrollArea, QWidget
 
 
-# noinspection PyPep8Naming
-
-
 class MapViewScrollArea(QScrollArea):
 
     def __init__(self, *args, **kwds):

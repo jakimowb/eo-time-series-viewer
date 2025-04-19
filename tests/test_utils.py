@@ -15,12 +15,10 @@ __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 import unittest
 import os
 
-from qgis._core import QgsMapLayer
-
+from qgis.core import QgsMapLayer, QgsProject, QgsRasterLayer, QgsRectangle
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
 from eotimeseriesviewer.utils import layerStyleString, setLayerStyleString
 from example.Images import Img_2014_04_21_LC82270652014111LGN00_BOA
-from qgis.core import QgsProject, QgsRasterLayer, QgsRectangle
 from qgis.gui import QgsMapCanvas
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 

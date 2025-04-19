@@ -18,9 +18,10 @@ import re
 import unittest
 
 from osgeo import gdal
+
+from example import examplePoints
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer
 from qgis.PyQt.QtGui import QIcon
-
 from eotimeseriesviewer import DIR_UI, icon as eotsvIcon
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.core.spectrallibrary import SpectralLibraryUtils
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.core.spectralprofile import validateProfileValueDict
@@ -64,14 +65,13 @@ class TestResources(EOTSVTestCase):
 
     def test_example_vectors(self):
 
-        from example import exampleEvents, exampleGPKG
-        sources = [exampleEvents, exampleGPKG]
+        sources = [examplePoints]
 
         for src in sources:
             for slyr in subLayers(src):
                 self.assertIsInstance(slyr, QgsMapLayer)
 
-            lyr = QgsVectorLayer(src)
+            lyr = QgsVectorLayer(str(src))
             self.assertIsInstance(lyr, QgsVectorLayer)
             self.assertTrue(lyr.isValid())
 

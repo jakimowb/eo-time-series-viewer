@@ -2,7 +2,7 @@
 
 """
 ***************************************************************************
-    
+
     ---------------------
     Date                 : 30.11.2017
     Copyright            : (C) 2017 by Benjamin Jakimow
@@ -16,17 +16,17 @@
 *                                                                         *
 ***************************************************************************
 """
-# noinspection PyPep8Naming
 import unittest
 
-from eotimeseriesviewer.mapcanvas import MapCanvas, MapCanvasInfoItem
-from eotimeseriesviewer.qgispluginsupport.qps.maptools import SpectralProfileMapTool
-from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
-from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, example_raster_files, start_app
 from qgis.PyQt.QtCore import QPoint
 from qgis.PyQt.QtWidgets import QMenu
 from qgis.core import QgsProject, QgsRasterLayer, QgsWkbTypes
 from qgis.gui import QgsFontButton, QgsMapCanvas
+from eotimeseriesviewer.mapcanvas import MapCanvas, MapCanvasInfoItem
+from eotimeseriesviewer.qgispluginsupport.qps.maptools import SpectralProfileMapTool
+from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
+from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
+from eotimeseriesviewer.tests import EOTSVTestCase, example_raster_files, start_app, TestObjects
 
 start_app()
 
@@ -81,6 +81,17 @@ class TestMapCanvas(EOTSVTestCase):
         self.showGui(menu)
 
         del canvas
+
+        ts = TestObjects.createTimeSeries()
+
+        canvas = MapCanvas()
+        canvas.setTSD(ts[0])
+        pos = QPoint(int(canvas.width() * 0.5), int(canvas.height() * 0.5))
+        menu = QMenu()
+        canvas.populateContextMenu(menu, pos)
+        self.assertIsInstance(menu, QMenu)
+        self.showGui(menu)
+
         QgsProject.instance().removeAllMapLayers()
 
     def test_mapcanvasInfoItem(self):
@@ -91,8 +102,7 @@ class TestMapCanvas(EOTSVTestCase):
         mc.setDestinationCrs(vl.crs())
         mc.setExtent(mc.fullExtent())
 
-        from eotimeseriesviewer.settings import Keys, defaultValues
-        mc.mInfoItem.setTextFormat(defaultValues()[Keys.MapTextFormat])
+        mc.mInfoItem.setTextFormat(EOTSVSettingsManager.settings().mapTextFormat)
         mc.mInfoItem.setUpperLeft('Upper\nLeft')
         if True:
             mc.mInfoItem.setMiddleLeft('Middle\nLeft')

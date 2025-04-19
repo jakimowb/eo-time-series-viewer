@@ -1,3 +1,5 @@
+from typing import Iterable
+
 from qgis.core import QgsMapLayer, QgsProject
 
 
@@ -23,7 +25,7 @@ class EOTimeSeriesViewerProject(QgsProject):
             self.mLayerRefs.append(lyr)
         return lyr
 
-    def addMapLayers(self, mapLayers: QgsMapLayer, *args, **kwargs):
+    def addMapLayers(self, mapLayers: Iterable[QgsMapLayer], *args, **kwargs):
         # self.debugPrint(f'addMapLayers {mapLayers}')
         added_layers = super().addMapLayers(mapLayers)
         for lyr in added_layers:
@@ -59,7 +61,7 @@ class EOTimeSeriesViewerProject(QgsProject):
         rows = [['EOTSV', 'QGIS', 'Layer ID']]
         for k in sorted(set(keysE + keysQ)):
             rows.append([str(k in keysE), str(k in keysQ), k])
-        info = '\n'.join(['{:<8}\t{:<4}\t{}'.format(*row) for row in rows])
+        info = '\n'.join([msg] + ['{:<8}\t{:<4}\t{}'.format(*row) for row in rows])
         if len(rows) == 1:
             info += '\t - no map layers -'
         print(info, flush=True)

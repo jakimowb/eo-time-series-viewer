@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# noinspection PyPep8Naming
 """
 /***************************************************************************
                               Virtual Raster Builder
@@ -26,11 +25,11 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 from osgeo import gdal, osr
-from qgis.core import QgsGeometry, QgsRasterLayer, QgsMapToPixel
+from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsGeometry, QgsMapToPixel, QgsRasterLayer, \
+    QgsRectangle
+from qgis.PyQt.QtCore import pyqtSignal, QObject, QSizeF
 
-from eotimeseriesviewer.qgispluginsupport.qps.models import OptionListModel, Option
-from qgis.PyQt.QtCore import QObject, pyqtSignal, QSizeF
-from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsRectangle
+from eotimeseriesviewer.qgispluginsupport.qps.models import Option, OptionListModel
 
 # lookup GDAL Data Type and its size in bytes
 LUT_GDT_SIZE = {gdal.GDT_Byte: 1,
@@ -95,7 +94,7 @@ def read_vsimem(fn):
     return gdal.VSIFReadL(1, vsileng, vsifile)
 
 
-def write_vsimem(fn: str, data: str):
+def write_vsimem(fn: str, data: str) -> int:
     """
     Writes data to vsimem path
     :param fn: vsimem path (str)
@@ -103,10 +102,16 @@ def write_vsimem(fn: str, data: str):
     :return: result of gdal.VSIFCloseL(vsifile)
     """
     '''Write GDAL vsimem files'''
+    assert isinstance(fn, str)
+    assert isinstance(data, str)
+    file_info = gdal.VSIStatL(fn)
+    assert file_info is None
     vsifile = gdal.VSIFOpenL(fn, 'w')
     size = len(data)
     gdal.VSIFWriteL(data, 1, size, vsifile)
-    return gdal.VSIFCloseL(vsifile)
+    ret_val = gdal.VSIFCloseL(vsifile)
+    assert ret_val == gdal.CPLE_None
+    return ret_val
 
 
 def describeRawFile(pathRaw, pathVrt, xsize, ysize,
@@ -670,7 +675,7 @@ class VRTRaster(QObject):
 
                 warpedFileName = 'warped.{}.vrt'.format(os.path.basename(pathSrc))
                 if inMemory:
-                    warpedFileName = dirWarped + warpedFileName
+                    warpedFileName = dirWarped / warpedFileName
                 else:
                     os.makedirs(dirWarped, exist_ok=True)
                     warpedFileName = os.path.join(dirWarped, warpedFileName)
@@ -718,19 +723,21 @@ class VRTRaster(QObject):
                 kwds['outputSRS'] = srs
 
             kwds['bandList'] = [1 for _ in range(len(srcFiles))]
-            pathInMEMVRT = '/vsimem/{}.vrt'.format(uuid.uuid4())
+            path_vsimem_vrt: str = f'/vsimem/{uuid.uuid4()}.vrt'
             vro = gdal.BuildVRTOptions(separate=True, **kwds)
-            dsVRTDst = gdal.BuildVRT(pathInMEMVRT, srcFiles, options=vro)
+            with gdal.BuildVRT(path_vsimem_vrt, srcFiles, options=vro) as dsVRTDst:
 
-            assert isinstance(dsVRTDst, gdal.Dataset)
+                assert isinstance(dsVRTDst, gdal.Dataset)
 
-            ns, nl = dsVRTDst.RasterXSize, dsVRTDst.RasterYSize
-            gt = dsVRTDst.GetGeoTransform()
-            crs = dsVRTDst.GetProjectionRef()
-            eType = dsVRTDst.GetRasterBand(1).DataType
+                ns, nl = dsVRTDst.RasterXSize, dsVRTDst.RasterYSize
+                gt = dsVRTDst.GetGeoTransform()
+                crs = dsVRTDst.GetProjectionRef()
+                eType = dsVRTDst.GetRasterBand(1).DataType
 
-            xmlVRT = dsVRTDst.GetMetadata('xml:VRT')[0]
-            drvVRT.Delete(pathInMEMVRT)
+                xmlVRT = dsVRTDst.GetMetadata('xml:VRT')[0]
+
+            gdal.Unlink(path_vsimem_vrt)
+            drvVRT.Delete(path_vsimem_vrt)
 
             # save the XML snipped per file source
             SOURCE_TEMPLATES = dict()
@@ -742,7 +749,7 @@ class VRTRaster(QObject):
                 src_path = xmlSrc.find('SourceFilename')
 
                 if src_path.attrib.get('relativeToVRT') == "1":
-                    full_path = Path(pathInMEMVRT).parent / src_path.text
+                    full_path = Path(path_vsimem_vrt).parent / src_path.text
                     srcLookup[full_path.as_posix()] = src_path.text
                     s = ""
 

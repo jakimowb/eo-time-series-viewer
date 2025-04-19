@@ -18,15 +18,21 @@
  *                                                                         *
  ***************************************************************************/
 """
+import enum
 import sys
-from typing import Union
+from typing import List, Union
 
-from qgis.PyQt.QtCore import QByteArray, QSettings, QTextStream
+from qgis.PyQt.QtCore import QByteArray, QSettings, QSortFilterProxyModel, Qt, QTextStream
+from qgis.gui import QgisInterface, QgsAttributeTableView, QgsFontButton
+from qgis.PyQt.QtGui import QColor
+from qgis.core import QgsFeature, QgsFeatureSink, QgsMapLayer, QgsMapLayerStyle, QgsVectorLayer
+from qgis.core.additions.edit import edit
 from qgis.PyQt.QtXml import QDomDocument
-from qgis.core import QgsMapLayer, QgsMapLayerStyle
 from qgis.PyQt.QtWidgets import QAction, QMenu, QToolButton, QWidget
-from qgis.gui import QgisInterface
 import qgis.utils
+
+from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
+from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 
 
 def qgisInstance():
@@ -53,6 +59,30 @@ def fixMenuButtons(w: QWidget):
         if isinstance(toolButton.defaultAction(), QAction) and isinstance(toolButton.defaultAction().menu(), QMenu) \
                 or isinstance(toolButton.menu(), QMenu):
             toolButton.setPopupMode(QToolButton.MenuButtonPopup)
+
+
+def setFontButtonPreviewBackgroundColor(color: QColor, btn: QgsFontButton):
+    fmt = btn.textFormat()
+    fmt.setPreviewBackgroundColor(color)
+    btn.setTextFormat(fmt)
+    on = btn.objectName()
+    css = f"""
+    QgsFontButton#{on} {{
+        background-color: {fmt.previewBackgroundColor().name()};
+    }}
+    QgsFontButton#{on}::menu-button {{
+        background-color: palette(window);
+        border: 1px solid gray;
+        width: 16px;
+    }}
+    QgsFontButton#{on}::menu-indicator {{
+        color: palette(window);
+    }}
+    QgsFontButton#{on}::menu-arrow  {{
+        color: palette(window);
+    }}"""
+
+    btn.setStyleSheet(css)
 
 
 def copyMapLayerStyle(styleXml: Union[QgsMapLayer, str],
@@ -106,3 +136,104 @@ def layerStyleString(layer: QgsMapLayer,
     doc.documentElement().save(stream, 0)
     xmlData = str(ba, 'utf-8')
     return xmlData
+
+
+def addFeatures(layer: QgsVectorLayer,
+                features: List[QgsFeature],
+                flags: Union[QgsFeatureSink.Flags, QgsFeatureSink.Flag] = QgsFeatureSink.Flags(),
+                ) -> List[int]:
+    """
+    Adds features and returns the feature ids.
+    :param layer: QgsVectorLayer
+    :param features: list of QgsFeatures
+    :param flags:
+    :return: list of feature ids (int)
+    """
+    added_fids = []
+
+    def onFeatureAdded(fid):
+        added_fids.append(fid)
+
+    layer.featureAdded.connect(onFeatureAdded)
+    layer.addFeatures(features, flags=flags)
+    layer.featureAdded.disconnect(onFeatureAdded)
+    return added_fids
+
+
+class doEdit(edit):
+
+    def __init__(self, layer: QgsVectorLayer):
+
+        super().__init__(layer)
+        self.was_editable = False
+
+    def __enter__(self):
+        self.layer: QgsVectorLayer
+        self.was_editable = self.layer.isEditable()
+        if not self.was_editable:
+            return super().__enter__()
+        else:
+            return self.layer
+
+    def __exit__(self, ex_type, ex_value, traceback):
+        if not self.was_editable:
+            return super().__exit__(ex_type, ex_value, traceback)
+        else:
+            if ex_type:
+                return False
+
+
+class GotoFeatureOptions(enum.IntFlag):
+    SelectFeature = 1
+    PanToFeature = 2
+    ZoomToFeature = 4
+    FocusVisibility = 8
+
+
+def gotoLayerFeature(fid: int, layer: QgsVectorLayer, tools: EOTSVVectorLayerTools, options: GotoFeatureOptions):
+    if GotoFeatureOptions.SelectFeature in options:
+        layer.selectByIds([fid])
+    if GotoFeatureOptions.PanToFeature in options:
+        tools.panToSelected(layer)
+    if GotoFeatureOptions.ZoomToFeature in options:
+        tools.zoomToSelected(layer)
+    if GotoFeatureOptions.FocusVisibility in options:
+        tools.focusVisibility()
+
+
+def gotoFeature(attributeTable: AttributeTableWidget,
+                goDown: bool = True,
+                options: GotoFeatureOptions = GotoFeatureOptions.SelectFeature
+
+                ) -> int:
+    assert isinstance(attributeTable, AttributeTableWidget)
+
+    tv: QgsAttributeTableView = attributeTable.mMainView.tableView()
+    model: QSortFilterProxyModel = tv.model()
+
+    FID_ORDER = []
+
+    for r in range(model.rowCount()):
+        fid = model.data(model.index(r, 0), Qt.UserRole)
+        FID_ORDER.append(fid)
+
+    if len(FID_ORDER) > 0:
+        sfids = tv.selectedFeaturesIds()
+        if len(sfids) == 0:
+            nextFID = FID_ORDER[0]
+        elif goDown:
+            row = FID_ORDER.index(sfids[-1])
+            nextFID = model.data(model.index(row + 1, 0), Qt.UserRole)
+            if nextFID is None:
+                nextFID = FID_ORDER[-1]
+        else:
+            row = FID_ORDER.index(sfids[0])
+            nextFID = model.data(model.index(row - 1, 0), Qt.UserRole)
+            if nextFID is None:
+                nextFID = FID_ORDER[0]
+
+        if isinstance(nextFID, int):
+            tv.scrollToFeature(nextFID)
+        gotoLayerFeature(nextFID, attributeTable.mLayer, attributeTable.vectorLayerTools(), options)
+        return nextFID
+    return None

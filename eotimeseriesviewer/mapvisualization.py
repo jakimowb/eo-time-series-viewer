@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# noinspection PyPep8Naming
 """
 /***************************************************************************
                               EO Time Series Viewer
@@ -28,27 +27,32 @@ import traceback
 from threading import Lock
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
+import qgis.utils
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QMimeData, QModelIndex, QSize, Qt, QTimer
+from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
+from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
+    QWidget
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsExpression, QgsExpressionContext, \
     QgsExpressionContextGenerator, QgsExpressionContextScope, QgsExpressionContextUtils, QgsLayerTree, \
     QgsLayerTreeGroup, QgsLayerTreeLayer, QgsLayerTreeModel, QgsMapLayer, QgsMapLayerProxyModel, \
     QgsMultiBandColorRenderer, QgsPointXY, QgsProcessingFeedback, QgsProject, QgsRasterLayer, QgsRasterRenderer, \
     QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
-import qgis.utils
-from eotimeseriesviewer import debugLog, DIR_UI
-from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, layerStyleString, setLayerStyleString
-from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
-from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
-    QWidget
 from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
     QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
+
+from eotimeseriesviewer import debugLog, DIR_UI
+from eotimeseriesviewer.timeseries.source import TimeSeriesDate
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
+from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, layerStyleString, \
+    setFontButtonPreviewBackgroundColor, setLayerStyleString
 from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem, STYLE_CATEGORIES
 from .maplayerproject import EOTimeSeriesViewerProject
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairMapCanvasItem, CrosshairStyle, getCrosshairStyle
 from .qgispluginsupport.qps.layerproperties import VectorLayerTools
 from .qgispluginsupport.qps.maptools import MapTools
 from .qgispluginsupport.qps.utils import loadUi, SpatialExtent, SpatialPoint
-from .timeseries import has_sensor_id, sensor_id, SensorInstrument, SensorMockupDataProvider, TimeSeries, TimeSeriesDate
+from .sensors import has_sensor_id, sensor_id, SensorInstrument, SensorMockupDataProvider
+from .settings.settings import EOTSVSettingsManager
 
 KEY_LOCKED_LAYER = 'eotsv/locked'
 KEY_SENSOR_GROUP = 'eotsv/sensorgroup'
@@ -107,13 +111,9 @@ class MapView(QFrame):
         loadUi(DIR_UI / 'mapview.ui', self)
         # self.setupUi(self)
 
-        from eotimeseriesviewer.settings import Keys, defaultValues, value
-
-        DEFAULT_VALUES = defaultValues()
-        self.mMapBackgroundColor: QColor = value(Keys.MapBackgroundColor,
-                                                 default=DEFAULT_VALUES.get(Keys.MapBackgroundColor, QColor('black')))
-        self.mMapTextFormat: QgsTextFormat = value(Keys.MapTextFormat,
-                                                   default=DEFAULT_VALUES.get(Keys.MapTextFormat, QgsTextFormat()))
+        settings = EOTSVSettingsManager.settings()
+        self.mMapBackgroundColor: QColor = settings.mapBackgroundColor
+        self.mMapTextFormat: QgsTextFormat = QgsTextFormat(settings.mapTextFormat)
         self.mMapWidget = None
 
         # self.mLayerStyleInitialized: Dict[str, bool] = dict()
@@ -559,6 +559,9 @@ class MapView(QFrame):
     def layerTree(self) -> QgsLayerTree:
         return self.mLayerTree
 
+    def layerTreeView(self) -> QgsLayerTreeView:
+        return self.mLayerTreeView
+
     def title(self, maskNewLines=True) -> str:
         """
         Returns the MapView title
@@ -695,7 +698,7 @@ class MapView(QFrame):
     def addSensor(self, sensor: SensorInstrument):
         """
         Adds a SensorInstrument to be shown in this MapView. Each sensor will be represented as a Raster Layer in the
-        Tree Model.
+        Layer Tree Model.
         :param sensor: SensorInstrument
         """
         assert isinstance(sensor, SensorInstrument)
@@ -703,6 +706,7 @@ class MapView(QFrame):
             sensor.sigNameChanged.connect(self.sigCanvasAppearanceChanged)
 
             masterLayer: QgsRasterLayer = sensor.proxyRasterLayer()
+            assert isinstance(masterLayer, QgsRasterLayer) and masterLayer.isValid()
             assert isinstance(masterLayer.renderer(), QgsRasterRenderer)
 
             self.mSensorLayerList.append((sensor, masterLayer))
@@ -782,7 +786,11 @@ class MapView(QFrame):
                 toRemove.append(t)
 
         for t in toRemove:
-            self.mLayerTreeSensorNode.removeLayer(t[1])
+            sensor, sensorLayer = t
+            sensorLayer.setDataSource('', '', 'gdal')
+            self.mLayerTree.removeLayer(sensorLayer)
+            self.mLayerTreeSensorNode.removeLayer(sensorLayer)
+            self.mLayerTreeMapCanvasBridge.setCanvasLayers()
             self.mSensorLayerList.remove(t)
 
     def hasSensor(self, sensor: SensorInstrument) -> bool:
@@ -1178,10 +1186,8 @@ class MapWidget(QFrame):
         self.mCrosshairPosition: SpatialPoint = None
 
         self.mMapSize = QSize(200, 200)
-        from eotimeseriesviewer.settings import defaultValues, Keys
 
-        DEFAULT_VALUES = defaultValues()
-        self.mMapTextFormat = DEFAULT_VALUES[Keys.MapTextFormat]
+        self.mMapTextFormat = EOTSVSettingsManager.settings().mapTextFormat
         self.mMapRefreshTimer = QTimer(self)
         self.mMapRefreshTimer.timeout.connect(self.timedRefresh)
         self.mMapRefreshTimer.setInterval(500)
@@ -1225,9 +1231,34 @@ class MapWidget(QFrame):
         self.mBlockExtentChange: bool = False
 
     def close(self):
+
+        # for c in self.mapCanvases():
+        #    c.setLayers([])
+        #    c.blockSignals(True)
+
+        while len(self.mapViews()) > 0:
+
+            mapView: MapView = self.mapViews()[0]
+            debugLog(f'Remove map view {mapView}')
+            sensors = list(mapView.sensors())
+            for s in sensors:
+                mapView.removeSensor(s)
+            for c in mapView.mapCanvases():
+                c.setLayers([])
+            self.removeMapView(mapView)
+
+        self._freeUnusedMapLayers()
         self.mMapRefreshTimer.stop()
-        self.mMapLayerStore.removeAllMapLayers()
+
+        QgsApplication.processEvents()
+        import gc
+        gc.collect()
+        # SensorMockupDataProvider.ALL_INSTANCES
+        SensorMockupDataProvider._release_sip_deleted()
+
         self.mMapLayerCache.clear()
+        self.mMapLayerStore.removeAllMapLayers()
+
         super().close()
 
     def clearCanvasGrid(self):
@@ -1445,6 +1476,15 @@ class MapWidget(QFrame):
             self.mMapRefreshBlock = False
         return True
 
+    def layers(self) -> List[QgsMapLayer]:
+        """Returns all QgsMapLayers that are shown in all map view layer trees"""
+        layers = []
+        for mv in self.mapViews():
+            for lyr in mv.layers():
+                if lyr not in layers:
+                    layers.append(lyr)
+        return layers
+
     def currentLayer(self) -> Optional[QgsMapLayer]:
         mv = self.currentMapView()
         if isinstance(mv, MapView):
@@ -1513,7 +1553,7 @@ class MapWidget(QFrame):
              self.MKeyCrs: self.crs().toWkt(),
              self.MKeyMapsPerView: self.mapsPerMapView(),
              self.MKeyMapViews: [mv.asMap() for mv in self.mapViews()],
-             self.MKeyCurrentDate: str(self.currentDate().date()),
+             self.MKeyCurrentDate: str(self.currentDate().dtg().toString(Qt.ISODateWithMs)),
              self.MKeyCurrentExtent: self.spatialExtent().asWktPolygon(),
              }
 
@@ -1742,7 +1782,7 @@ class MapWidget(QFrame):
 
         slider.setPageStep(pageStep)
 
-        if n > 0:
+        if False and n > 0:
             tsd = self.currentDate()
             if isinstance(tsd, TimeSeriesDate) and tsd in self.timeSeries():
                 i = self.timeSeries()[:].index(tsd)
@@ -1814,7 +1854,7 @@ QSlider::add-page {{
     def _updateSliderDate(self, i=None):
         tsd = self.sliderDate(i)
         if isinstance(tsd, TimeSeriesDate):
-            self.tbSliderDate.setText('{}({:03})'.format(tsd.date(), tsd.doy()))
+            self.tbSliderDate.setText('{}({:03})'.format(tsd.dtg().toString(Qt.ISODate), tsd.doy()))
             # self.tbSliderDate.setToolTip(''{}({:03})'.format(tsd.date(), tsd.doy())')
 
     def onSliderValueChanged(self):
@@ -2216,20 +2256,6 @@ QSlider::add-page {{
         # mapCanvas.mapTools().mtCursorLocation.sigLocationRequest.disconnect(
         #    self.sigCurrentLocationChanged)
 
-    def onClose(self):
-        """
-        Removes all remaining mapviews and canvases etc.
-        """
-        for c in self.mapCanvases():
-            c.blockSignals(True)
-
-        while len(self.mapViews()) > 0:
-            mapView: MapView = self.mapViews()[0]
-            debugLog(f'Remove map view {mapView}')
-
-            self.mMapViews.remove(mapView)
-            mapView.setMapWidget(None)
-
     def onCanvasLocationRequest(self, canvas: QgsMapCanvas, crs: QgsCoordinateReferenceSystem, pt: QgsPointXY):
         self.sigCurrentLocationChanged[QgsCoordinateReferenceSystem, QgsPointXY].emit(crs, pt)
         self.sigCurrentLocationChanged[QgsCoordinateReferenceSystem, QgsPointXY, QgsMapCanvas].emit(crs, pt, canvas)
@@ -2382,8 +2408,6 @@ QSlider::add-page {{
         needed = self.usedLayers()
         toRemove = [lyr for lyr in layers if has_sensor_id(lyr) and lyr not in needed]
 
-        # todo: use a kind of caching
-
         # remove layers from MapLayerCache and MapLayerStore
         for mv in self.mMapLayerCache.keys():
             layers = [lyr for lyr in self.mMapLayerCache[mv] if lyr not in toRemove]
@@ -2501,7 +2525,6 @@ class MapViewDock(QgsDockWidget):
 
         self.sbMapViewColumns: QSpinBox
         self.sbMapViewRows: QSpinBox
-
         self.baseTitle = self.windowTitle()
 
         self.btnAddMapView.setDefaultAction(self.actionAddMapView)
@@ -2529,8 +2552,11 @@ class MapViewDock(QgsDockWidget):
         # self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.CrsNotSet, True)
 
         self.btnCrs.crsChanged.connect(self.sigCrsChanged)
-        self.btnMapCanvasColor.colorChanged.connect(self.onMapCanvasColorChanged)
-        self.onMapCanvasColorChanged(self.btnMapCanvasColor.color())
+        self.btnMapCanvasColor.colorChanged.connect(
+            lambda c: setFontButtonPreviewBackgroundColor(c, self.btnTextFormat))
+        self.btnMapCanvasColor.colorChanged.connect(self.sigMapCanvasColorChanged.emit)
+        setFontButtonPreviewBackgroundColor(self.btnMapCanvasColor.color(), self.btnTextFormat)
+
         self.btnTextFormat.changed.connect(lambda *args: self.sigMapTextFormatChanged.emit(self.mapTextFormat()))
         self.btnApplySizeChanges.clicked.connect(self.onApplyButtonClicked)
 
@@ -2564,12 +2590,6 @@ class MapViewDock(QgsDockWidget):
             if i < 0:
                 i = len(mapViews) - 1
             self.setCurrentMapView(mapViews[i])
-
-    def onMapCanvasColorChanged(self, color: QColor):
-        # todo: find a way to display the map canvas color in background
-        css = f"QgsFontButton#btnTextFormat{{background-color:{color.name()}; }}"
-        self.btnTextFormat.setStyleSheet(css)
-        self.sigMapCanvasColorChanged.emit(color)
 
     def onApplyButtonClicked(self):
         self.sigMapSizeChanged.emit(QSize(self.spinBoxMapSizeX.value(), self.spinBoxMapSizeY.value()))
@@ -2659,6 +2679,8 @@ class MapViewDock(QgsDockWidget):
 
     def setMapTextFormat(self, textFormat: QgsTextFormat):
         if isinstance(textFormat, QgsTextFormat):
+            textFormat = QgsTextFormat(textFormat)
+            textFormat.setPreviewBackgroundColor(self.btnMapCanvasColor.color())
             if not equalTextFormats(textFormat, self.mapTextFormat()):
                 self.btnTextFormat.setTextFormat(textFormat)
 

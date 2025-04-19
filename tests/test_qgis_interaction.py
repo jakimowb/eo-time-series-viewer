@@ -16,14 +16,12 @@
 *                                                                         *
 ***************************************************************************
 """
-# noinspection PyPep8Naming
-
 import unittest
 
-from qgis.core import QgsApplication, QgsVectorLayer, QgsProject, QgsMapToPixel, QgsCoordinateReferenceSystem, \
-    QgsRectangle
+from example import examplePoints
+from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsMapToPixel, QgsProject, QgsRectangle, \
+    QgsVectorLayer
 from qgis.gui import QgisInterface, QgsMapCanvas
-
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent, SpatialPoint
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
@@ -48,8 +46,7 @@ class TestQGISInteraction(EOTSVTestCase):
         TSV.loadExampleTimeSeries(loadAsync=False)
         QgsApplication.processEvents()
 
-        from example import exampleEvents
-        lyr = QgsVectorLayer(exampleEvents)
+        lyr = QgsVectorLayer(examplePoints.as_posix())
         QgsProject.instance().addMapLayer(lyr)
 
         from qgis.utils import iface

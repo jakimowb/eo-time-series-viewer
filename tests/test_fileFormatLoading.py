@@ -1,12 +1,15 @@
-import os, re, io, importlib, uuid, unittest
+import os
+import re
+import unittest
 
-import qgis.testing
 from osgeo import gdal
 
 from eotimeseriesviewer import DIR_EXAMPLES
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
-from eotimeseriesviewer.timeseries import TimeSeriesSource, TimeSeries, SensorInstrument, TimeSeriesDate
+from eotimeseriesviewer.sensors import SensorInstrument
+from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 
 start_app()
 

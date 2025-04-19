@@ -1,5 +1,31 @@
 # Changelog
 
+## 2025-04-19 (version 2.0)
+
+* revised map visualization
+* faster image loading by using the QGIS task manager and parallel background threads
+
+* revised of Temporal Profile (TP) Tool.
+    * TPs now consist of full-spectrum time series, loaded in parallel background threads
+    * TPs are stored in vector layer fields
+    * TPs can be loaded for vector layer points using a QGIS processing algorithm
+    * the TP tool visualizes TPs from different vector layers or layer fields
+    * TP tool has shortcuts to visualize spectral indices
+      from https://github.com/awesome-spectral-indices/awesome-spectral-indices
+
+* revised of EO Time Series Viewer Settings
+    * settings are now stored in QGIS settings dialog
+    * allows to define number of parallel reading threads
+    * allows to define shortcuts to visualize spectral indices in TP tool
+
+* revised of Quick Labeling
+    * added customized quick label values that allow to define new values using a QGIS expression
+    * quick label editor widget allows to define classification scheme
+    * added quick labeling shortcuts to TP tool context menu
+
+
+* FORCE product import allows to filter data by start and end date
+
 ## 2024-12-08 (version 1.20)
 
 * added FORCE Product Import

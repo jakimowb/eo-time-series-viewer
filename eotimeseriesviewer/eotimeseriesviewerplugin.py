@@ -18,8 +18,6 @@
  *                                                                         *
  ***************************************************************************/
 """
-# noinspection PyPep8Naming
-
 import os
 import sys
 import site
@@ -28,9 +26,7 @@ from typing import List
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QAction, QApplication
 from qgis.gui import QgisInterface
-
 from eotimeseriesviewer import TITLE
-from eotimeseriesviewer import settings
 
 
 class EOTimeSeriesViewerPlugin:
@@ -73,6 +69,8 @@ class EOTimeSeriesViewerPlugin:
         """
         dummy
         """
+        from eotimeseriesviewer import registerProcessingProvider
+        registerProcessingProvider()
         pass
 
     def initialDependencyCheck(self):
@@ -93,15 +91,12 @@ class EOTimeSeriesViewerPlugin:
 
             n = len(missing)
 
-            longText = ['Unable to import the following package(s):']
-            longText.append('<b>{}</b>'.format(', '.join(missing)))
-            longText.append('<p>Please run your local package manager(s) with root rights to install them.')
+            longText = ['Unable to import the following package(s):', '<b>{}</b>'.format(', '.join(missing)),
+                        '<p>Please run your local package manager(s) with root rights to install them.', 'This Python:',
+                        'Executable: {}'.format(sys.executable), 'ENVIRON:']
             # longText.append('More information is available under:')
             # longText.append('<a href="http://enmap-box.readthedocs.io/en/latest/Installation.html">http://enmap-box.readthedocs.io/en/latest/Installation.html</a> </p>')
 
-            longText.append('This Python:')
-            longText.append('Executable: {}'.format(sys.executable))
-            longText.append('ENVIRON:')
             for k in sorted(os.environ.keys()):
                 longText.append('\t{} ={}'.format(k, os.environ[k]))
 
@@ -118,7 +113,9 @@ class EOTimeSeriesViewerPlugin:
             self.mEOTSV = EOTimeSeriesViewer()
             self.mEOTSV.ui.sigAboutToBeClosed.connect(self.onUiClosed)
 
-            if settings.value(settings.Keys.StartupRestoreProjectSettings, False):
+            from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
+            settings = EOTSVSettingsManager.settings()
+            if settings.restoreProjectSettings:
                 self.mEOTSV.reloadProject()
 
             self.mEOTSV.show()
@@ -146,5 +143,6 @@ class EOTimeSeriesViewerPlugin:
         from eotimeseriesviewer import unloadAll
         unloadAll()
 
-    def tr(self, message):
+    @staticmethod
+    def tr(message):
         return QCoreApplication.translate('EOTimeSeriesViewerPlugin', message)
