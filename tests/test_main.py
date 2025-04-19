@@ -19,9 +19,9 @@
 import os
 import unittest
 
+from example import examplePoints
 from qgis.core import QgsCoordinateReferenceSystem, QgsProject
 from qgis.gui import QgsMapCanvas
-
 from eotimeseriesviewer.main import EOTimeSeriesViewer, SaveAllMapsDialog
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 
@@ -60,8 +60,7 @@ class TestMain(EOTSVTestCase):
                 tsd = TSV.timeSeries()[-1]
                 TSV.setCurrentDate(tsd)
 
-            from example import exampleEvents
-            TSV.addVectorData(exampleEvents)
+            TSV.addVectorData(examplePoints)
             assert len(QgsProject.instance().mapLayers()) == 0
 
             self.taskManagerProcessEvents()

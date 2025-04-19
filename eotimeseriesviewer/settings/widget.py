@@ -8,16 +8,16 @@ from pathlib import Path
 from typing import Any, List, Optional
 
 from osgeo import gdal
-
 from qgis.gui import QgsColorButton, QgsFileWidget, QgsFilterLineEdit, QgsOptionsPageWidget, QgsOptionsWidgetFactory
-from eotimeseriesviewer.spectralindices import SpectralIndexBandIdentifierModel, SpectralIndexConstantModel, \
-    SpectralIndexModel, SpectralIndexProxyModel
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractTableModel, QItemSelection, QItemSelectionModel, QModelIndex, \
     QSortFilterProxyModel, Qt
 from qgis.PyQt.QtGui import QColor, QDesktopServices, QIcon
 # PyQGIS
 from qgis.core import QgsApplication
 from qgis.PyQt.Qt import QUrl
+
+from eotimeseriesviewer.spectralindices import SpectralIndexBandIdentifierModel, SpectralIndexConstantModel, \
+    SpectralIndexModel, SpectralIndexProxyModel
 from eotimeseriesviewer import __version__, HOMEPAGE, icon, ISSUE_TRACKER, TITLE
 from eotimeseriesviewer.dateparser import DateTimePrecision
 from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi
@@ -106,7 +106,7 @@ class EOTSVSettingsWidget(QgsOptionsPageWidget):
         self.listWidget.setCurrentRow(0, QItemSelectionModel.Select)
 
     def updateShortcutsLabel(self):
-        shortcuts = self.spectralIndexProxyModel.sourceModel().shortcuts()
+        shortcuts = self.spectralIndexModel.shortcuts()
         if len(shortcuts) == 0:
             info = '<i>None</i>'
         else:

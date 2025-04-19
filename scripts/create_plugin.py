@@ -29,8 +29,8 @@ from typing import Iterator, Optional, Union
 
 import git
 import markdown
-from qgis.core import QgsUserProfile, QgsUserProfileManager
 
+from qgis.core import QgsUserProfile, QgsUserProfileManager
 from eotimeseriesviewer.qgispluginsupport.qps.make.deploy import QGISMetadataFileWriter, userProfileManager
 from eotimeseriesviewer.qgispluginsupport.qps.utils import zipdir
 
@@ -100,12 +100,12 @@ def create_plugin(include_testdata: bool = False,
 
     if build_name is None:
         # we are on release branch
-        if re.search(r'release_\d+\.\d+', active_branch):
-            BUILD_NAME = VERSION
-        else:
-            BUILD_NAME = '{}.{}.{}'.format(VERSION, timestamp, active_branch)
-            BUILD_NAME = re.sub(r'[:-]', '', BUILD_NAME)
-            BUILD_NAME = re.sub(r'[\\/]', '_', BUILD_NAME)
+        BUILD_NAME = f'{VERSION}.{VERSION_SHA[0:7]}'
+        if active_branch != 'main':
+            BUILD_NAME += f'.{active_branch}'
+
+        BUILD_NAME = re.sub(r'[:-]', '', BUILD_NAME)
+        BUILD_NAME = re.sub(r'[\\/]', '_', BUILD_NAME)
     else:
         BUILD_NAME = build_name
 

@@ -7,21 +7,35 @@
     <x>0</x>
     <y>0</y>
     <width>398</width>
-    <height>300</height>
+    <height>205</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
   <layout class="QFormLayout" name="formLayout">
-   <item row="0" column="0">
+   <item row="1" column="0">
+    <widget class="QLabel" name="label_3">
+     <property name="text">
+      <string>Field</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QLabel" name="labelFieldInfo">
+     <property name="text">
+      <string>&lt;field info&gt;</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
     <widget class="QLabel" name="label">
      <property name="text">
       <string>Type</string>
      </property>
     </widget>
    </item>
-   <item row="0" column="1">
+   <item row="2" column="1">
     <widget class="QComboBox" name="cbLabelType">
      <property name="maximumSize">
       <size>
@@ -31,15 +45,28 @@
      </property>
     </widget>
    </item>
-   <item row="1" column="0">
+   <item row="3" column="1">
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <item>
+      <widget class="QgsFieldExpressionWidget" name="fieldExpressionWidget"/>
+     </item>
+     <item>
+      <widget class="ClassificationSchemeWidget" name="classificationWidget" native="true"/>
+     </item>
+    </layout>
+   </item>
+   <item row="4" column="0">
     <widget class="QLabel" name="label_2">
      <property name="text">
       <string>Group</string>
      </property>
     </widget>
    </item>
-   <item row="1" column="1">
+   <item row="4" column="1">
     <layout class="QHBoxLayout" name="horizontalLayout">
+     <property name="spacing">
+      <number>2</number>
+     </property>
      <property name="topMargin">
       <number>0</number>
      </property>
@@ -64,20 +91,82 @@
        <property name="text">
         <string>+</string>
        </property>
+       <property name="icon">
+        <iconset resource="../../../QGIS/images/images.qrc">
+         <normaloff>:/images/themes/default/mActionAdd.svg</normaloff>:/images/themes/default/mActionAdd.svg</iconset>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QToolButton" name="btnRemoveGroup">
+       <property name="toolTip">
+        <string>Removes the current group</string>
+       </property>
+       <property name="text">
+        <string>-</string>
+       </property>
+       <property name="icon">
+        <iconset resource="../../../QGIS/images/images.qrc">
+         <normaloff>:/images/themes/default/mActionRemove.svg</normaloff>:/images/themes/default/mActionRemove.svg</iconset>
+       </property>
       </widget>
      </item>
     </layout>
    </item>
+   <item row="5" column="1">
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
   </layout>
   <action name="actionAddGroup">
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionAdd.svg</normaloff>:/images/themes/default/mActionAdd.svg</iconset>
+   </property>
    <property name="text">
-    <string>+</string>
+    <string>Add Group</string>
    </property>
    <property name="toolTip">
-    <string>Adds the current name as new label group</string>
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Adds the current name as new label group.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </action>
+  <action name="actionRemoveGroup">
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionRemove.svg</normaloff>:/images/themes/default/mActionRemove.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Remove Group</string>
+   </property>
+   <property name="toolTip">
+    <string>Remove the current group from the list of label groups</string>
    </property>
   </action>
  </widget>
- <resources/>
+ <customwidgets>
+  <customwidget>
+   <class>QgsFieldExpressionWidget</class>
+   <extends>QWidget</extends>
+   <header>qgsfieldexpressionwidget.h</header>
+  </customwidget>
+  <customwidget>
+   <class>ClassificationSchemeWidget</class>
+   <extends>QWidget</extends>
+   <header>eotimeseriesviewer.qgispluginsupport.qps.classification.classificationscheme</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="../../../QGIS/images/images.qrc"/>
+ </resources>
  <connections/>
 </ui>

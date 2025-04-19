@@ -18,17 +18,21 @@
  *                                                                         *
  ***************************************************************************/
 """
+import enum
 import sys
 from typing import List, Union
 
+from qgis.PyQt.QtCore import QByteArray, QSettings, QSortFilterProxyModel, Qt, QTextStream
+from qgis.gui import QgisInterface, QgsAttributeTableView, QgsFontButton
 from qgis.PyQt.QtGui import QColor
-from qgis.gui import QgisInterface, QgsFontButton
 from qgis.core import QgsFeature, QgsFeatureSink, QgsMapLayer, QgsMapLayerStyle, QgsVectorLayer
 from qgis.core.additions.edit import edit
-from qgis.PyQt.QtCore import QByteArray, QSettings, QTextStream
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.PyQt.QtWidgets import QAction, QMenu, QToolButton, QWidget
 import qgis.utils
+
+from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
+from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 
 
 def qgisInstance():
@@ -177,3 +181,59 @@ class doEdit(edit):
         else:
             if ex_type:
                 return False
+
+
+class GotoFeatureOptions(enum.IntFlag):
+    SelectFeature = 1
+    PanToFeature = 2
+    ZoomToFeature = 4
+    FocusVisibility = 8
+
+
+def gotoLayerFeature(fid: int, layer: QgsVectorLayer, tools: EOTSVVectorLayerTools, options: GotoFeatureOptions):
+    if GotoFeatureOptions.SelectFeature in options:
+        layer.selectByIds([fid])
+    if GotoFeatureOptions.PanToFeature in options:
+        tools.panToSelected(layer)
+    if GotoFeatureOptions.ZoomToFeature in options:
+        tools.zoomToSelected(layer)
+    if GotoFeatureOptions.FocusVisibility in options:
+        tools.focusVisibility()
+
+
+def gotoFeature(attributeTable: AttributeTableWidget,
+                goDown: bool = True,
+                options: GotoFeatureOptions = GotoFeatureOptions.SelectFeature
+
+                ) -> int:
+    assert isinstance(attributeTable, AttributeTableWidget)
+
+    tv: QgsAttributeTableView = attributeTable.mMainView.tableView()
+    model: QSortFilterProxyModel = tv.model()
+
+    FID_ORDER = []
+
+    for r in range(model.rowCount()):
+        fid = model.data(model.index(r, 0), Qt.UserRole)
+        FID_ORDER.append(fid)
+
+    if len(FID_ORDER) > 0:
+        sfids = tv.selectedFeaturesIds()
+        if len(sfids) == 0:
+            nextFID = FID_ORDER[0]
+        elif goDown:
+            row = FID_ORDER.index(sfids[-1])
+            nextFID = model.data(model.index(row + 1, 0), Qt.UserRole)
+            if nextFID is None:
+                nextFID = FID_ORDER[-1]
+        else:
+            row = FID_ORDER.index(sfids[0])
+            nextFID = model.data(model.index(row - 1, 0), Qt.UserRole)
+            if nextFID is None:
+                nextFID = FID_ORDER[0]
+
+        if isinstance(nextFID, int):
+            tv.scrollToFeature(nextFID)
+        gotoLayerFeature(nextFID, attributeTable.mLayer, attributeTable.vectorLayerTools(), options)
+        return nextFID
+    return None

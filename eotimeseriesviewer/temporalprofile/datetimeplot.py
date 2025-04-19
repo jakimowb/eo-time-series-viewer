@@ -1,25 +1,48 @@
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 from datetime import datetime
 
 import numpy as np
 
-from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import QDateTimeEdit, QFrame, QGridLayout, QRadioButton, QWidget, QWidgetAction
+from qgis.PyQt.QtWidgets import QDateTimeEdit, QFrame, QGridLayout, QMenu, QRadioButton, QWidget, QWidgetAction
+from qgis.core import QgsVectorLayer
+from eotimeseriesviewer.labeling.quicklabeling import addQuickLabelMenu
+from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.graphicsItems.ViewBox.ViewBoxMenu import ViewBoxMenu
+from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
+from qgis.PyQt.QtGui import QAction, QColor
 from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QPointF, Qt
 from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
-from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import ScatterPlotItem, SpotItem
+from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import PlotCurveItem, ScatterPlotItem, SpotItem
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.GraphicsScene.mouseEvents import HoverEvent, \
     MouseClickEvent
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
 from eotimeseriesviewer.temporalprofile.plotitems import TemporalProfilePlotDataItem
 
 
+class DateTimePlotItem(pg.PlotItem):
+    pdiPointsHovered = pyqtSignal(object, object, object)
+    pdiPointsClicked = pyqtSignal(object, object, object)
+    pdiCurveClicked = pyqtSignal(object, object)
+
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+
+    def addItem(self, item, *args, **kwds):
+        super().addItem(item, *args, **kwds)
+
+        if isinstance(item, DateTimePlotDataItem):
+            item.scatter.sigHovered.connect(self.pdiPointsHovered)
+            item.scatter.sigClicked.connect(self.pdiPointsClicked)
+            item.sigClicked.connect(self.pdiCurveClicked)
+
+
 class DateTimePlotWidget(pg.PlotWidget):
     """
     A widget to visualize temporal profiles
     """
+
+    preUpdateTask = pyqtSignal(str, dict)
 
     def __init__(self, parent: QWidget = None):
         """
@@ -32,8 +55,12 @@ class DateTimePlotWidget(pg.PlotWidget):
         )
         super(DateTimePlotWidget, self).__init__(parent, plotItem=plotItem)
         self.plotItem = plotItem
+        viewBox.populateContextMenu.connect(self.onPopulateContextMenu)
         # self.setCentralItem(self.plotItem)
         # self.xAxisInitialized = False
+        self.plotItem.pdiPointsHovered.connect(self.onPointsHovered)
+        self.plotItem.pdiPointsClicked.connect(self.onPointsClicked)
+        self.plotItem.pdiCurveClicked.connect(self.onCurveClicked)
 
         pi: DateTimePlotItem = self.getPlotItem()
         pi.getAxis('bottom').setLabel('Date')
@@ -61,6 +88,9 @@ class DateTimePlotWidget(pg.PlotWidget):
         self.mSignalProxyMouseMoved = pg.SignalProxy(self.scene().sigMouseMoved, rateLimit=60, slot=self.onMouseMoved2D)
         self.mHoveredPositions: Dict[str, List[Tuple[DateTimePlotDataItem, SpotItem]]] = dict()
         self.mClickedPositions: Dict[Tuple, Tuple[DateTimePlotDataItem, int]] = dict()
+
+    def getPlotItem(self) -> DateTimePlotItem:
+        return super().getPlotItem()
 
     def closeEvent(self, *args, **kwds):
         """
@@ -103,28 +133,95 @@ class DateTimePlotWidget(pg.PlotWidget):
         # print(self.mHoveredPositions)
         return True
 
+    def selectedPointItems(self):
+
+        for item in self.plotItem.items:
+            if isinstance(item, DateTimePlotDataItem):
+                if item.hasSelectedPoints():
+                    yield item
+
     def onPointsClicked(self, item: ScatterPlotItem, array: np.ndarray, event: MouseClickEvent):
 
         parent = item.parentItem()
         if isinstance(parent, DateTimePlotDataItem):
-            for spotItem in array:
-                spotItem: SpotItem
-                k = (id(parent), spotItem.index())
+            parent: DateTimePlotDataItem
+            print(parent)
+            if bool(event.modifiers() & Qt.ControlModifier):
+                parent.addSelectedPoints(array)
+            else:
+                parent.setSelectedPoints(array)
 
-                if bool(event.modifiers() & Qt.ControlModifier):
-                    if k in self.mClickedPositions:
-                        self.mClickedPositions.pop(k)
+            if False:
+                for spotItem in array:
+                    spotItem: SpotItem
+                    k = (id(parent), spotItem.index())
+                    if bool(event.modifiers() & Qt.ControlModifier):
+                        if k in self.mClickedPositions:
+                            self.mClickedPositions.pop(k)
+                        else:
+                            self.mClickedPositions[k] = (parent, spotItem.index())
                     else:
+                        self.mClickedPositions.clear()
                         self.mClickedPositions[k] = (parent, spotItem.index())
-                else:
-                    self.mClickedPositions.clear()
-                    self.mClickedPositions[k] = (parent, spotItem.index())
 
-        # print(self.mClickedPositions)
+        print(f'# {parent}:\n\t {",".join([str(p.index()) for p in parent.selectedPoints()])}')
+
+    def onPopulateContextMenu(self, menu: QMenu):
+
+        layers = []
+        src = None
+        for item in self.selectedPointItems():
+            item: DateTimePlotDataItem
+            if src is None:
+                for spotItem in item.selectedPoints():
+                    spotItem: SpotItem
+                    i = item.mObservationIndices[spotItem.index()]
+                    dtg = item.mTemporalProfile[TemporalProfileUtils.Date][i]
+                    src = ImageDateUtils.datetime(dtg)
+                    # get TSD / TSS
+            lyr = item.mLayer()
+            if isinstance(lyr, QgsVectorLayer) and lyr not in layers:
+                layers.append(lyr)
+
+        addQuickLabelMenu(menu, layers, src)
 
     def onCurveClicked(self, item, event):
 
         s = ""
+        # print(f'Clicked {item}')
+
+        pdi = None
+        if isinstance(item, DateTimePlotDataItem):
+            pdi = item
+        elif isinstance(item, PlotCurveItem) and isinstance(item.parentItem(), DateTimePlotDataItem):
+            pdi = item.parentItem()
+
+        if isinstance(pdi, DateTimePlotDataItem):
+            s = ""
+            lyr = pdi.mLayer()
+            fid = pdi.mFeatureID
+            fids_new = None
+
+            if isinstance(lyr, QgsVectorLayer) and isinstance(fid, int):
+                fids_old: set = set(lyr.selectedFeatureIds())
+                if event.modifiers() & Qt.ControlModifier:
+                    if fid in fids_old:
+                        # remove from selection if already in
+                        fids_new = fids_old - {fid}
+                    else:
+                        # add to selection
+                        fids_new = fids_old | {fid}
+                else:
+                    fids_new = {fid}
+                lyr: QgsVectorLayer
+                if fids_old != fids_new:
+                    # lyr.selectByIds(list(fids_new))
+
+                    self.preUpdateTask.emit('select_features', {'layer': lyr, 'fids': list(fids_new)})
+
+                # lyr.selectByIds([fid])
+            # select feature in layer
+            event.accept()
 
     def onMouseMoved2D(self, evt):
         pos = evt[0]  # using signal proxy turns original arguments into a tuple
@@ -246,15 +343,6 @@ class DateTimeAxis(pg.DateAxisItem):
             p.restore()  # restore the painter state
 
 
-class DateTimePlotItem(pg.PlotItem):
-
-    def __init__(self, *args, **kwds):
-        super().__init__(*args, **kwds)
-
-    def addItem(self, item, *args, **kwds):
-        super().addItem(item, *args, **kwds)
-
-
 class DateTimePlotDataItem(pg.PlotDataItem):
 
     def __init__(self, *args, **kwds):
@@ -263,6 +351,30 @@ class DateTimePlotDataItem(pg.PlotDataItem):
         self.mLayerId = None
         self.mTemporalProfile: Optional[dict] = None
         self.mObservationIndices: Optional[np.ndarray] = None
+        self.mSelectedPoints: List[SpotItem] = []
+
+    def hasSelectedPoints(self) -> bool:
+        return len(self.mSelectedPoints) > 0
+
+    def addSelectedPoints(self, indices: Iterable[SpotItem]):
+        for p in indices:
+            if p not in self.mSelectedPoints:
+                self.mSelectedPoints.append(p)
+
+    def setSelectedPoints(self, indices: Iterable[SpotItem]):
+        self.mSelectedPoints.clear()
+        self.addSelectedPoints(indices)
+
+    def removeSelectedPoints(self, indices: Iterable[SpotItem]) -> List[SpotItem]:
+        removed = []
+        for p in indices:
+            if p in self.mSelectedPoints:
+                self.mSelectedPoints.remove(p)
+                removed.append(p)
+        return removed
+
+    def selectedPoints(self) -> List[SpotItem]:
+        return sorted(self.mSelectedPoints, key=lambda s: s.index())
 
     def setTemporalProfile(self, d: dict, obs_indices: np.ndarray):
         self.mTemporalProfile = d
@@ -276,20 +388,20 @@ class DateTimeViewBox(pg.ViewBox):
     moveToDate = pyqtSignal(QDateTime)
     moveToLocation = pyqtSignal(SpatialPoint)
 
+    populateContextMenu = pyqtSignal(QMenu)
+
     def __init__(self, parent=None):
         """
         Constructor of the CustomViewBox
         """
         super(DateTimeViewBox, self).__init__(parent)
-        # self.menu = None # Override pyqtgraph ViewBoxMenu
-        # self.menu = self.getMenu() # Create the menu
-        # self.menu = None
+
         self.mCurrentDate: QDateTime = QDateTime(datetime.now())
 
         self.mXAxisUnit = 'date'
-        xAction = [a for a in self.menu.actions() if re.search('X Axis', a.text(), re.IGNORECASE)][0]
 
-        menuXAxis = self.menu.addMenu('X Axis')
+        menuXAxis = QMenu('X axis')  # self.menu.addMenu('X Axis')
+
         # define the widget to set X-Axis options
         frame = QFrame()
         l = QGridLayout()
@@ -323,22 +435,39 @@ class DateTimeViewBox(pg.ViewBox):
         wa = QWidgetAction(menuXAxis)
         wa.setDefaultWidget(frame)
         menuXAxis.addAction(wa)
+        self.mMenuXAxis = menuXAxis
 
-        self.menu.insertMenu(xAction, menuXAxis)
-        self.menu.removeAction(xAction)
-
-        self.mActionMoveToDate = self.menu.addAction(f'Move to {self.mCurrentDate.toString(Qt.ISODate)}')
+        # self.mActionMoveToDate = self.menu.addAction(f'Move to {self.mCurrentDate.toString(Qt.ISODate)}')
+        self.mActionMoveToDate = QAction(f'Move to {self.mCurrentDate.toString(Qt.ISODate)}')
         self.mActionMoveToDate.triggered.connect(lambda *args: self.moveToDate.emit(self.mCurrentDate))
 
         # self.mActionMoveToProfile = self.menu.addAction('Move to profile location')
         # self.mActionMoveToProfile.triggered.connect(lambda *args: self.sigM.emit(self.mCurrentDate))
 
-        self.mActionShowCrosshair = self.menu.addAction('Show Crosshair')
+        # self.mActionShowCrosshair = self.menu.addAction('Show Crosshair')
+        self.mActionShowCrosshair = QAction('Show Crosshair')
         self.mActionShowCrosshair.setCheckable(True)
         self.mActionShowCrosshair.setChecked(True)
-        self.mActionShowCursorValues = self.menu.addAction('Show Mouse values')
+        self.mActionShowCrosshair.setEnabled(False)
+
+        # self.mActionShowCursorValues = self.menu.addAction('Show Mouse values')
+        self.mActionShowCursorValues = QAction('Show Mouse values')
         self.mActionShowCursorValues.setCheckable(True)
         self.mActionShowCursorValues.setChecked(True)
+
+    def getMenu(self, ev):
+        m = ViewBoxMenu(self)
+        xAction = [a for a in m.actions() if re.search('X Axis', a.text(), re.IGNORECASE)][0]
+        m.insertMenu(xAction, self.mMenuXAxis)
+        m.removeAction(xAction)
+
+        m.insertAction(None, self.mActionMoveToDate)
+        m.insertAction(None, self.mActionShowCrosshair)
+        m.insertAction(None, self.mActionShowCursorValues)
+
+        self.populateContextMenu.emit(m)
+
+        return m
 
     sigXAxisUnitChanged = pyqtSignal(str)
 

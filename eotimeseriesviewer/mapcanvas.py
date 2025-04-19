@@ -28,21 +28,20 @@ import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
+from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QMenu, QSizePolicy, QStyle, QStyleOptionProgressBar
 from qgis.core import Qgis, QgsApplication, QgsContrastEnhancement, QgsCoordinateReferenceSystem, QgsDateTimeRange, \
-    QgsExpression, QgsField, QgsLayerTreeGroup, QgsMapLayer, QgsMapLayerStore, QgsMapSettings, QgsMapToPixel, \
-    QgsMimeDataUtils, QgsMultiBandColorRenderer, QgsPalettedRasterRenderer, QgsPointXY, QgsPolygon, QgsProject, \
-    QgsRasterBandStats, QgsRasterDataProvider, QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRasterRenderer, \
-    QgsRectangle, QgsRenderContext, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsTextFormat, \
-    QgsTextRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes
+    QgsExpression, QgsLayerTreeGroup, QgsMapLayer, QgsMapLayerStore, QgsMapSettings, \
+    QgsMapToPixel, QgsMimeDataUtils, QgsMultiBandColorRenderer, QgsPalettedRasterRenderer, QgsPointXY, QgsPolygon, \
+    QgsProject, QgsRasterBandStats, QgsRasterDataProvider, QgsRasterLayer, QgsRasterLayerTemporalProperties, \
+    QgsRasterRenderer, QgsRectangle, QgsRenderContext, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, \
+    QgsTextFormat, QgsTextRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes
 import qgis.utils
 from qgis.gui import QgisInterface, QgsAdvancedDigitizingDockWidget, QgsFloatingWidget, QgsGeometryRubberBand, \
     QgsMapCanvas, QgsMapCanvasItem, QgsMapTool, QgsMapToolCapture, QgsMapToolPan, QgsMapToolZoom, QgsUserInputWidget
 from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QDir, QMimeData, QObject, QPoint, QPointF, QRect, QRectF, QSize, Qt, \
     QTime, QTimer
 from qgis.PyQt.QtGui import QColor, QFont, QIcon, QMouseEvent, QPainter
-from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QMenu, QSizePolicy, QStyle, QStyleOptionProgressBar
-from .labeling import quickLabelLayers, setQuickTSDLabelsForRegisteredLayers
-from .qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
+from .labeling.quicklabeling import addQuickLabelMenu
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairDialog, CrosshairMapCanvasItem, CrosshairStyle
 from .qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
 from .qgispluginsupport.qps.maptools import CursorLocationMapTool, FullExtentMapTool, MapToolCenter, \
@@ -915,59 +914,7 @@ class MapCanvas(QgsMapCanvas):
                 if sl.source() in sourceUris:
                     tss = self.tsd()[sourceUris.index(sl.source())]
                     break
-
-            lyrWithSelectedFeatures = [l for l in quickLabelLayers() if l.selectedFeatureCount() > 0]
-            lyrWithSelectedFeatures = [l for l in lyrWithSelectedFeatures if l in self.layers() and l.isEditable()]
-
-            layerNames = ', '.join([l.name() for l in lyrWithSelectedFeatures])
-            m = menu.addMenu('Quick Labels')
-            m.setToolTipsVisible(True)
-            nQuickLabelLayers = len(lyrWithSelectedFeatures)
-            m.setEnabled(nQuickLabelLayers > 0)
-
-            from qgis.gui import QgsGui
-            from eotimeseriesviewer.labeling import EDITOR_WIDGET_REGISTRY_KEY
-            reg = QgsGui.editorWidgetRegistry()
-            factory = reg.factory(EDITOR_WIDGET_REGISTRY_KEY)
-            observation_indices = []
-            from .labeling import layerClassSchemes, setQuickClassInfo, quickLayerGroups
-
-            if len(lyrWithSelectedFeatures) == 0:
-                a = m.addAction('No features selected.')
-                a.setToolTip('Select feature in the labeling panel to apply Quick label value on.')
-                a.setEnabled(False)
-            else:
-                quickLabelGroups = quickLayerGroups(lyrWithSelectedFeatures)
-                for grp in quickLabelGroups:
-
-                    if grp == '':
-                        grp_info = ''
-                        grp_info_tt = ''
-                    else:
-                        grp_info = f'"{grp}"'
-                        grp_info_tt = f' from group "{grp}"'
-
-                    a = m.addAction(f'Set Date/Sensor attributes {grp_info}'.strip())
-                    a.setToolTip(
-                        f'Writes dates/sensor information to selected features in layer(s): {layerNames}.')
-                    a.triggered.connect(lambda *args, tsd=self.tsd(), layer_group=grp, _tss=tss:
-                                        setQuickTSDLabelsForRegisteredLayers(tsd, _tss, label_group=layer_group))
-
-                for layer in lyrWithSelectedFeatures:
-                    assert isinstance(layer, QgsVectorLayer)
-                    csf = layerClassSchemes(layer)
-                    if len(csf) > 0:
-                        m.addSection(layer.name())
-                        for (cs, field) in csf:
-                            assert isinstance(cs, ClassificationScheme)
-                            assert isinstance(field, QgsField)
-                            classMenu = m.addMenu('{} [{}]'.format(field.name(), field.typeName()))
-                            for classInfo in cs:
-                                assert isinstance(classInfo, ClassInfo)
-                                a = classMenu.addAction('{} "{}"'.format(classInfo.label(), classInfo.name()))
-                                a.setIcon(classInfo.icon())
-                                a.triggered.connect(
-                                    lambda _, vl=layer, f=field, c=classInfo: setQuickClassInfo(vl, f, c))
+            addQuickLabelMenu(menu, self.layers(), tss)
 
         if has_sensor_id(refSensorLayer):
             m: QMenu = menu.addMenu('Raster stretch...')
@@ -1040,9 +987,15 @@ class MapCanvas(QgsMapCanvas):
             a.setToolTip('Copy layer style to clipboard')
             a.triggered.connect(lambda *args, lyr=mapLayer: pasteStyleToClipboard(lyr))
 
+            canPasteStyle = False
+            md: QMimeData = QApplication.clipboard().mimeData()
+            if isinstance(md, QMimeData):
+                if 'application/qgis.style' in md.formats():
+                    canPasteStyle = True
+
             a = sub.addAction('Paste Style')
             a.setToolTip('Paster layer style from clipboard')
-            a.setEnabled('application/qgis.style' in QApplication.clipboard().mimeData().formats())
+            a.setEnabled(canPasteStyle)
             a.triggered.connect(lambda *args, lyr=mapLayer: self.onPasteStyleFromClipboard(lyr))
 
             iface = qgis.utils.iface

@@ -2,7 +2,9 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QToolBar
 from qgis.core import QgsVectorLayer, QgsVectorLayerTools
 from qgis.gui import QgsDockWidget
-from eotimeseriesviewer.labeling import LabelWidget, gotoFeature
+
+from eotimeseriesviewer.labeling.attributetable import QuickLabelAttributeTableWidget
+from eotimeseriesviewer.utils import gotoFeature
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryPanel, \
     SpectralLibraryWidget
 
@@ -41,7 +43,7 @@ class LabelDockWidget(QgsDockWidget):
 
     def __init__(self, layer, *args, **kwds):
         super().__init__(*args, **kwds)
-        self.mLabelWidget = LabelWidget(layer)
+        self.mLabelWidget = QuickLabelAttributeTableWidget(layer)
         self.setWidget(self.mLabelWidget)
         self.setWindowTitle(self.mLabelWidget.windowTitle())
         self.mLabelWidget.windowTitleChanged.connect(self.setWindowTitle)
