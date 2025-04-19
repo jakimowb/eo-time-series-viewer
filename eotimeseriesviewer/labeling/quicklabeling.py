@@ -6,7 +6,6 @@ from qgis.core import QgsCategorizedSymbolRenderer, QgsEditorWidgetSetup, QgsExp
     QgsExpressionContextScope, QgsExpressionContextUtils, QgsFeature, QgsField, QgsFields, QgsIconUtils, QgsMapLayer, \
     QgsProject, QgsRendererCategory, QgsSymbol, QgsVectorLayer
 from qgis.PyQt.QtCore import QDateTime, QMetaType
-
 from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.labeling.editorconfig import EDITOR_WIDGET_REGISTRY_KEY, LabelConfigurationKey, \
     LabelShortcutType
@@ -230,7 +229,7 @@ def setAllQuickLabels(layers: List[QgsMapLayer],
 
 
 def setQuickLabels(vectorLayer: QgsVectorLayer,
-                   source: Union[QDateTime, TimeSeriesDate, TimeSeriesSource],
+                   source: Union[QDateTime, TimeSeriesDate, TimeSeriesSource, dict],
                    label_group: str = ''):
     """
     Labels selected features with information related to TimeSeriesDate "tsd", according to
@@ -238,7 +237,7 @@ def setQuickLabels(vectorLayer: QgsVectorLayer,
 
     Note: this does not add any ClassInfo. Use setQuickClassInfo instead.
 
-    :param source: the information source to extract quick label information
+    :param source: the information source to extract quick label information from
     :param label_group:
     :param vectorLayer:
     """
@@ -295,7 +294,7 @@ def setQuickLabels(vectorLayer: QgsVectorLayer,
 
 
 def quickLabelExpressionContextScope(
-        source: Union[TimeSeriesSource, TimeSeriesDate, QDateTime]) -> QgsExpressionContextScope:
+        source: Union[TimeSeriesSource, TimeSeriesDate, QDateTime, dict]) -> QgsExpressionContextScope:
     """
     Returns a QgsExpressionContextScope that describes the source
     :param source:
@@ -314,6 +313,15 @@ def quickLabelExpressionContextScope(
         tsd = source.timeSeriesDate()
         if tsd:
             sensor = source.timeSeriesDate().sensor()
+    elif isinstance(source, QDateTime):
+        dtg = source
+
+    elif isinstance(source, dict):
+        dtg = source.get('dtg')
+        if dtg:
+            dtg = ImageDateUtils.datetime(dtg)
+        sensor = source.get('sensor')
+        uri = source.get('uri')
 
     if isinstance(dtg, QDateTime):
         scope.setVariable('datetime', dtg)

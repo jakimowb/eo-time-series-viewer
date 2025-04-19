@@ -249,12 +249,7 @@ class TestTemporalProfilesV2(EOTSVTestCase):
     def test_create_new_tp_layer(self):
 
         eotsv = EOTimeSeriesViewer()
-        if True and FORCE_CUBE:
-            files = self.allFORCEFiles()
-            files = files[0:100]
-            eotsv.addTimeSeriesImages(files)
-        else:
-            eotsv.loadExampleTimeSeries(loadAsync=False)
+        eotsv.loadExampleTimeSeries(loadAsync=False)
         eotsv.createTemporalProfileLayer(skip_dialog=True)
         eotsv.ui.show()
         while eotsv.mapCanvas() is None:
