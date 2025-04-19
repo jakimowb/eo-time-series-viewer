@@ -28,7 +28,6 @@ from qgis.PyQt.QtTest import QAbstractItemModelTester
 from qgis.PyQt.QtWidgets import QAction, QComboBox, QLabel, QListView, QMenu, QVBoxLayout, QWidget
 from qgis.gui import QgsDualView, QgsFieldComboBox, QgsMapCanvas, QgsMapLayerStyleManagerWidget
 from qgis.PyQt.QtGui import QMouseEvent, QStandardItem, QStandardItemModel
-
 from eotimeseriesviewer.labeling.editorconfig import createWidgetSetup, LabelConfigurationKey, \
     LabelShortcutEditorConfigWidget, LabelShortcutType, LabelShortcutTypeModel, \
     LabelShortcutWidgetFactory, shortcuts
@@ -101,14 +100,18 @@ class TestLabeling(EOTSVTestCase):
         ts = TestObjects.createTimeSeries()
         tss = list(ts.sources())[0]
 
-        menu = QMenu()
+        menu = QMenu('Main Menu')
+        a = menu.addAction('Foobar')
+
         vl = self.createVectorLayer()
         fid = vl.allFeatureIds()[0]
         vl.selectByIds([fid])
         self.setupEditWidgets(vl)
 
-        addQuickLabelMenu(menu, [vl], tss)
+        ql = addQuickLabelMenu(menu, [vl], tss)
+        # menu.insertMenu(menu.actions()[0], ql)
 
+        # self.showGui(menu)
         for a in menu.findChildren(QAction):
             a: QAction
             a.trigger()

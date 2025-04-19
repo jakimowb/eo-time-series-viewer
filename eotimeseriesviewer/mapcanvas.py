@@ -41,7 +41,6 @@ from qgis.gui import QgisInterface, QgsAdvancedDigitizingDockWidget, QgsFloating
 from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QDir, QMimeData, QObject, QPoint, QPointF, QRect, QRectF, QSize, Qt, \
     QTime, QTimer
 from qgis.PyQt.QtGui import QColor, QFont, QIcon, QMouseEvent, QPainter
-
 from .labeling.quicklabeling import addQuickLabelMenu
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairDialog, CrosshairMapCanvasItem, CrosshairStyle
 from .qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
@@ -989,8 +988,10 @@ class MapCanvas(QgsMapCanvas):
             a.triggered.connect(lambda *args, lyr=mapLayer: pasteStyleToClipboard(lyr))
 
             canPasteStyle = False
-            if (md := QApplication.clipboard().mimeData() and 'application/qgis.style' in md.formats()):
-                canPasteStyle = True
+            md: QMimeData = QApplication.clipboard().mimeData()
+            if isinstance(md, QMimeData):
+                if 'application/qgis.style' in md.formats():
+                    canPasteStyle = True
 
             a = sub.addAction('Paste Style')
             a.setToolTip('Paster layer style from clipboard')

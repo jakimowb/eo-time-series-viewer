@@ -17,16 +17,22 @@ from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSourc
 
 
 def addQuickLabelMenu(menu: QMenu, layers, source):
-    m: QMenu = menu.addMenu('Quick Labels')
-    m.setToolTipsVisible(True)
+    if isinstance(menu, QMenu):
+        qlMenu = menu.addMenu('Quick Labels')
+        actions = menu.actions()
+        if len(actions) > 0:
+            menu.insertMenu(actions[0], qlMenu)
+    else:
+        qlMenu = QMenu('Quick Labels')
 
+    qlMenu.setToolTipsVisible(True)
     quick_label_layers = [l for l in layers if isQuickLabelLayer(l)]
     selected_quick_label_layer = [l for l in quick_label_layers if l.selectedFeatureCount() > 0]
 
     nQuickLabelLayers = len(selected_quick_label_layer)
-    m.setEnabled(nQuickLabelLayers > 0)
+    qlMenu.setEnabled(nQuickLabelLayers > 0)
     if nQuickLabelLayers == 0:
-        m.setToolTip(
+        qlMenu.setToolTip(
             'Add (i) vector layers with quick label fields<br>and (ii) select features to enable quick labeling.')
     else:
         # add shortcuts for automatically derived attributes per label group
@@ -42,15 +48,15 @@ def addQuickLabelMenu(menu: QMenu, layers, source):
             else:
                 grp_info = f'"{grp}"'
 
-            a = m.addAction(f'Set quick labels {grp_info}'.strip())
+            a = qlMenu.addAction(f'Set quick labels {grp_info}'.strip())
             layerNames = [lyr.name() for lyr in grp_layers if lyr.selectedFeatureCount() > 0]
             if len(layerNames) > 0:
                 tt = ['Writes quick label values to:']
                 for lyr in grp_layers:
                     tt.append(f'"{lyr.name()}" {lyr.source()}')
                 a.setToolTip('<br>'.join(tt))
-                a.triggered.connect(lambda *args, layer_group=grp, _src=source:
-                                    setAllQuickLabels(grp_layers, _src, label_group=layer_group))
+                a.triggered.connect(lambda *args, _grp=grp, _src=source, _lyrs=grp_layers:
+                                    setAllQuickLabels(_lyrs, _src, label_group=_grp))
             else:
                 a.setEnabled(False)
                 a.setToolTip('No features selected')
@@ -59,14 +65,14 @@ def addQuickLabelMenu(menu: QMenu, layers, source):
             assert isinstance(layer, QgsVectorLayer)
             csf = quickLabelClassSchemes(layer)
             if len(csf) > 0:
-                a: QAction = m.addSection(layer.name())
+                a: QAction = qlMenu.addSection(layer.name())
                 a.setToolTip(f'"{layer.name()}" {layer.source()}')
                 a.setIcon(QgsIconUtils.iconForLayer(layer))
                 for fieldname, cs in csf.items():
                     assert isinstance(cs, ClassificationScheme)
                     field: QgsField = layer.fields()[fieldname]
                     assert isinstance(field, QgsField)
-                    classMenu = m.addMenu('{} [{}]'.format(fieldname, field.typeName()))
+                    classMenu = qlMenu.addMenu('{} [{}]'.format(fieldname, field.typeName()))
                     classMenu.setIcon(
                         QgsFields.iconForFieldType(field.type(), field.subType(), field.typeName()))
                     for classInfo in cs:
@@ -75,6 +81,8 @@ def addQuickLabelMenu(menu: QMenu, layers, source):
                         a.setIcon(classInfo.icon())
                         a.triggered.connect(
                             lambda _, vl=layer, f=field, c=classInfo: setQuickClassInfo(vl, f, c))
+
+    return qlMenu
 
 
 def isQuickLabelLayer(layer: QgsVectorLayer) -> bool:
