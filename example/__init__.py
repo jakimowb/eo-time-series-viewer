@@ -5,7 +5,6 @@ thisDir = Path(__file__).parent
 images = thisDir / 'Images'
 # File path attributes:
 # Vector files:
-exampleEvents = thisDir / 'example_events.geojson'
 examplePoints = thisDir / 'example_points.geojson'
 exampleTimeSeries = thisDir / 'ExampleTimeSeries.csv'
 exampleNoDataImage = thisDir / '20140108_no_data.tif'

@@ -19,6 +19,7 @@ import unittest
 
 from osgeo import gdal
 
+from example import examplePoints
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer
 from qgis.PyQt.QtGui import QIcon
 from eotimeseriesviewer import DIR_UI, icon as eotsvIcon
@@ -64,8 +65,7 @@ class TestResources(EOTSVTestCase):
 
     def test_example_vectors(self):
 
-        from example import exampleEvents, examplePoints
-        sources = [exampleEvents, examplePoints]
+        sources = [examplePoints]
 
         for src in sources:
             for slyr in subLayers(src):

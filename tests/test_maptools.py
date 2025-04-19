@@ -20,7 +20,6 @@ import unittest
 
 from qgis.core import QgsProject, QgsVectorLayer
 from qgis.gui import QgsMapToolPan, QgsMapToolZoom
-
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.maptools import CursorLocationMapTool, FullExtentMapTool, MapToolCenter, \
     MapTools, PixelScaleExtentMapTool, QgsMapToolAddFeature, QgsMapToolSelect
@@ -44,8 +43,8 @@ class TestMapTools(EOTSVTestCase):
         TSV = EOTimeSeriesViewer()
         TSV.show()
         TSV.loadExampleTimeSeries(loadAsync=False)
-        from example import exampleEvents
-        lyr = QgsVectorLayer(exampleEvents.as_posix())
+        from example import examplePoints
+        lyr = QgsVectorLayer(examplePoints.as_posix())
         QgsProject.instance().addMapLayer(lyr)
 
         TSV.setMapTool(MapTools.ZoomIn)
