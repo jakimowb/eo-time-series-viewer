@@ -39,7 +39,6 @@ from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsExpressio
     QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
 from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
     QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
-
 from eotimeseriesviewer import debugLog, DIR_UI
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
@@ -758,7 +757,7 @@ class MapView(QFrame):
 
     def sensorLayer(self, sensor: SensorInstrument):
         """
-        Returns the QgsRasterLayer that is used a proxy to specify the QgsRasterRenderer for a sensor
+        Returns the QgsRasterLayer that is used as proxy to specify the QgsRasterRenderer for a sensor
         :param sensor: SensorInstrument
         :return: QgsRasterLayer
         """

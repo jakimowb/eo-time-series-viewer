@@ -1,4 +1,3 @@
-
 ==============
 Quick Labeling
 ==============
@@ -46,3 +45,10 @@ To use Quick Labels, open the vector layer properties and activate them in the A
 
 .. image:: img/quicklabel_settings.png
 
+
+Labeling categorical values
+---------------------------
+
+
+Customized quick label values
+-----------------------------

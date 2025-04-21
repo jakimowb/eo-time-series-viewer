@@ -1,0 +1,59 @@
+Temporal Profiles
+=================
+
+Temporal Profiles are stored in vector layer fields.
+
+
+
+The Temporal Profiles panel lets you visualize temporal profiles.
+On the left side you can switch between the |mIconTemporalProfile2D| profile and the coordinates |mActionOpenTable| page. The latter
+lists all coordinates of selected or imported profile locations.
+
+Adding and managing a temporal profile:
+ * You can use the |mIconTemporalProfile| button to click on a location on the map an retrieve the temporal profile, or
+   in the toolbar select |select_location| + |mIconTemporalProfile|.
+ * Mind how the selected pixel now also appears on the coordinates |mActionOpenTable| page!
+ * If you select further pixels ( |mIconTemporalProfile| ), they will be listed in the coordinates page,
+   but not automatically visualized in the plot.
+ * Use |mActionAdd| to create an additional plot layer, and double-click in the :guilabel:`Coordinate` field in order to select the
+   desired location (so e.g. the newly chosen pixel) or just change the location in the current plot layer.
+ * Similarly, you can change the sensor to be visualized by double-clicking inside the :guilabel:`Sensor` field and choosing from
+   the dropdown.
+ * Click inside the :guilabel:`Style` field to change the visual representation of your time series in the plot.
+ * Remove a time series profile by selecting the desired row(s) and click |mActionRemove|.
+ * The :guilabel:`DN or Index` field depicts which values will be plotted.
+
+     * Here you may select single bands (e.g. ``b1`` for the first band)
+     * or you can calculate indices on-the-fly: e.g. for the Landsat images in the example dataset the expression ``(b4-b3)/(b4+b3)``
+       would return the NDVI.
+
+         .. figure:: img/example_temppindex.png
+
+             Example of visualizing the NDVI for the same location for different sensors (example dataset).
+
+ * You can also move the map views to a desired date from the plot directly by right-click into plot :menuselection:`--> Move maps to ...`
+
+ .. note:: The EO TSV won't extract and load all pixel values into memory by default in order to reduce processing time (only the ones required).
+           You can manually load all the values by clicking the |mIconTemporalProfileRefresh| :sup:`Load missing band values` button
+           on the coordinates |mActionOpenTable| page.
+
+
+Importing or exporting locations:
+ * You can also import locations from a vector file instead of collecting them from the map: Go to the coordinates |mActionOpenTable| page
+   and add locations via the |mActionAddOgrLayer| button.
+ * If you want to save your locations, e.g. as shapefile or CSV, click on |mActionFileSave|.
+
+
+|
+
+Profile Visualization
+-----------------------
+
+.. figure:: img/example_2dprofile.png
+
+    Example: Temporal NDSI (Normalized Difference Snow Index) profile for 2 locations using Landsat 7 and 8 images.
+
+
+
+|
+

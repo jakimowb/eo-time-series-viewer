@@ -1,3 +1,7 @@
+.wy-nav-content {
+    max-width: 1300px !important;
+}
+
 .menuselection {
   border:1px dashed #7fbbe366;
   background:#f1f9ff;

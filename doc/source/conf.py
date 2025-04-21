@@ -91,6 +91,11 @@ source_parsers = {
     '.md': 'recommonmark.parser.CommonMarkParser',
 }
 
+
+def setup(app):
+    app.add_css_file('custom.css')
+
+
 source_suffix = ['.rst', '.md']
 
 master_doc = 'index'
@@ -107,7 +112,7 @@ if not 'READTHEDOCS' in os.environ.keys():
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
-release = '1.20.0'
+release = '2.0.0'
 
 # The short X.Y version.
 version = re.search(r'^\d+\.\d+', release).group()
