@@ -10,7 +10,6 @@ from qgis.PyQt.QtGui import QContextMenuEvent, QCursor, QDragEnterEvent, QDragMo
 from qgis.PyQt.QtWidgets import QAbstractItemView, QAction, QHeaderView, QMainWindow, QMenu, QToolBar, QTreeView
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsProject
 from qgis.gui import QgisInterface, QgsDockWidget
-
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi, SpatialExtent
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
@@ -93,7 +92,7 @@ class TimeSeriesTreeView(QTreeView):
             a.setToolTip(f'Sets the current map date to {node.dtg()}.')
             a.triggered.connect(lambda *args, tsd=node: self.sigMoveToDate.emit(tsd))
 
-            a = menu.addAction('Move to extent {}'.format(node.dtg()))
+            a = menu.addAction('Move to extent {}'.format(node.spatialExtent()))
             a.setToolTip('Sets the current map extent')
             a.triggered.connect(lambda *args, tsd=node: self.onMoveToExtent(tsd.spatialExtent()))
 
