@@ -9,6 +9,7 @@ from PyQt5.QtCore import QDateTime, Qt
 from PyQt5.QtWidgets import QDockWidget, QListWidget
 from qgis._core import QgsApplication, QgsMultiBandColorRenderer, QgsRasterLayer, QgsRectangle, QgsVectorLayer
 
+from eotimeseriesviewer.forceinputs import FindFORCEProductsTask
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
 from eotimeseriesviewer.sensors import SensorInstrument
@@ -16,7 +17,7 @@ from qgis.PyQt.QtCore import QSize
 from qgis.PyQt.QtWidgets import QApplication, QWidget
 from eotimeseriesviewer import DIR_REPO, initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
-from eotimeseriesviewer.tests import EOTSVTestCase, start_app
+from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app
 
 app = start_app()
 initAll()
@@ -95,6 +96,54 @@ class CreateScreenshots(EOTSVTestCase):
                 TSV.showAttributeTable(lyr)
         TSV.ui.resize(SOI)
         QgsApplication.processEvents()
+        self.showGui(TSV.ui)
+        TSV.close()
+
+    def test_FORCE_Data(self):
+
+        DOI = QDateTime.fromString('2017-07-18', Qt.ISODate)
+        EOI = QgsRectangle(4328373.3628286831080914, 3192912.9115299843251705,
+                           4330201.7091372087597847, 3194741.2578385099768639)
+        SOI = QSize(1200, 650)
+        TSV = EOTimeSeriesViewer()
+
+        task = FindFORCEProductsTask('BOA', FORCE_CUBE)
+        task.run()
+        files = task.files()  # [0:1]
+
+        TSV.setMapSize(QSize(200, 200))
+
+        TSV.addTimeSeriesImages(files)
+        self.taskManagerProcessEvents()
+
+        sidLS = None
+        for sensor in TSV.sensors():
+            assert isinstance(sensor, SensorInstrument)
+            sid = json.loads(sensor.id())
+            # '6bands@30.0m'
+            if sid['nb'] == 6:
+                sidLS = sensor.id()
+                sensor.setName('Landsat')
+                sensorLS = sensor
+
+        TSV.setMapsPerMapView(4, 1)
+        TSV.createMapView()
+        mv1, mv2 = TSV.mapViews()
+        mv1.setName('True Color')
+        mv2.setName('NIR-SWIR-R')
+        QgsApplication.processEvents()
+
+        for mc in mv1.mapCanvases():
+            setBandCombination(mc, sidLS, 3, 2, 1)
+
+        for mc in mv2.mapCanvases():
+            setBandCombination(mc, sidLS, 4, 5, 3)
+
+        TSV.setCurrentDate(DOI)
+        TSV.setSpatialExtent(EOI)
+        TSV.ui.resize(SOI)
+        QgsApplication.processEvents()
+
         self.showGui(TSV.ui)
         TSV.close()
 

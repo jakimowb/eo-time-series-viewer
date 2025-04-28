@@ -50,5 +50,6 @@ Labeling categorical values
 ---------------------------
 
 
+
 Customized quick label values
 -----------------------------

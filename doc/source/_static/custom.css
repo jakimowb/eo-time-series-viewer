@@ -31,3 +31,30 @@
   padding-left: 3px;
   padding-right: 3px;
 }
+
+.svg-hover-group rect {
+          opacity: 0.1;
+          transition: opacity 0.3s;
+          fill:transparent;
+          stroke:None;
+          stroke-width: 2;
+
+        }
+
+.svg-hover-group:hover rect {
+  opacity: 1;
+  fill:transparent;
+  stroke:red;
+  stroke-width: 2;
+}
+
+.svg-hover-group text {
+        display: none;
+}
+
+.svg-hover-group:hover text {
+        display: block;
+        font: normal 20px sans-serif;
+          fill: red;
+}
+

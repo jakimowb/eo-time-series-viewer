@@ -1,0 +1,7 @@
+# manually defined substitutions
+
+.. |icon| image:: icons/icon.png
+   :width: 30px
+   :height: 30px
+
+.. |reg| unicode:: U+000AE .. REGISTERED SIGN

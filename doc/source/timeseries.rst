@@ -2,8 +2,39 @@
 Time Series
 ===========
 
-Load Time Series data
-=====================
+
+The EO Time Series Viewer visualizes a time series of raster images,
+that is listed in the *time series panel*:
+
+.. figure:: img/timeseries_panel.png
+
+
+
+1. *Time Series Sources*, i.e. raster images. They need to be readable by QGIS/GDAL
+   and each source needs to provide a timestamp - the observation data - , e.g in the filename or GDAL metadata.
+
+2. *Sensors/Products*, e.g, *Landsat 8*, *Sentinel-2* or *NDVI* images.
+   Each time series source is linked to a sensor.
+    Time series sources created by the same sensors have:
+
+        - the same number of bands
+        - the same pixel size
+        - if defined, the same band wavelength definition
+        - if defined, the same sensor/product name
+
+    It is assumed that images with the same spectral properties and pixel size
+    have been created by the same sensor and can be handled in the same way.
+    For example, if we like to change the displayed band combination,
+    we like to set it for all time series sources from the same sensor.
+
+3. *Time Series Dates*. A time series date is an observation date, i.e. timestamp,
+that is used to group sources from the same sensor, but with potentially
+differing time stamps.
+
+For example, the Sentinel-2 observations recorded on the same orbit overpass
+show a progressive increase of time stamps. However, by using the Date-Time Precission of a "Day"
+all Sentinel-2 observations from the same day will be grouped to the same time series date.
+
 
 
 Time Series Panel

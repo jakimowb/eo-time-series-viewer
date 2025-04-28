@@ -56,11 +56,12 @@ as published by the Free Software Foundation. See also :ref:`License`.
 
     Installation <installation.rst>
     Quick Start <quick_start.rst>
-    GUI Overview <gui.rst>
-    Time Series <timeseries.rst>
+    GUI <gui.rst>
+    Data Model <data_model.rst>
     Map Visualization <map_visualization.rst>
     Temporal Profiles <temporal_profiles.rst>
     Spectral Profiles <spectral_profiles.rst>
+    Processing Algorithms <processing_algorithms.rst>
     Quick Labeling <quick_labeling.rst>
     Shortcuts <shortcuts.rst>
     Changelog <CHANGELOG.md>

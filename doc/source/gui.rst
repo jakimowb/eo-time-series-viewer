@@ -17,103 +17,93 @@ Graphical User Interface
 Overview
 --------
 
-The following screenshot give an overview on the main EO Time Series Viewer components.
-Use the mouse to highlight the different widgets explained below.
+This is how the EO Time Series Viewer's interface looks after opening the
+example data (*Files > Add Example*).
+
+You can use the mouse cursor to highlight different GUI parts and jump
+to its linked descriptions.
 
 .. raw:: html
 
-    <style>
-        .hover-group rect {
-                  opacity: 0.1;
-                  transition: opacity 0.3s;
-                  fill:transparent;
-                  stroke:red;
-                  stroke-width: 2;
-
-                }
-        .hover-group:hover rect {
-          opacity: 1;
-          fill:transparent;
-        }
-
-    </style>
 
 
     <svg width="1200" height="800" style="display: block; position: relative;">
-        <style>
-            text {
-              font: normal 15px sans-serif;
-              fill: red;
-            }
-
-
-  </style>
+      <defs>
+        <filter x="0" y="0" width="1" height="1" id="text_bg">
+          <feFlood flood-color="white" result="bg" />
+          <feMerge>
+            <feMergeNode in="bg"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
 
         <image href="_static/img/gui_overview.png" x="0" y="0"
             width="1085" height="682" />
-        <text x="3" y="72">a)</text>
-          <g class="hover-group">
+
+          <g class="svg-hover-group">
+            <a href="gui.html#menubar">
+                <title>Menu Bar</title>
+                <rect x="1" y="32" width="1084" height="20" />
+                <text "url(#text_bg)" x="275" y="47">Menu Bar</text>
+            </a>
+
+            </g>
+
+          <g class="svg-hover-group">
             <a href="gui.html#toolbar">
-            <rect x="1" y="50"
-                width="1084"
-                height="37"/>
-                </a>
-            </g>
+                <title>Tool Bar</title>
+                <rect x="1" y="50" width="1084" height="37" />
+                <text filter="url(#text_bg)"
+                      x="300" y="75">Tool Bar</text>
+            </a></g>
 
-         <text x="88" y="108">b)</text>
-          <g class="hover-group">
+          <g class="svg-hover-group">
             <a href="gui.html#map-view-settings">
-            <rect x="2" y="90"
-                width="225" height="331"/>
-                </a>
-            </g>
+                <title>Map View Settings</title>
+                <text filter="url(#text_bg)"
+                x="25" y="370">Map View Settings</text>
+                <rect x="2" y="90" width="225" height="331" />
+            </a></g>
 
-
-        <text x="250" y="108">c)</text>
-          <g class="hover-group">
+          <g class="svg-hover-group">
             <a href="gui.html#map-views">
-            <rect x="230" y="90"
-                width="614"
-                height="331"/>
-                </a>
-            </g>
+                <title>Map View</title>
+                <text filter="url(#text_bg)"
+                    x="456" y="200">Map Views</text>
+                <rect x="230" y="90" width="614" height="331" />
+            </a></g>
 
-        <text x="989" y="108">d)</text>
-          <g class="hover-group">
+          <g class="svg-hover-group">
             <a href="gui.html#sensors-products">
-            <rect x="848" y="90"
-                width="237"
-                height="307"/>
-                </a>
-            </g>
+                <title>Sensor/Product Panel</title>
+                <text filter="url(#text_bg)" x="875" y="245">Sensor/Products</text>
+                <rect x="848" y="90" width="237" height="307" />
+            </a></g>
 
-        <text x="88" y="440">e)</text>
-          <g class="hover-group">
+          <g class="svg-hover-group">
             <a href="gui.html#time-series">
-            <rect x="2" y="424"
-                width="223"
-                height="256"/>
-                </a>
-            </g>
+                <title>Time Series Panel</title>
+                <text filter="url(#text_bg)"
+                    x="25" y="550">Time Series Panel</text>
+                <rect x="2" y="424" width="223" height="256" />
+            </a></g>
 
-
-        <text x="520" y="440">f)</text>
-          <g class="hover-group">
+            <g class="svg-hover-group">
             <a href="gui.html#temporal-profiles">
-            <rect x="228" y="424"
-                width="549"
-                height="256"/>
-                </a>
-            </g>
+                <title>Temporal Profile Viewer</title>
+                <text filter="url(#text_bg)"
+                    x="450" y="550">Temporal Profile Viewer</text>
+                <rect x="228" y="424" width="549"   height="256" />
+            </a></g>
 
-        <text x="920" y="495">g)</text>
-          <g class="hover-group">
+          <g class="svg-hover-group">
             <a href="gui.html#attribute-table">
-            <rect x="780" y="424"
-                width="305"
-                height="256"/>
-                </a>
-            </g>
+                <title>Attribute Table</title>
+                <text filter="url(#text_bg)"
+                    x="837" y="550">Attribute Table</text>
+                <rect x="780" y="424" width="305" height="256" />
+            </a></g>
 
     </svg>
 
@@ -126,11 +116,30 @@ Use the mouse to highlight the different widgets explained below.
     .. note:: Just like in QGIS, many parts of the GUI are adjustable panels. You can arrange them as tabbed, stacked or separate windows.
               Activate/Deactivate panels under :menuselection:`View --> Panels`
 
+Menu Bar
+--------
 
-Toolbar
--------
+.. figure:: _static/img/gui_menubar.gif
 
-The toolbar allows to start the following actions:
+    :width: 100%
+
+The `Files` menu can be used to add different raster and vector sources. It also allows to
+start import dialogs to load specialized data sources, e.g. raster data
+created with the FORCE processing framework.
+
+The `View` menu can be used to show or hide the different panels and to add a new `map view` to the
+map widget.
+
+The `Navigation` menu allows to select map tools for navigation to different spatial extents.
+It can also be used to copy the spatial extent from or to the map canvas of the main QGIS gui.
+
+The `Tools` menu allows to start processing algorithms, e.g. to create a new temporal profile layer.
+
+
+Tool Bar
+--------
+
+In the tool bar you find tools to add and modify data and to adjust the data visualization.
 
 .. csv-table::
    :header: "Button", "Function"
@@ -167,41 +176,46 @@ The toolbar allows to start the following actions:
 
 
 
-Map View Settings
+Map Visualization
 -----------------
 
-The Map Settings Panel allows to configure how spatial maps are
-visualized in the Map View Widget.
+The map visualization allows to show the observations of a time series
+side-by-side. Using multiple map-views, different band combinations can be shown in parallel,
+by stacking them vertically.
+
+The map settings panel controls the map visualization, e.g. the map canvas size.
+
+The visualization of raster images is described in detail :ref:`here <map-visualization>`.
 
 
-Map Views
----------
+Sensors / Products Panel
+------------------------
 
-The Map View widget contains map canvases to visualize the time series data.
-Canvases are ordered vertically by a) map views and horizontally b) by observation time.
+.. figure:: img/sensor_panel.gif
 
-
-
-Sensors / Products
-------------------
-
-This panel list the different sensors or sensor products the EO Time Series Viewer was able to
+This panel list the different sensors/products the EO Time Series Viewer was able to
 read from the time series sources.
 
-
-Cursor Location
----------------
-
-The cursor location panel visualized the vector or raster information,
-that has been extracted for a map position of interest using the cursor location info tool.
+For a better handling, the *sensor names* can be changed.
 
 
+Cursor Location Panel
+---------------------
 
-Task Manager
-------------
+.. figure:: img/cursor_location_panel.gif
 
-The Task Manager Panel shows the progress of running background tasks.
+The Identify tool extracts map information. Activate the *identify cursor location value*
+option to show the related raster or vector layer values in the cursor location
+info panel.
+
+
+
+Task Manager Panel
+------------------
+
+The Task Manager Panel shows the progress of qgis tasks that run in a background thread.
 It can be used to cancel long running tasks, like the extraction of temporal profiles.
+
 
 Time Series Panel
 -----------------
@@ -215,16 +229,35 @@ CSV file, or remove sources from the time series.
 Temporal Profile View
 ---------------------
 
+Here you can visualize temporal profiles that have been loaded for point coordinates.
+The temporal profile view allows profiles from different vector layers to be shown together.
 
+A detailed description can be found :ref:` <here>`.
 
 Spectral Profile View
 ---------------------
+
+Here you can visualize and collect spectral profiles, i.e. the band value profiles related to
+single pixel positions.
+
+Spectral profiles are stored in vector layer fields.
+The spectral profile view is the same as used in the EnMAP-Box.
+
+For details, please visit https://enmap-box.readthedocs.io/en/latest/usr_section/usr_manual/gui.html#spectral-library-view
+
 
 
 Attribute Table
 ---------------
 
+As known from QGIS, the attribute table allows to show the attributes of a vector layer.
+The EO Time Series Viewer enhances it by some functions for faster navigation
 
+The EOTSV extends familiar functions, like the calcuation of vector attributes,
+with additional tools to enable a faster
+navigation to select vector features. Furthermore it adds shortcuts to
+automatically fill vector attributes. These *Quick labeling* shortcuts are
+described in more detail :ref:`<here>`.
 
 
 
