@@ -1,7 +1,30 @@
 # manually defined substitutions
+.. |cbc| image:: img/checkbox_checked.png
+.. |cbu| image:: img/checkbox_unchecked.png
 
-.. |icon| image:: icons/icon.png
-   :width: 30px
-   :height: 30px
+.. |timeseriesdock| image:: img/timeseriespanel.png
+.. |mapviewbutton| image:: img/mapviewbutton.png
+.. |questionmark| image:: img/questionmark.png
 
 .. |reg| unicode:: U+000AE .. REGISTERED SIGN
+.. |PyCharm| `PyCharm <https://www.jetbrains.com/pycharm/>`_
+.. |PyQtGraph| `PyQtGraph <https://pyqtgraph.readthedocs.io/en/latest/>`_
+.. |PyDev| `PyDev <https://www.pydev.org>`_
+.. |OSGeo4W| `OSGeo4W <https://www.osgeo.org/projects/osgeo4w>`_
+.. |Bitbucket| `Bitbucket <https://bitbucket.org>`_
+.. |Git| `Git <https://git-scm.com/>`_
+.. |GitHub| `GitHub <https://github.com/>`_
+.. |GDAL| `GDAL <https://www.gdal.org>`_
+.. |QtWidgets| `QtWidgets <https://doc.qt.io/qt-5/qtwidgets-index.html>`_
+.. |QtCore| `QtCore <https://doc.qt.io/qt-5/qtcore-index.html>`_
+.. |QtGui| `QtGui <https://doc.qt.io/qt-5/qtgui-index.html>`_
+.. |QGIS| `QGIS <https://www.qgis.org>`_
+.. |qgis.gui| `qgis.gui <https://api.qgis.org/api/group__gui.html>`_
+.. |qgis.core| `qgis.core <https://api.qgis.org/api/group__core.html>`_
+.. |Miniconda| `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_
+.. |miniconda| `miniconda <https://docs.conda.io/en/latest/miniconda.html>`_
+.. |Numba| `Numba <https://numba.pydata.org/>`_
+.. |Conda| `Conda <https://docs.anaconda.com/miniconda/>`_
+.. |conda| `conda <https://docs.anaconda.com/miniconda/>`_
+.. |conda-forge| `conda-forge <https://conda-forge.org/>`_
+.. |pip| `pip <https://pip.pypa.io/en/stable>`_
