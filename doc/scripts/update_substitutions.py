@@ -3,7 +3,6 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import warnings
 from os import walk
 from pathlib import Path
@@ -16,7 +15,7 @@ import qgis.PyQt.QtWidgets
 import qgis.core
 import qgis.gui
 
-DIR_REPO = Path(__file__).parents[1]
+DIR_REPO = Path(__file__).parents[2]
 DIR_SOURCE = DIR_REPO / 'doc/source'
 
 DIR_ICONS = DIR_SOURCE / 'icons'
@@ -119,16 +118,17 @@ class SubstituteCollection(object):
         else:
             self.mSubstitutes[substitute.name] = substitute
 
-    def readIcons(self, source: Path, extensions: List[str] = ['svg', 'png']):
+    def readIcons(self, source: Path, extensions: List[str] = ['svg', 'png']) -> List[str]:
         assert source.is_dir()
-
+        errors = []
         for ext in extensions:
             for p in find_by_ext(source, ext):
                 assert p.is_file()
                 name = p.stem
                 if name in self:
-                    print(f'Name already exists "{name}" {p}:'
-                          f'\n\t {self[name]}', file=sys.stderr)
+                    errors.append(
+                        f'Name already exists "{name}" {p}:'
+                        f'\n\t {self[name]}')
                     continue
 
                 sub = Substitute(name, stype=SourceType.Icon)
@@ -138,6 +138,7 @@ class SubstituteCollection(object):
 
                 self.addSubstitute(sub)
                 s = ""
+        return errors
 
     def addManualDefinitions(self, source: Path):
         source = Path(source)
@@ -157,13 +158,16 @@ class SubstituteCollection(object):
                 self.addSubstitute(sub)
             s = ""
 
-    def updateRST(self, path: Union[str, Path]):
-        path = Path(path)
-        assert path.is_file()
-        assert path.name.endswith('.rst')
+    def updateRST(self, path_rst: Union[str, Path], relative_paths: bool = False):
+        path_rst = Path(path_rst)
+        assert path_rst.is_file()
+        assert path_rst.name.endswith('.rst')
 
-        with open(path, 'r') as f:
-            lines = f.readlines()
+        with open(path_rst, 'r') as f:
+            lines = f.read().strip()
+            if MSG_DO_NOT_EDIT in lines:
+                lines = lines.split(MSG_DO_NOT_EDIT)[0].strip()
+            lines = lines.splitlines()
 
         new_lines = []
         s_pattern = re.compile(r"(?<!\.\. )\|([\w\d-]+)\|")
@@ -181,17 +185,22 @@ class SubstituteCollection(object):
                 requested.add(r)
 
         if len(requested) > 0:
-
-            new_lines += [MSG_DO_NOT_EDIT, '']
+            print(f'Update {path_rst}')
+            new_lines += [f'\n\n{MSG_DO_NOT_EDIT}\n']
             for r in sorted(requested):
                 if r not in self:
                     raise Exception(f'Missing definition for "{r}"')
                 sub = self[r]
-                rst_code = self.toRST(sub, copy_icon=True)
+                rst_code = self.toRST(sub,
+                                      copy_icon=True,
+                                      path_rst=path_rst if relative_paths else None)
                 new_lines.append(rst_code)
                 s = ""
-            with open(path, 'w', encoding='utf-8') as f:
+            # add final newline
+            new_lines.append('')
+            with open(path_rst, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(new_lines))
+            s = ""
 
     def print(self):
         for s in self.mSubstitutes.values():
@@ -203,13 +212,20 @@ class SubstituteCollection(object):
             self.mPathInkscapeBin = inkscapeBin()
         return self.mPathInkscapeBin
 
-    def toRST(self, sub: Substitute, copy_icon: bool = False) -> str:
+    def toRST(self,
+              sub: Substitute,
+              copy_icon: bool = False,
+              path_rst: Optional[Path] = None) -> str:
+        """
+        Create the substitute definition
+        :param sub: Substitute
+        :param copy_icon: set True to copy icon files (*.svg, *.png) into the loca SOURCE/icons directory, if necessary
+        :param path_rst: if set to the path of the rst file, the substitute code will use a relative icon path
+        :return: str with substitue code, e.g.
+            .. |icon| image:: /icons/icon.png
+               :width: 28px
         """
 
-        :param sub:
-        :param copy_:
-        :return:
-        """
         if sub.stype == SourceType.Raw:
             return sub.definition
 
@@ -247,17 +263,20 @@ class SubstituteCollection(object):
                     else:
                         raise NotImplementedError(f'Unsupported icon type: {path_src}')
 
-                    sub.icon_path = path_png.relative_to(self.mSourceRoot)
+                    sub.icon_path = path_png
                 else:
                     warnings.warn(f'Icon does not exist in rst source folder: {sub.icon_path}')
 
+            if isinstance(path_rst, Path):
+                path_rel = sub.icon_path.relative_to(path_rst, walk_up=True)
+            else:
+                path_rel = sub.icon_path.relative_to(self.mSourceRoot)
+
             return '\n'.join([
-                f'.. |{sub.name}| image:: {sub.icon_path}',
+                f'.. |{sub.name}| image:: /{path_rel.as_posix()}',
                 f'   :width: {self.mIconSize}px'
             ])
 
-            lines = []
-            return '\n'.join(lines)
         else:
             raise NotImplementedError()
 
@@ -304,7 +323,7 @@ def add_api_definitions(collection: SubstituteCollection):
                 collection.addLinkSubstitute(name, f'{name} <{target}>')
 
 
-MSG_DO_NOT_EDIT = '.. Substitutions definitions - DO NOT EDIT PAST THIS LINE'
+MSG_DO_NOT_EDIT = '.. AUTOGENERATED SUBSTITUTIONS - DO NOT EDIT PAST THIS LINE'
 
 
 def read_rst_substitutes(file):
@@ -353,23 +372,17 @@ def find_by_ext(folder, extension) -> List[Path]:
     return found_files
 
 
-def create_substitutions(collection: SubstituteCollection):
-    for file in find_by_ext(DIR_SOURCE, 'rst'):
-        collection.updateRST(file)
-
-
 if __name__ == '__main__':
     collection = SubstituteCollection(DIR_SOURCE)
 
-    path_manual = DIR_SOURCE / 'substitutions/substitutions_manual.txt'
+    path_manual = Path(__file__).parent / 'substitutions.txt'
     collection.addManualDefinitions(path_manual)
     add_api_definitions(collection)
-
     for d in ICON_DIRS:
         print(f'Read icons from {d}')
         collection.readIcons(d)
+
+    for file in find_by_ext(DIR_SOURCE, 'rst'):
+        collection.updateRST(file)
+
     # collection.print()
-
-    create_substitutions(collection)
-
-    collection.print()

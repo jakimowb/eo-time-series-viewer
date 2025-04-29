@@ -66,7 +66,7 @@ as published by the Free Software Foundation. See also :ref:`License`.
     Shortcuts <shortcuts.rst>
     Changelog <CHANGELOG.md>
     Gallery <gallery.rst>
-    LICENSE.md
+    License <LICENSE.md>
 
 
 Indices and tables
