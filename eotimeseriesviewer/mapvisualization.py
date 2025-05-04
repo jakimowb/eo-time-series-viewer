@@ -39,6 +39,7 @@ from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsExpressio
     QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
 from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
     QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
+
 from eotimeseriesviewer import debugLog, DIR_UI
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
@@ -120,6 +121,7 @@ class MapView(QFrame):
         self.mTimeSeries = None
         self.mSensorLayerList = list()
         self.mCrossHairStyle = CrosshairStyle()
+        self.mCrossHairStyle.setVisibility(False)
 
         m = QMenu(self.btnToggleCrosshair)
         m.addAction(self.actionSetCrosshairStyle)

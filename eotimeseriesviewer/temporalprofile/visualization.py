@@ -25,7 +25,6 @@ from itertools import chain
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
-
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QItemSelectionModel, QModelIndex, QObject, \
     QPoint, Qt, QTimer
 from qgis.PyQt.QtGui import QColor
@@ -34,6 +33,7 @@ from qgis.core import QgsApplication, QgsCoordinateTransform, QgsExpression, Qgs
     QgsExpressionContextUtils, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsProject, \
     QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
 from qgis.gui import QgsDockWidget, QgsFilterLineEdit
+
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from .datetimeplot import DateTimePlotDataItem, DateTimePlotWidget
@@ -875,6 +875,7 @@ class TemporalProfileDock(QgsDockWidget):
         self.mVectorLayerTool: Optional[VectorLayerTools] = None
 
         self.mVis = TemporalProfileVisualization(self.mTreeView, self.mPlotWidget)
+        self.mTreeView.selectionModel().selectionChanged.connect(self.updateActions)
         self.mVis.loadingProgress.connect(self.setProgress)
         self.mVis.moveToDate.connect(self.sigMoveToDate)
         self.mVis.featureSelectionChanged.connect(self.onFeatureSelectionChanged)
@@ -889,15 +890,18 @@ class TemporalProfileDock(QgsDockWidget):
         self.actionPanToSelected.triggered.connect(self.panToSelected)
         self.actionZoomToSelected.triggered.connect(self.zoomToSelected)
         self.actionShowAttributeTable.setEnabled(False)
-        self.actionShowAttributeTable.triggered.connect(self.onOpenAttributeTables)
+        self.actionShowAttributeTable.triggered.connect(
+            lambda: self.layerAttributeTableRequest.emit(self.mTreeView.selectedLayers()))
         self.onFeatureSelectionChanged(dict())
         self.actionShowSelectedProfileOnly.toggled.connect(self.mVis.setShowSelectedOnly)
 
         self.btnCancelTask.clicked.connect(self.mVis.cancelLoadingTask)
 
-    def onOpenAttributeTables(self):
+    def updateActions(self):
 
-        pass
+        self.mTreeView.selectedLayers()
+        b = len(self.mTreeView.selectedLayers())
+        self.actionShowAttributeTable.setEnabled(b)
 
     def onFeatureSelectionChanged(self, selected_features: dict):
         has_selected = len(selected_features) > 0
