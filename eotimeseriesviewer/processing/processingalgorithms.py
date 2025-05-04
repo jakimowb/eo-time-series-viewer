@@ -3,14 +3,13 @@ import re
 from pathlib import Path
 from typing import Dict
 
-from PyQt5.QtCore import QVariant
+from qgis.PyQt.QtCore import NULL, QMetaType, QVariant
 from qgis.core import edit, Qgis, QgsApplication, QgsFeature, QgsFeatureSink, QgsField, QgsFields, QgsMapLayer, \
     QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext, QgsProcessingException, QgsProcessingFeedback, \
     QgsProcessingOutputVectorLayer, QgsProcessingParameterBoolean, QgsProcessingParameterCrs, \
     QgsProcessingParameterFeatureSink, QgsProcessingParameterFieldMapping, QgsProcessingParameterFile, \
     QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessingParameterVectorLayer, \
     QgsProcessingProvider, QgsProcessingRegistry, QgsProcessingUtils, QgsVectorFileWriter, QgsVectorLayer
-from qgis.PyQt.QtCore import NULL, QMetaType
 from qgis.PyQt.QtGui import QIcon
 
 from eotimeseriesviewer import icon

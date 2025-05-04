@@ -1006,6 +1006,60 @@ class PlotSettingsTreeView(QTreeView):
             if isinstance(item, TPVisSensor):
                 s = ""
 
+    def selectedLayers(self) -> List[QgsVectorLayer]:
+        """
+        Returns the vector layers related to
+        selected visualization items
+        :return: list of QgsVectorLayers
+        """
+        tp_layers = []
+        for idx in self.selectionModel().selectedRows():
+            item = idx.data(Qt.UserRole)
+            if isinstance(item, PropertyLabel):
+                item = item.propertyItem()
+            parentItem = item.parent()
+            if isinstance(item, TPVisGroup):
+                tp_layers.append(item.layer())
+            elif isinstance(parentItem, TPVisGroup):
+                tp_layers.append(parentItem.layer())
+        results = []
+        for lyr in tp_layers:
+            if lyr not in results:
+                results.append(lyr)
+        return results
+
+    def selectedSensorItems(self) -> List[TPVisSensor]:
+        """
+        Returns the sensor visualization items of selected
+        groups / items.
+        :return: list of TPVisSensor
+        """
+        items = []
+
+        for idx in self.selectionModel().selectedRows():
+            item = idx.data(Qt.UserRole)
+            if isinstance(item, PropertyLabel):
+                item = item.propertyItem()
+
+            parentItem = item.parent()
+
+            if isinstance(item, TPVisSensor):
+                items.append(item)
+            elif isinstance(item, TPVisGroup):
+                items.extend(item.sensorItems())
+            elif isinstance(parentItem, TPVisSensor):
+                items.append(parentItem)
+            elif isinstance(parentItem, TPVisGroup):
+                items.extend(parentItem.sensorItems())
+
+        # make unique
+        results = []
+        for item in items:
+            if item not in results:
+                results.append(item)
+
+        return results
+
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         """
         Default implementation. Emits populateContextMenu to create context menu
@@ -1015,32 +1069,13 @@ class PlotSettingsTreeView(QTreeView):
 
         menu: QMenu = QMenu()
         menu.setToolTipsVisible(True)
-        selected_indices = self.selectionModel().selectedRows()
 
-        tp_layers = []
+        tp_layers = self.selectedLayers()
+        sensorItems = self.selectedSensorItems()
 
-        for idx in selected_indices:
-            item = idx.data(Qt.UserRole)
-            if isinstance(item, PropertyLabel):
-                item = item.propertyItem()
-
-            parentItem = item.parent()
-
-            sensorItems = []
-            if isinstance(item, TPVisSensor):
-                sensorItems.append(item)
-            elif isinstance(item, TPVisGroup):
-                sensorItems.extend(item.sensorItems())
-                tp_layers.append(item.layer())
-            elif isinstance(parentItem, TPVisSensor):
-                sensorItems.append(parentItem)
-            elif isinstance(parentItem, TPVisGroup):
-                sensorItems.extend(parentItem.sensorItems())
-                tp_layers.append(parentItem.layer())
-
-            if len(sensorItems) > 0:
-                code_items = [s.mPBand for s in sensorItems]
-                self.addSpectralIndexMenu(menu, code_items)
+        if len(sensorItems) > 0:
+            code_items = [s.mPBand for s in sensorItems]
+            self.addSpectralIndexMenu(menu, code_items)
 
         if len(tp_layers) > 0:
             tp_layers = list(set(tp_layers))
