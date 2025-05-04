@@ -5,6 +5,8 @@ The EO Time Series Viewer adds processing algorithms to the QGIS processing fram
 They can be started from the *Tools* menu in the menu bar, from the QGIS processing toolbox,
 from python and the command line.
 
+.. _qpa-createemptytemporalprofilelayer:
+
 Create Temporal Profile Layer
 -----------------------------
 
@@ -32,6 +34,7 @@ This is how the algorithm can be called from a shell:
             --FIELD_NAMES=profiles \
             --OUTPUT=TEMPORARY_OUTPUT
 
+.. _qpa-readtemporalprofiles:
 
 Read Temporal Profiles
 ----------------------
@@ -61,6 +64,7 @@ This is how the algorithm can be called from a shell:
             --ADD_SOURCES=false \
             --OUTPUT=TEMPORARY_OUTPUT
 
+.. _qps-createspectrallibrary:
 
 Create Spectral Library
 -----------------------
