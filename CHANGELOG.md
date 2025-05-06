@@ -1,5 +1,10 @@
 # Changelog
 
+## 2025-06-05 (version 2.1)
+
+* added map region window to temporal profile plot
+* revised online documentation (GUI, temporal profiles), added several animated gif
+
 ## 2025-04-19 (version 2.0)
 
 * revised map visualization

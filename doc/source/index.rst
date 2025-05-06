@@ -9,7 +9,7 @@ EO Time Series Viewer
 The Earth Observation Time Series Viewer (EOTSV) is a free-and-open source QGIS Plugin to visualize and label
 raster-based earth observation time series data.
 
-.. image:: img/screenshot_1.20.png
+.. image:: img/screenshot_2.0.1.png
 
 
 
@@ -17,9 +17,9 @@ raster-based earth observation time series data.
 .. table::
 
    ==================== ================================================================================================
-   Online documentation https://eo-time-series-viewer.readthedocs.io/en/latest
-   Source Code          https://bitbucket.org/jakimowb/eo-time-series-viewer
-   Issue tracker        https://bitbucket.org/jakimowb/eo-time-series-viewer/issues
+   Online documentation https://eo-time-series-viewer.readthedocs.io
+   Source Code          https://github.com/jakimowb/eo-time-series-viewer
+   Issue tracker        https://github.com/jakimowb/eo-time-series-viewer/issues
    ==================== ================================================================================================
 
 
@@ -61,12 +61,12 @@ as published by the Free Software Foundation. See also :ref:`License`.
     Map Visualization <map_visualization.rst>
     Temporal Profiles <temporal_profiles.rst>
     Spectral Profiles <spectral_profiles.rst>
-    Processing Algorithms <processing_algorithms.rst>
     Quick Labeling <quick_labeling.rst>
+    Processing Algorithms <processing_algorithms.rst>
     Shortcuts <shortcuts.rst>
     Changelog <CHANGELOG.md>
     Gallery <gallery.rst>
-    License <LICENSE.md>
+    License <license.rst>
 
 
 Indices and tables
