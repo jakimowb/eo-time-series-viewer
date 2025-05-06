@@ -20,6 +20,7 @@ import os
 import unittest
 
 import numpy as np
+
 from qgis.PyQt.QtCore import QSize
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QApplication, QGridLayout, QLabel, QPushButton, QSpinBox, QWidget
@@ -28,7 +29,6 @@ from qgis.core import QgsFeatureRenderer, QgsHillshadeRenderer, QgsMultiBandColo
     QgsProject, QgsRasterLayer, QgsRasterRenderer, QgsRasterShader, QgsSingleBandColorDataRenderer, \
     QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsVectorLayer, QgsVirtualLayerDefinition
 from qgis.gui import QgsFontButton
-
 from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
 from eotimeseriesviewer.tests import EOTSVTestCase, example_raster_files, start_app, TestObjects
 from eotimeseriesviewer.mapcanvas import MapCanvas
@@ -279,6 +279,9 @@ class TestMapVisualization(EOTSVTestCase):
         mapview.addLayer(lyr2)
         self.assertEqual(TS.sensors(), mapview.sensors())
 
+        MW = MapWidget()
+        MW.setTimeSeries(TS)
+        tsd = TS[0]
         MW.setMapsPerMapView(3, 2)
         MW.addMapView(mapview)
         MW.setCurrentDate(tsd)
