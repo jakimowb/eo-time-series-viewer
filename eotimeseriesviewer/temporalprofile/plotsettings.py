@@ -11,7 +11,6 @@ from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsEx
     QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsGeometry, QgsProject, QgsProperty, \
     QgsPropertyDefinition, QgsVectorLayer
 from qgis.gui import QgsFieldExpressionWidget
-
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, \
     PlotStyleDialog, PlotStyleWidget
@@ -104,6 +103,48 @@ class ProfileFieldItem(PropertyItem):
                 return QColor('red')
 
         return super().data(role)
+
+
+class ActionItem(QStandardItem):
+
+    def __init__(self, action: QAction, *args, **kwds):
+        assert isinstance(action, QAction)
+        super().__init__(action.text())
+
+        self.mAction = action
+        self.mAction.changed.connect(self.emitDataChanged)
+
+        self.setEnabled(True)
+        self.setCheckable(True)
+
+    def action(self) -> QAction:
+        return self.mAction
+
+    def setData(self, value, role=None, *args, **kwargs):
+
+        if role == Qt.CheckStateRole:
+            b = self.role == Qt.Checked
+            if self.mAction.isChecked() != b:
+                self.mAction.setChecked(b)
+
+    def flags(self):
+
+        f = super().flags()
+        if self.mAction.isCheckable():
+            f |= Qt.ItemIsUserCheckable
+        return f
+
+    def data(self, role):
+
+        if role == Qt.DecorationRole:
+            return self.mAction.icon()
+        if role == Qt.DisplayRole:
+            return self.mAction.text()
+        if role == Qt.CheckStateRole:
+            return Qt.Checked if self.mAction.isChecked() else Qt.Unchecked
+        if role == Qt.ToolTipRole:
+            return self.mAction.toolTip()
+        s = ""
 
 
 class PythonCodeItem(PropertyItem):
@@ -266,6 +307,11 @@ class TPVisSettings(PropertyItemGroup):
 
         self.setDropEnabled(False)
         self.setDragEnabled(False)
+
+    def createActionItem(self, action: QAction) -> ActionItem:
+        node = ActionItem(action)
+        self.appendRow([node])
+        return node
 
     def settingsMap(self, context: QgsExpressionContext = None) -> dict:
         d = dict()
@@ -912,6 +958,9 @@ class PlotSettingsTreeModel(QStandardItemModel):
         for node in self.sensorNodes(sid=sensor.id()):
             node: TPVisSensor
             node.emitDataChanged()
+
+    def addSettingsAction(self, action: QAction):
+        self.mSettingsNode.createActionItem(action)
 
     def addSensors(self, sensors: Union[SensorInstrument, List[SensorInstrument]]):
         """

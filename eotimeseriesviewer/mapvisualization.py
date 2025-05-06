@@ -28,7 +28,7 @@ from threading import Lock
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 import qgis.utils
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QMimeData, QModelIndex, QSize, Qt, QTimer
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QDateTime, QMimeData, QModelIndex, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
 from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
     QWidget
@@ -43,14 +43,14 @@ from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, Q
 from eotimeseriesviewer import debugLog, DIR_UI
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
-from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, layerStyleString, \
+from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, index_window, layerStyleString, \
     setFontButtonPreviewBackgroundColor, setLayerStyleString
 from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem, STYLE_CATEGORIES
 from .maplayerproject import EOTimeSeriesViewerProject
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairMapCanvasItem, CrosshairStyle, getCrosshairStyle
 from .qgispluginsupport.qps.layerproperties import VectorLayerTools
 from .qgispluginsupport.qps.maptools import MapTools
-from .qgispluginsupport.qps.utils import loadUi, SpatialExtent, SpatialPoint
+from .qgispluginsupport.qps.utils import loadUi, SignalBlocker, SpatialExtent, SpatialPoint
 from .sensors import has_sensor_id, sensor_id, SensorInstrument, SensorMockupDataProvider
 from .settings.settings import EOTSVSettingsManager
 
@@ -1090,9 +1090,9 @@ class MapViewListModel(QAbstractListModel):
         return value
 
 
-def closest_index(tsd_target: TimeSeriesDate, tsds: List[TimeSeriesDate]) -> int:
+def closest_index(tsd_target: TimeSeriesDate, tsds: List[TimeSeriesDate]) -> Optional[int]:
     """
-    Returns the index of the TimeSeriesDate closest to tsd_target
+    Returns the index of the TimeSeriesDate closest to a target date
     :param tsd_target:
     :type tsd_target:
     :param tsds:
@@ -1139,6 +1139,7 @@ class MapWidget(QFrame):
     sigCurrentLayerChanged = pyqtSignal(QgsMapLayer)
     # sigCurrentCanvasChanged = pyqtSignal(MapCanvas)
     # sigCurrentMapViewChanged = pyqtSignal(MapView)
+    sigDateRangeChanged = pyqtSignal(QDateTime, QDateTime)
     sigCurrentDateChanged = pyqtSignal(TimeSeriesDate)
     sigCurrentLocationChanged = pyqtSignal([QgsCoordinateReferenceSystem, QgsPointXY],
                                            [QgsCoordinateReferenceSystem, QgsPointXY, QgsMapCanvas])
@@ -1172,7 +1173,7 @@ class MapWidget(QFrame):
         self.mMapViews: List[MapView] = []
         self.mCanvases: Dict[MapView, List[MapCanvas]] = dict()
         self.mCanvasSignals = dict()
-        self.mTimeSeries: TimeSeries = None
+        self.mTimeSeries: Optional[TimeSeries] = None
 
         self.mMapToolKey: MapTools = MapTools.Pan
 
@@ -1183,8 +1184,10 @@ class MapWidget(QFrame):
         self.mSpatialExtent: SpatialExtent = SpatialExtent.world()
         self.mCrsInitialized: bool = False
 
-        self.mCurrentDate: TimeSeriesDate = None
-        self.mCrosshairPosition: SpatialPoint = None
+        self.mCurrentDate: Optional[TimeSeriesDate] = None
+        self.mCurrentDateMode: str = 'center'
+
+        self.mCrosshairPosition: Optional[SpatialPoint] = None
 
         self.mMapSize = QSize(200, 200)
 
@@ -1737,7 +1740,8 @@ class MapWidget(QFrame):
             self.mTimeSeries.sigSensorAdded.connect(self.addSensor)
             self.mTimeSeries.sigSensorRemoved.connect(self.removeSensor)
             if len(self.mTimeSeries) > 0:
-                self.mCurrentDate = self.mTimeSeries[0]
+                # self.mCurrentDate = self.mTimeSeries[0]
+                self.setCurrentDate(self.mTimeSeries[0], 'start')
             else:
                 self.mTimeSeries.sigTimeSeriesDatesAdded.connect(self.onSetInitialCurrentDate)
             self._updateSliderRange()
@@ -1973,14 +1977,12 @@ QSlider::add-page {{
             if tsd > self.currentDate() and tsd.checkState():
                 self.setCurrentDate(tsd)
                 return
-        s = ""
 
     def moveToPreviousTSD(self):
         for tsd in reversed(self.timeSeries()[:]):
             if tsd < self.currentDate() and tsd.checkState():
                 self.setCurrentDate(tsd)
                 return
-        s = ""
 
     def moveToNextTSDFast(self):
         visibleAll = self.timeSeries().visibleTSDs()
@@ -2016,22 +2018,34 @@ QSlider::add-page {{
                 return
         s = ""
 
-    def setCurrentDate(self, tsd: TimeSeriesDate) -> TimeSeriesDate:
+    def setCurrentDate(self, tsd: Union[TimeSeriesDate, QDateTime],
+                       mode: str = 'center') -> TimeSeriesDate:
         """
         Sets the current TimeSeriesDate, i.e. the "center" date of all dates to be shown
-        :param tsd: TimeSeriesDate
+        :param tsd: TimeSeriesDate or QDateTime
+        :param mode: where the tsd should be set in the row of map canvas. can be 'center', 'start' or 'end' of
+                     map canvases.
         :return: TimeSeriesDate
         """
+        assert mode in ['center', 'start', 'end']
+        if not isinstance(tsd, TimeSeriesDate):
+            tsd = self.timeSeries().findDate(tsd)
+
         assert isinstance(tsd, TimeSeriesDate)
-        b = tsd != self.mCurrentDate or (len(self.mapCanvases()) > 0 and self.mapCanvases()[0].tsd() is None)
+        b = tsd != self.mCurrentDate or mode != self.mCurrentDateMode \
+            or (len(self.mapCanvases()) > 0 and self.mapCanvases()[0].tsd() is None)
 
         self.mCurrentDate = tsd
+        self.mCurrentDateMode = mode
+
         if b:
             self._updateCanvasDates()
             i = self.mTimeSeries[:].index(self.mCurrentDate)
 
             if self.mTimeSlider.value() != i:
-                self.mTimeSlider.setValue(i)
+                with SignalBlocker(self.mTimeSlider) as blocker:
+                    self.mTimeSlider.setValue(i)
+
             self.sigCurrentDateChanged.emit(self.mCurrentDate)
 
         if isinstance(self.currentDate(), TimeSeriesDate):
@@ -2061,6 +2075,17 @@ QSlider::add-page {{
         :return: TimeSeriesDate
         """
         return self.mCurrentDate
+
+    def currentDateRange(self) -> Tuple[Optional[QDateTime], Optional[QDateTime]]:
+        """
+        Returns the date range that is visualized by map canvases
+        :return:
+        """
+        tsds = self.visibleTSDs()
+        if len(tsds) > 0:
+            return tsds[0].dtg(), tsds[-1].dtg()
+        else:
+            return None, None
 
     def createMapView(self, name: str = None) -> MapView:
         """
@@ -2359,7 +2384,11 @@ QSlider::add-page {{
 
     def _updateCanvasDates(self, updateLayerCache: bool = True):
 
+        assert self.mCurrentDateMode in ['center', 'start', 'end']
+
         visibleBefore = self.visibleTSDs()
+        dateRangeBefore = self.currentDateRange()
+
         bTSDChanged = False
         if updateLayerCache:
             self._updateLayerCache()
@@ -2373,11 +2402,9 @@ QSlider::add-page {{
             visible = self.timeSeries().visibleTSDs()
             nCanvases = self.mMapViewColumns * self.mMapViewRows
 
-            i_middle = closest_index(self.mCurrentDate, visible)
-            i_visible = list(range(len(visible)))
-            i_visible = sorted(i_visible, key=lambda i: abs(i - i_middle))
-            i_visible = i_visible[0: min(len(i_visible), nCanvases)]
+            i_current_date = closest_index(self.mCurrentDate, visible)
 
+            i_visible = index_window(i_current_date, len(visible), nCanvases, self.mCurrentDateMode)
             visible = sorted([visible[i] for i in i_visible])
 
             # set TSD of remaining canvases to None
@@ -2402,6 +2429,10 @@ QSlider::add-page {{
         visible2 = self.visibleTSDs()
         if visible2 != visibleBefore:
             self.sigVisibleDatesChanged.emit(visible2)
+
+        dateRange2 = self.currentDateRange()
+        if dateRange2 != dateRangeBefore:
+            self.sigDateRangeChanged.emit(*dateRange2)
 
     def _freeUnusedMapLayers(self):
 

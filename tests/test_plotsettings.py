@@ -3,17 +3,18 @@ import re
 import unittest
 import random
 
+from qgis.PyQt.QtGui import QAction, QIcon, QStandardItemModel
+from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QPushButton, QSplitter, QTreeView, QVBoxLayout, QWidget
 from qgis.gui import QgsMapCanvas
 from qgis.PyQt.QtCore import QSize, Qt
-from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QPushButton, QSplitter, QVBoxLayout, QWidget
 from qgis.core import QgsProject, QgsVectorLayer
-from qgis.PyQt.QtGui import QAction
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint
 from eotimeseriesviewer.qgispluginsupport.qps.vectorlayertools import VectorLayerTools
 from eotimeseriesviewer.sensorvisualization import SensorDockUI
 from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
-from eotimeseriesviewer.temporalprofile.plotsettings import PlotSettingsTreeView, PythonCodeItem, TPVisSensor
+from eotimeseriesviewer.temporalprofile.plotsettings import PlotSettingsTreeView, PythonCodeItem, TPVisSensor, \
+    TPVisSettings
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileEditorWidgetFactory
 from eotimeseriesviewer.temporalprofile.visualization import TemporalProfileDock, TemporalProfileVisualization
 from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app, TestObjects
@@ -84,6 +85,31 @@ class PlotSettingsTests(EOTSVTestCase):
             s = ""
             print(a.text())
         self.showGui(m)
+
+    def test_settings(self):
+
+        settings_item = TPVisSettings()
+
+        action = QAction('My Action')
+        action.setObjectName('MyAction')
+        action.setChecked(True)
+        action.setCheckable(True)
+        action.setIcon(QIcon(r':/images/themes/default/mIconLineLayer.svg'))
+        action.setToolTip('My Tooltip')
+
+        def onToggled(b):
+            print(f'Checked: {b}')
+
+        action.toggled.connect(onToggled)
+
+        settings_item.createActionItem(action)
+        model = QStandardItemModel()
+
+        model.insertRow(0, settings_item)
+
+        view = QTreeView()
+        view.setModel(model)
+        self.showGui(view)
 
     def test_SensorItems(self):
         ts = TestObjects.createTimeSeries()
@@ -180,6 +206,7 @@ class PlotSettingsTests(EOTSVTestCase):
         dock.setTimeSeries(ts)
         dock.setProject(project)
 
+        dock.setMapDateRange(ts[0].dtg(), ts[5].dtg())
         panel = SensorDockUI()
         panel.setTimeSeries(ts)
 

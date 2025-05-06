@@ -25,6 +25,7 @@ from itertools import chain
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
+
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QItemSelectionModel, QModelIndex, QObject, \
     QPoint, Qt, QTimer
 from qgis.PyQt.QtGui import QColor
@@ -33,7 +34,6 @@ from qgis.core import QgsApplication, QgsCoordinateTransform, QgsExpression, Qgs
     QgsExpressionContextUtils, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsProject, \
     QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
 from qgis.gui import QgsDockWidget, QgsFilterLineEdit
-
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from .datetimeplot import DateTimePlotDataItem, DateTimePlotWidget
@@ -146,7 +146,7 @@ class _SensorPoints(pg.PlotDataItem):
 
 class TemporalProfileVisualization(QObject):
     loadingProgress = pyqtSignal(float)
-    moveToDate = pyqtSignal(QDateTime)
+    moveToDate = pyqtSignal(QDateTime, str)
 
     featureSelectionChanged = pyqtSignal(dict)
 
@@ -160,12 +160,21 @@ class TemporalProfileVisualization(QObject):
         self.mPlotWidget = plotWidget
         self.mPlotWidget.plotItem.vb.moveToDate.connect(self.moveToDate)
         self.mPlotWidget.preUpdateTask.connect(self.addPreUpdateTask)
+        self.mPlotWidget.sigMapDateRequest.connect(self.moveToDate)
         # plotWidget.setBackground('white')
         self.mPreUpdateTasks = list()
 
         self.mModel = PlotSettingsTreeModel()
         self.mModel.setPlotWidget(self.mPlotWidget)
         self.mModel.itemChanged.connect(self.onStyleChanged)
+
+        settingsActions = [
+            self.mPlotWidget.dateTimeViewBox().mActionShowMapViewRange,
+            self.mPlotWidget.dateTimeViewBox().mActionShowCrosshair,
+            self.mPlotWidget.dateTimeViewBox().mActionShowCursorValues,
+        ]
+        # for a in settingsActions:
+        #    self.mModel.mSettingsNode.createActionItem(a)
 
         self.mProxyModel = PlotSettingsProxyModel()
         self.mProxyModel.setSourceModel(self.mModel)
@@ -723,7 +732,7 @@ class TemporalProfileVisualization(QObject):
                     # pdi.sigClicked.connect(self.mPlotWidget.onCurveClicked)
                     new_plotitems.append(pdi)
 
-        self.mPlotWidget.plotItem.clear()
+        self.mPlotWidget.plotItem.clearPlots()
         for item in new_plotitems:
             # item.scatter.sigHovered.connect(self.mPlotWidget.onPointsHovered)
             # item.scatter.sigClicked.connect(self.mPlotWidget.onPointsClicked)
@@ -859,7 +868,7 @@ class TemporalProfileVisualization(QObject):
 
 
 class TemporalProfileDock(QgsDockWidget):
-    sigMoveToDate = pyqtSignal(QDateTime)
+    sigMoveToDate = pyqtSignal(QDateTime, str)
     layerAttributeTableRequest = pyqtSignal(list)
 
     def __init__(self, *args, **kwds):
@@ -869,9 +878,8 @@ class TemporalProfileDock(QgsDockWidget):
         loadUi(ui_path, self)
 
         self.mPlotWidget: DateTimePlotWidget
-        self.mTreeView: PlotSettingsTreeView
         self.mTreeView.layerAttributeTableRequest.connect(self.layerAttributeTableRequest)
-
+        self.mTreeView.model()
         self.mVectorLayerTool: Optional[VectorLayerTools] = None
 
         self.mVis = TemporalProfileVisualization(self.mTreeView, self.mPlotWidget)
@@ -953,6 +961,9 @@ class TemporalProfileDock(QgsDockWidget):
 
     def setTimeSeries(self, timeseries: TimeSeries):
         self.mVis.setTimeSeries(timeseries)
+
+    def setMapDateRange(self, d0: QDateTime, d1: QDateTime):
+        self.mVis.mPlotWidget.setMapDateRange(d0, d1)
 
     def setVectorLayerTools(self, vectorLayerTools: VectorLayerTools):
         self.mVectorLayerTool = vectorLayerTools
