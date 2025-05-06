@@ -20,9 +20,9 @@
 """
 import enum
 import sys
-from typing import List, Union
+from typing import Any, List, Union
 
-from qgis.PyQt.QtCore import QByteArray, QSettings, QSortFilterProxyModel, Qt, QTextStream
+from qgis.PyQt.QtCore import QByteArray, QDateTime, QSettings, QSortFilterProxyModel, Qt, QTextStream
 from qgis.gui import QgisInterface, QgsAttributeTableView, QgsFontButton
 from qgis.PyQt.QtGui import QColor
 from qgis.core import QgsFeature, QgsFeatureSink, QgsMapLayer, QgsMapLayerStyle, QgsVectorLayer
@@ -30,8 +30,9 @@ from qgis.core.additions.edit import edit
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.PyQt.QtWidgets import QAction, QMenu, QToolButton, QWidget
 import qgis.utils
-
+from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
+from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 
 
@@ -199,6 +200,57 @@ def gotoLayerFeature(fid: int, layer: QgsVectorLayer, tools: EOTSVVectorLayerToo
         tools.zoomToSelected(layer)
     if GotoFeatureOptions.FocusVisibility in options:
         tools.focusVisibility()
+
+
+def index_window(target_index: int, n_indices: int, window_size: int, mode: str = 'center') -> List[int]:
+    if n_indices == 0 or window_size == 0:
+        return []
+
+    assert 0 <= target_index < n_indices
+    assert mode in ['center', 'first', 'last', 'start', 'end']
+
+    if mode == 'center':
+        i0 = target_index - int(0.5 * window_size)
+        i1 = target_index + int(0.5 * window_size)
+        if window_size % 2 == 0:
+            # even
+            i1 -= 1
+    elif mode in ['first', 'start']:
+        i0 = target_index
+        i1 = target_index + window_size - 1
+        s = ""
+    elif mode in ['last', 'end']:
+        i1 = target_index
+        i0 = target_index - window_size + 1
+    else:
+        raise NotImplementedError(f'Unknown mode: {mode}')
+
+    if i0 < 0:
+        i0 = 0
+        i1 = min(n_indices - 1, window_size - 1)
+    if i1 >= n_indices:
+        i0 = max(0, n_indices - window_size)
+        i1 = n_indices - 1
+
+    return list(range(i0, i1 + 1))
+
+
+def toDateTime(item: Union[TimeSeriesDate, TimeSeriesSource, Any]) -> QDateTime:
+    if isinstance(item, (TimeSeriesDate, TimeSeriesSource)):
+        return item.dtg()
+    else:
+        return ImageDateUtils.datetime(item)
+
+
+def findNearestDateIndex(target_date, date_items: List, exact_match: bool = False) -> int:
+    """Returns the index of the item in date_items, which is closest to the target_date item"""
+    target_date = toDateTime(target_date)
+    abs_diff = [abs(target_date.secsTo(toDateTime(item))) for item in date_items]
+
+    closest = min(abs_diff)
+    if exact_match:
+        assert closest == 0
+    return abs_diff.index(closest)
 
 
 def gotoFeature(attributeTable: AttributeTableWidget,
