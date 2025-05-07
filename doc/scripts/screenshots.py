@@ -99,6 +99,13 @@ class CreateScreenshots(EOTSVTestCase):
         self.showGui(TSV.ui)
         TSV.close()
 
+    def test_quick_labeling(self):
+
+        eotsv = EOTimeSeriesViewer()
+        eotsv.loadExampleTimeSeries()
+
+        self.showGui(eotsv.ui)
+
     def test_FORCE_Data(self):
 
         DOI = QDateTime.fromString('2017-07-18', Qt.ISODate)

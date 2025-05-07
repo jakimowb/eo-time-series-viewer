@@ -43,7 +43,7 @@ def addQuickLabelMenu(menu: QMenu, layers, source):
                 if lyr not in grp_layers:
                     grp_layers.append(lyr)
 
-            if grp == '':
+            if grp in ['', None]:
                 grp_info = ''
             else:
                 grp_info = f'"{grp}"'
