@@ -187,6 +187,13 @@ class CreateScreenshots(EOTSVTestCase):
         self.showGui(eotsv.ui)
         eotsv.close()
 
+    def test_empty(self):
+
+        eotsv = EOTimeSeriesViewer()
+
+        self.showGui(eotsv.ui)
+        eotsv.close()
+
     def test_FORCE_Data(self):
 
         DOI = QDateTime.fromString('2017-07-18', Qt.ISODate)

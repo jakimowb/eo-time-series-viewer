@@ -65,5 +65,7 @@ Import products from the datacube folders created with the
 `Framework for Operational Radiometric Correction for Environmental monitoring (FORCE)
 <https://force-eo.readthedocs.io/en/latest/components/lower-level/level2/format.html#naming-convention>`_.
 
-.. figure:: img/import_force_products.webp
+.. figure:: img/import_force_products.gif
+
+    Load images from a FORCE data cube and show a temporal profile.
 
