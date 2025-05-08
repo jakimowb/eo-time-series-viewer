@@ -6,14 +6,37 @@ from qgis.core import QgsCategorizedSymbolRenderer, QgsEditorWidgetSetup, QgsExp
     QgsExpressionContextScope, QgsExpressionContextUtils, QgsFeature, QgsField, QgsFields, QgsIconUtils, QgsMapLayer, \
     QgsProject, QgsRendererCategory, QgsSymbol, QgsVectorLayer
 from qgis.PyQt.QtCore import QDateTime, QMetaType
+
 from eotimeseriesviewer.dateparser import ImageDateUtils
-from eotimeseriesviewer.labeling.editorconfig import EDITOR_WIDGET_REGISTRY_KEY, LabelConfigurationKey, \
-    LabelShortcutType
+from eotimeseriesviewer.labeling.editorconfig import createWidgetSetup, EDITOR_WIDGET_REGISTRY_KEY, \
+    LabelConfigurationKey, LabelShortcutType
 from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme, \
     ClassInfo, classSchemeFromConfig, EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
 from eotimeseriesviewer.qgispluginsupport.qps.fieldvalueconverter import GenericPropertyTransformer
 from eotimeseriesviewer.sensors import SensorInstrument
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
+
+
+def createQuickLabelField(labelType: LabelShortcutType,
+                          *args,
+                          group: str = '',
+                          classification: Optional[ClassificationScheme] = None,
+                          expression: Optional[str] = None,
+                          **kwargs) -> QgsField:
+    """
+    Shortcut to create a new QgsField with quick label setup
+    :param labelType: the label shortcut type
+    :param args: args for QgsField
+    :param group: label group, defaults to ''
+    :param classification: ClassificationScheme, only useful for labelType = LabelShortcutType.Classification
+    :param expression: QGIS expression string, only useful for labelType = LabelShortcutType.Customized
+    :param kwargs: keyword arguments for QgsField
+    :return: QgsField with editor widget setup set to 'EOTSV Quick Label'
+    """
+    field = QgsField(*args, **kwargs)
+    setup = createWidgetSetup(labelType, group=group, classification=classification, expression=expression)
+    field.setEditorWidgetSetup(setup)
+    return field
 
 
 def addQuickLabelMenu(menu: QMenu, layers, source):
@@ -149,6 +172,8 @@ def quickLayerGroups(layers: Union[List[QgsMapLayer], QgsMapLayer]) -> Dict[str,
             setup = lyr.editorWidgetSetup(i)
             if setup.type() == EDITOR_WIDGET_REGISTRY_KEY:
                 group = setup.config().get(LabelConfigurationKey.LabelGroup, '')
+                if group is None:
+                    group = ''
                 groups[group] = groups.get(group, []) + [(lyr, field.name())]
     return groups
 

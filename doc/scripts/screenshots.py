@@ -5,19 +5,23 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from PyQt5.QtCore import QDateTime, Qt
+from PyQt5.QtCore import QDateTime, QMetaType, Qt
 from PyQt5.QtWidgets import QDockWidget, QListWidget
-from qgis._core import QgsApplication, QgsMultiBandColorRenderer, QgsRasterLayer, QgsRectangle, QgsVectorLayer
-
-from eotimeseriesviewer.forceinputs import FindFORCEProductsTask
-from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
-from eotimeseriesviewer.sensors import SensorInstrument
+from qgis._core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsField, QgsFields, \
+    QgsMultiBandColorRenderer, QgsRasterLayer, QgsRectangle, QgsVectorLayer
+from qgis.core import edit
 from qgis.PyQt.QtCore import QSize
 from qgis.PyQt.QtWidgets import QApplication, QWidget
+
+from eotimeseriesviewer.forceinputs import FindFORCEProductsTask
+from eotimeseriesviewer.labeling.editorconfig import LabelShortcutType
+from eotimeseriesviewer.labeling.quicklabeling import createQuickLabelField
+from eotimeseriesviewer.mapvisualization import MapView
+from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
+from eotimeseriesviewer.sensors import SensorInstrument
 from eotimeseriesviewer import DIR_REPO, initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
-from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app
+from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app, TestObjects
 
 app = start_app()
 initAll()
@@ -53,20 +57,7 @@ class CreateScreenshots(EOTSVTestCase):
 
         TSV.loadExampleTimeSeries(loadAsync=False)
 
-        # set up example settings
-        sidLS = sidRE = None
-
-        for sensor in TSV.sensors():
-            assert isinstance(sensor, SensorInstrument)
-            sid = json.loads(sensor.id())
-            if sid['nb'] == 6:
-                sidLS = sensor.id()
-                sensor.setName('Landsat')
-                sensorLS = sensor
-            elif sid['nb'] == 5:
-                sidRE = sensor.id()
-                sensor.setName('RapidEye')
-                sensorRE = sensor
+        sidLS, sidRE = self.prepareExampleDataSensors(TSV)
 
         TSV.setMapsPerMapView(4, 1)
         TSV.setCurrentDate(DOI)
@@ -82,12 +73,12 @@ class CreateScreenshots(EOTSVTestCase):
 
         QgsApplication.processEvents()
         self.taskManagerProcessEvents()
-        for mc in mv1.mapCanvases():
-            setBandCombination(mc, sidLS, 3, 2, 1)
-            setBandCombination(mc, sidRE, 3, 2, 1)
-        for mc in mv2.mapCanvases():
-            setBandCombination(mc, sidLS, 4, 5, 3)
-            setBandCombination(mc, sidRE, 5, 4, 3)
+        setBandCombination(mv1, sidLS, 3, 2, 1)
+        setBandCombination(mv1, sidRE, 3, 2, 1)
+        setBandCombination(mv2, sidLS, 4, 5, 3)
+        setBandCombination(mv2, sidRE, 5, 4, 3)
+        stretchToExtent(mv1)
+        stretchToExtent(mv2)
 
         TSV.loadCurrentTemporalProfile(TSV.spatialCenter())
         self.taskManagerProcessEvents()
@@ -99,12 +90,102 @@ class CreateScreenshots(EOTSVTestCase):
         self.showGui(TSV.ui)
         TSV.close()
 
+    def prepareExampleDataSensors(self, TSV):
+        # set up example settings
+        sidLS = sidRE = None
+        self.taskManagerProcessEvents()
+        for sensor in TSV.sensors():
+            assert isinstance(sensor, SensorInstrument)
+            sid = json.loads(sensor.id())
+            if sid['nb'] == 6:
+                sidLS = sensor.id()
+                sensor.setName('Landsat')
+                sensorLS = sensor
+            elif sid['nb'] == 5:
+                sidRE = sensor.id()
+                sensor.setName('RapidEye')
+                sensorRE = sensor
+        return sidLS, sidRE
+
     def test_quick_labeling(self):
 
+        DOI = QDateTime.fromString('2014-06-24', Qt.ISODate)
         eotsv = EOTimeSeriesViewer()
-        eotsv.loadExampleTimeSeries()
+        eotsv.loadExampleTimeSeries(loadAsync=False)
+
+        eotsv.setMapsPerMapView(4, 1)
+        eotsv.setCurrentDate(DOI)
+        sidLS, sidRE = self.prepareExampleDataSensors(eotsv)
+
+        QgsApplication.processEvents()
+        self.taskManagerProcessEvents()
+
+        mv = eotsv.mapViews()[0]
+        mv.setName('NIR-SWIR-R')
+        mv.layers()
+
+        QgsApplication.processEvents()
+        self.taskManagerProcessEvents()
+
+        setBandCombination(mv, sidRE, 5, 4, 3)
+        setBandCombination(mv, sidLS, 4, 5, 3)
+        stretchToExtent(mv)
 
         self.showGui(eotsv.ui)
+
+    def test_quick_labeling_label_groups(self):
+        DOI = QDateTime.fromString('2014-06-24', Qt.ISODate)
+        eotsv = EOTimeSeriesViewer()
+        eotsv.loadExampleTimeSeries(loadAsync=False)
+        eotsv.setMapsPerMapView(4, 1)
+        eotsv.setCurrentDate(DOI)
+        sidLS, sidRE = self.prepareExampleDataSensors(eotsv)
+
+        mv = eotsv.mapViews()[0]
+        mv.setName('NIR-SWIR-R')
+        mv.layers()
+
+        QgsApplication.processEvents()
+        self.taskManagerProcessEvents()
+
+        setBandCombination(mv, sidRE, 5, 4, 3)
+        setBandCombination(mv, sidLS, 4, 5, 3)
+        stretchToExtent(mv)
+
+        QgsApplication.processEvents()
+        self.taskManagerProcessEvents()
+        test_dir = self.createTestOutputDirectory()
+
+        path = test_dir / 'landclearing.gpkg'
+        # lyr = TestObjects.createVectorLayer(path=path)
+        lyr = TestObjects.createEmptyMemoryLayer(QgsFields(), wkbType=Qgis.WkbType.Polygon)
+        lyr.setCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
+        lyr.setName('land_clearing')
+        with edit(lyr):
+            lyr.addAttribute(createQuickLabelField(
+                LabelShortcutType.Date, 'def_date', QMetaType.QDate,
+                group='deforestation'))
+            lyr.addAttribute(createQuickLabelField(
+                LabelShortcutType.SourceImage, 'def_img', QMetaType.QString,
+                group='deforestation'))
+            lyr.addAttribute(createQuickLabelField(
+                LabelShortcutType.Date, 'bur_date', QMetaType.QDate,
+                group='burning'))
+            lyr.addAttribute(createQuickLabelField(
+                LabelShortcutType.SourceImage, 'bur_img', QMetaType.QString,
+                group='burning'))
+            lyr.addAttribute(createQuickLabelField(
+                LabelShortcutType.Date, 'til_date', QMetaType.QDate,
+                group='tilling'))
+            lyr.addAttribute(createQuickLabelField(
+                LabelShortcutType.SourceImage, 'til_img', QMetaType.QString,
+                group='tilling'))
+            lyr.addAttribute(QgsField('note', QMetaType.QString))
+
+        eotsv.addMapLayers([lyr])
+
+        self.showGui(eotsv.ui)
+        eotsv.close()
 
     def test_FORCE_Data(self):
 
@@ -140,11 +221,8 @@ class CreateScreenshots(EOTSVTestCase):
         mv2.setName('NIR-SWIR-R')
         QgsApplication.processEvents()
 
-        for mc in mv1.mapCanvases():
-            setBandCombination(mc, sidLS, 3, 2, 1)
-
-        for mc in mv2.mapCanvases():
-            setBandCombination(mc, sidLS, 4, 5, 3)
+        setBandCombination(mv1, sidLS, 3, 2, 1)
+        setBandCombination(mv2, sidLS, 4, 5, 3)
 
         TSV.setCurrentDate(DOI)
         TSV.setSpatialExtent(EOI)
@@ -252,9 +330,16 @@ def makePNG(widget, name):
     widgetScreenshot(widget, path)
 
 
-def setBandCombination(c: MapCanvas, sid, r, g, b):
-    c.timedRefresh()
-    for lyr in c.layers():
+def stretchToExtent(mv: MapView):
+    for c in mv.mapCanvases():
+        c.timedRefresh()
+        c.stretchToExtent(SpatialExtent.fromMapCanvas(c), 'linear_minmax', p=0.05)
+        c.timedRefresh()
+
+
+def setBandCombination(mv: MapView, sid, r, g, b):
+    assert isinstance(mv, MapView)
+    for lyr in mv.layers():
         if isinstance(lyr, QgsRasterLayer) and sid == lyr.customProperty('eotsv/sensor'):
             renderer = lyr.renderer()
             assert isinstance(renderer, QgsMultiBandColorRenderer)
@@ -262,5 +347,3 @@ def setBandCombination(c: MapCanvas, sid, r, g, b):
             renderer.setGreenBand(g)
             renderer.setBlueBand(b)
             lyr.setRenderer(renderer.clone())
-            c.stretchToExtent(SpatialExtent.fromMapCanvas(c), 'linear_minmax', p=0.05)
-    c.timedRefresh()

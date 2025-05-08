@@ -31,8 +31,9 @@ from qgis.PyQt.QtGui import QMouseEvent, QStandardItem, QStandardItemModel
 from eotimeseriesviewer.labeling.editorconfig import createWidgetSetup, LabelConfigurationKey, \
     LabelShortcutEditorConfigWidget, LabelShortcutType, LabelShortcutTypeModel, \
     LabelShortcutWidgetFactory, shortcuts
-from eotimeseriesviewer.labeling.quicklabeling import addQuickLabelMenu, isQuickLabelField, isQuickLabelLayer, \
-    quickLabelClassSchemes, quickLabelExpression, quickLabelExpressionContextScope, quickLabelLayers, setQuickClassInfo
+from eotimeseriesviewer.labeling.quicklabeling import addQuickLabelMenu, createQuickLabelField, isQuickLabelField, \
+    isQuickLabelLayer, quickLabelClassSchemes, quickLabelExpression, quickLabelExpressionContextScope, quickLabelLayers, \
+    setQuickClassInfo
 from eotimeseriesviewer.labeling.attributetable import QuickLabelAttributeTableWidget
 from eotimeseriesviewer import initAll
 from eotimeseriesviewer.qgispluginsupport.qps.fieldvalueconverter import GenericPropertyTransformer
@@ -514,6 +515,27 @@ class TestLabeling(EOTSVTestCase):
         w = QuickLabelAttributeTableWidget(lyr)
         lyr.setName('Changed Name')
         self.showGui(w)
+
+    def test_create_quick_label_fields(self):
+
+        lyr = TestObjects.createVectorLayer()
+
+        examples = [
+            ([LabelShortcutType.SourceImage, 'date', QMetaType.QDate], {}),
+            ([LabelShortcutType.SourceImage, 'path', QMetaType.QString], {}),
+        ]
+
+        ql_fields = []
+        with edit(lyr):
+            for (args, kwds) in examples:
+                f = createQuickLabelField(*args, **kwds)
+                self.assertTrue(isQuickLabelField(f))
+                lyr.addAttribute(f)
+
+        for fn in ql_fields:
+            self.assertTrue(fn in lyr.fields())
+            field = lyr.fields()[fn]
+            self.assertTrue(isQuickLabelField(field))
 
     def test_addLabelDock(self):
 

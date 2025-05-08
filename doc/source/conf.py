@@ -250,3 +250,6 @@ texinfo_documents = [
 # Example configuration for intersphinx: refer to the Python standard library.
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'python': ('https://docs.python.org/', None)}
+
+numfig = True
+numfig_secnum_depth = 2

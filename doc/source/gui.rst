@@ -5,7 +5,7 @@ Graphical User Interface
 ========================
 
 Overview
---------
+========
 
 This is how the EO Time Series Viewer's interface looks after opening the
 example data (*Files > Add Example*).
@@ -14,7 +14,6 @@ You can use the mouse cursor to highlight different GUI parts and jump
 to its linked descriptions.
 
 .. raw:: html
-
 
     <svg width="1200" height="800" style="display: block; position: relative;">
       <defs>
@@ -34,7 +33,7 @@ to its linked descriptions.
             <a href="gui.html#menu-bar">
                 <title>Menu Bar</title>
                 <rect x="1" y="32" width="1084" height="20" />
-                <text "url(#text_bg)" x="275" y="47">Menu Bar</text>
+                <text filter="url(#text_bg)" x="275" y="47">Menu Bar</text>
             </a>
 
             </g>
@@ -96,21 +95,19 @@ to its linked descriptions.
 
     </svg>
 
-
 .. note::
     Just like in QGIS, many parts of the GUI are adjustable panels. You can arrange them as tabbed, stacked or separate windows.
 
     You can activate/deactivate panels under :menuselection:`View --> Panels`
 
 Menu Bar
---------
+========
 
 The menu bar give access to methods for handling data and visualization settings.
 
 .. figure:: _static/img/gui_menubar.gif
 
-    :width: 100%
-
+    Screencast of the menu bar
 
 
 The `Files` menu allows to add new raster sources to the time series, and other raster
@@ -123,6 +120,7 @@ map widget.
 
 .. figure:: img/menu_view_panels.png
 
+    The `View` menu allows to show or hide different panels.
 
 The `Navigation` menu allows to select map tools for navigation to different spatial extents.
 It can also be used to copy the spatial extent from or to the map canvas of the main QGIS gui.
@@ -133,11 +131,11 @@ The `Tools` menu allows to start processing algorithms, e.g. to create a new tem
 
 
 Tool Bar
---------
+========
 
 In the tool bar you find tools to add and modify data and to adjust the data visualization.
 
-.. csv-table::
+.. csv-table:: Toolbar buttons and what they trigger
    :header: "Button", "Function"
 
    |mActionAddRasterLayer|, Add images to the time series
@@ -173,7 +171,7 @@ In the tool bar you find tools to add and modify data and to adjust the data vis
 
 
 Map Visualization
------------------
+=================
 
 The *Map Views* widget contains map canvases to visualize the observations of the raster time series.
 The slider on the bottom allows to change the temporal window of observation dates that is shown.
@@ -190,10 +188,10 @@ A detailed overview on the map visualization options is described in :ref:`here 
 
 .. figure:: img/map_visualization1.gif
 
-
+    Screencast of map visualization
 
 Sensors / Products Panel
-------------------------
+========================
 
 This panel show details on the *sensors* or *image product* types the time series
 consists of, e.g. the number of bands and the spatial resolution.
@@ -202,10 +200,10 @@ For better handling, the *sensor names* can be changed.
 
 .. figure:: img/sensor_panel.gif
 
-
+    The sensor panel show sensor details and allows to change their names
 
 Cursor Location Panel
----------------------
+=====================
 
 This panel lets you inspect the values of a layer or multiple layers at the location where you click in the map view.
 To load these layer details, activate the *identify cursor location value* tool
@@ -217,6 +215,8 @@ location of interest.
 
   .. figure:: img/cursorlocationvalues.png
 
+    The cursor location value panel
+
 * By default, raster layer information will only be shown for the bands which are mapped to RGB. If you want to view all bands, change the :guilabel:`Visible` setting
   to :guilabel:`All` (right dropdown menu). Also, the first information is always the pixel coordinate (column, row).
 * You can select whether location information should be gathered for :guilabel:`All layers` or only the :guilabel:`Top layer`. You can further
@@ -226,11 +226,11 @@ location of interest.
 
 .. figure:: img/cursor_location_panel.gif
 
-
+    Screencast showing how to use *cursor location info* tool to show pixel and vector object values
 
 
 Task Manager Panel
-------------------
+==================
 
 The *Task Manager* panel shows the progress of `QGIS tasks <https://docs.qgis.org/latest/en/docs/pyqgis_developer_cookbook/tasks.html>`_
 which have been started from the EO Time Series Viewer.
@@ -243,7 +243,7 @@ whether the source even contains valid raster pixels for the current displayed s
 
 
 Time Series Panel
------------------
+=================
 
 The Time Series Panel show all raster sources that have been loaded into the time series.
 Each source can be enabled to disabled, so that is will be not be shown in the map views.
@@ -256,7 +256,7 @@ CSV file, or remove sources from the time series.
     Showing and hiding of single observations sources in the time series panel.
 
 Temporal Profile View
----------------------
+=====================
 
 Here you can visualize temporal profiles that have been loaded for point coordinates.
 
@@ -272,7 +272,7 @@ A detailed description can be found in the :ref:`Temporal Profiles section <temp
     Collecting temporal profiles.
 
 Spectral Profile View
----------------------
+=====================
 
 This panel is used to visualize the spectral profiles.
 To load a spectral profile from a raster image, activate the *identify cursor location value* tool
@@ -290,7 +290,7 @@ For details, please visit the EnMAP-Box documentation for
 
 
 Attribute Table
----------------
+===============
 
 As known from QGIS, the attribute table allows to show and edit attributes of vector layer features.
 The EO Time Series Viewer offers a similar attribute table with additional shortcuts for navigation and labeling.
@@ -300,6 +300,9 @@ the map canvas and the temporal profile view context menus. These shortcuts are 
 in the :ref:`Quick Labeling <quick_labeling>` section.
 
 .. figure:: img/attribute_table.gif
+
+    Attribute panel and map visualization can be linked for panning the
+    map extent automatically to selected vector features.
 
 
 .. AUTOGENERATED SUBSTITUTIONS - DO NOT EDIT PAST THIS LINE

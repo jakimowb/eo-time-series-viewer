@@ -122,6 +122,8 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
         self.cbLabelType.currentIndexChanged[int].connect(self.onLabelTypeChanged)
 
         self.mLabelGroupModel: LabelShortcutGroupModel = LabelShortcutGroupModel.instance()
+        self.mLabelGroupModel.readFromLayer(vl)
+
         self.cbLabelGroup.setModel(self.mLabelGroupModel)
         self.cbLabelGroup.setEditable(True)
         self.cbLabelGroup.currentIndexChanged.connect(self.changed.emit)
@@ -535,8 +537,18 @@ class LabelShortcutGroupModel(QAbstractListModel):
     def rowCount(self, parent=None, *args, **kwargs):
         return len(self.mGroups)
 
-    def addGroup(self, name: str):
+    def readFromLayer(self, layer: QgsVectorLayer):
+        """
+        Adds the quick label grous defined in the layer
+        :param layer: QgsVectorLayer
+        """
+        from .quicklabeling import quickLayerGroups
+        for g in quickLayerGroups(layer):
+            self.addGroup(g)
 
+    def addGroup(self, name: str):
+        if name is None:
+            name = ''
         if name not in self.mGroups:
             i = bisect.bisect(self.mGroups, name)
             self.beginInsertRows(QModelIndex(), i, i)
