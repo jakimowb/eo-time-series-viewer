@@ -1,77 +1,141 @@
-.. DEFINE ICONS AND IMAGE HERE
+.. _gui:
 
-.. include:: /icon_links.rst
-
-.. |cbc| image:: img/checkbox_checked.png
-.. |cbu| image:: img/checkbox_unchecked.png
-
-.. |timeseriesdock| image:: img/timeseriespanel.png
-.. |mapviewbutton| image:: img/mapviewbutton.png
-.. |questionmark| image:: img/questionmark.png
-
-
-===============================
+========================
 Graphical User Interface
-===============================
+========================
 
-.. figure:: img/interface.png
-   :width: 100%
+Overview
+========
 
-   This is what the EO Time Series Viewer's interface looks like when opening it.
+This is how the EO Time Series Viewer's interface looks after opening the
+example data (*Files > Add Example*).
 
-.. note:: Just like in QGIS, many parts of the GUI are adjustable panels. You can arrange them as tabbed, stacked or separate windows.
-          Activate/Deactivate panels under :menuselection:`View --> Panels`
+You can use the mouse cursor to highlight different GUI parts and jump
+to its linked descriptions.
+
+.. raw:: html
+
+    <svg width="1200" height="800" style="display: block; position: relative;">
+      <defs>
+        <filter x="0" y="0" width="1" height="1" id="text_bg">
+          <feFlood flood-color="white" result="bg" />
+          <feMerge>
+            <feMergeNode in="bg"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+
+        <image href="_static/img/gui_overview.png" x="0" y="0"
+            width="1085" height="682" />
+
+          <g class="svg-hover-group">
+            <a href="gui.html#menu-bar">
+                <title>Menu Bar</title>
+                <rect x="1" y="32" width="1084" height="20" />
+                <text filter="url(#text_bg)" x="275" y="47">Menu Bar</text>
+            </a>
+
+            </g>
+
+          <g class="svg-hover-group">
+            <a href="gui.html#tool-bar">
+                <title>Tool Bar</title>
+                <rect x="1" y="50" width="1084" height="37" />
+                <text filter="url(#text_bg)"
+                      x="300" y="75">Tool Bar</text>
+            </a></g>
+
+          <g class="svg-hover-group">
+            <a href="gui.html#map-visualization">
+                <title>Mapping Panel</title>
+                <text filter="url(#text_bg)"
+                x="25" y="370">Mapping Panel</text>
+                <rect x="2" y="90" width="225" height="331" />
+            </a></g>
+
+          <g class="svg-hover-group">
+            <a href="gui.html#map-visualization">
+                <title>Map Views</title>
+                <text filter="url(#text_bg)"
+                    x="456" y="200">Map Views</text>
+                <rect x="230" y="90" width="614" height="331" />
+            </a></g>
+
+          <g class="svg-hover-group">
+            <a href="gui.html#sensors-products-panel">
+                <title>Sensor/Product Panel</title>
+                <text filter="url(#text_bg)" x="875" y="245">Sensor/Products</text>
+                <rect x="848" y="90" width="237" height="307" />
+            </a></g>
+
+          <g class="svg-hover-group">
+            <a href="gui.html#time-series-panel">
+                <title>Time Series Panel</title>
+                <text filter="url(#text_bg)"
+                    x="25" y="550">Time Series Panel</text>
+                <rect x="2" y="424" width="223" height="256" />
+            </a></g>
+
+            <g class="svg-hover-group">
+            <a href="gui.html#temporal-profile-view">
+                <title>Temporal Profile Viewer</title>
+                <text filter="url(#text_bg)"
+                    x="450" y="550">Temporal Profile Viewer</text>
+                <rect x="228" y="424" width="549"   height="256" />
+            </a></g>
+
+          <g class="svg-hover-group">
+            <a href="gui.html#attribute-table">
+                <title>Attribute Table</title>
+                <text filter="url(#text_bg)"
+                    x="837" y="550">Attribute Table</text>
+                <rect x="780" y="424" width="305" height="256" />
+            </a></g>
+
+    </svg>
+
+.. note::
+    Just like in QGIS, many parts of the GUI are adjustable panels. You can arrange them as tabbed, stacked or separate windows.
+
+    You can activate/deactivate panels under :menuselection:`View --> Panels`
+
+Menu Bar
+========
+
+The menu bar give access to methods for handling data and visualization settings.
+
+.. figure:: _static/img/gui_menubar.gif
+
+    Screencast of the menu bar
 
 
-|
+The `Files` menu allows to add new raster sources to the time series, and other raster
+and vector sources to overlay the time series data displayed in the map views.
+You can also start specialized import dialogs, e.g. to load raster data
+created with the FORCE processing framework.
 
-Time Series
------------------
+The `View` menu can be used to show or hide the different panels and to add a new `map view` to the
+map widget.
 
-This window lists the individual input raster files of the time series.
+.. figure:: img/menu_view_panels.png
 
-.. figure:: img/timeseriespanel.png
+    The `View` menu allows to show or hide different panels.
 
-* **Date** corresponds to the image acquisition date as automatically derived by the EO TSV from the file name. Checking |cbc| or unchecking |cbu| the box in the date field will include or exclude the respective image from the display
-* **Sensor** shows the name of the sensor as defined in the :ref:`Sensors / Products` tab
-* **ns**: number of samples (pixels in x direction)
-* **nl**: number of lines (pixels in y direction)
-* **nb**: number of bands
-* **image**: path to the raster file
+The `Navigation` menu allows to select map tools for navigation to different spatial extents.
+It can also be used to copy the spatial extent from or to the map canvas of the main QGIS gui.
 
-You can add new rasters to the time series by clicking |mActionAddRasterLayer| :superscript:`Add image to time series`.
-Remove them by selecting the desired rows in the table (click on the row number) and pressing the |mActionRemoveTSD| :superscript:`Remove image from time series` button.
-
-.. tip::
-
-   If you have your time series available as one large raster stack, you can import this file via :menuselection:`Files --> Add images from time stack`
+The `Tools` menu allows to start processing algorithms, e.g. to create a new temporal profile layer.
 
 
-.. tip:: Click :menuselection:`Files --> Add example` to load a small example time series.
 
-|
 
-Sensors / Products
--------------------
+Tool Bar
+========
 
-.. figure:: img/sensordock.png
+In the tool bar you find tools to add and modify data and to adjust the data visualization.
 
-The EO Time Series Viewer automatically assesses different characteristics of the input images (number of bands, geometric resolution etc.)
-and combines identical ones into sensor groups (or products). Those are listed as follows in the Sensor / Products window:
-
-* ``name`` is automatically generated from the resolution and number of bands (e.g. *6bands@30.m*). This field is adjustable,
-  i.e. you can change the name by double-clicking into the field. The here defined name will be also displayed in the Map View and the Time Series table.
-* ``nb``: number of bands
-* ``n images``: number of images within the time series attributed to the according sensor
-* ``wl``: comma separated string of the (center) wavelength of every band and [unit]
-* ``id``: string identifying number of bands, geometric resolution and wavelengths (primary for internal use)
-
-|
-
-Toolbar
------------------
-
-.. csv-table::
+.. csv-table:: Toolbar buttons and what they trigger
    :header: "Button", "Function"
 
    |mActionAddRasterLayer|, Add images to the time series
@@ -106,83 +170,52 @@ Toolbar
 
 
 
-
-
-
-
-|
-
 Map Visualization
------------------
+=================
 
+The *Map Views* widget contains map canvases to visualize the observations of the raster time series.
+The slider on the bottom allows to change the temporal window of observation dates that is shown.
 
+Each canvas relates to a *Map View*, in which all raster images of the same sensor are
+visualized with the same band combination and color stretch.
+Using multiple map views allows to visualize different band combinations of the same raster
+observation in parallel.
 
-Map Properties
-..............
+The *Mapping* panel allows to add or remove map views, change the canvas size and how canvases
+are displayed within a map view.
 
+A detailed overview on the map visualization options is described in :ref:`here <map_visualization>`
 
-In the map properties box you can specify :guilabel:`Width` and :guilabel:`Height`, as well as background :guilabel:`Color` and the :guilabel:`CRS` of the single map canvases.
-Click :guilabel:`Apply` to apply changes. By default the :guilabel:`keep ratio` option is |cbc| checked, i.e. height will be the same as width. In case
-you want to have unequally sized views, deactivate this option.
+.. figure:: img/map_visualization1.gif
 
-.. image:: img/mapproperties.png
+    Screencast of map visualization
 
-.. * :guilabel:`Set Center` center the QGIS Map View to the same coordinate as the EO TSV Map View
-.. * :guilabel:`Get Center` center the EO TSV Map View to the same coordinate as the QGIS Map View
-.. * :guilabel:`Set Extent` zoom the QGIS Map View to the same extent as the EO TSV Map View
-.. * :guilabel:`Get Extent` zoom the EO TSV Map View to the same extent as the QGIS Map View
-.. * ``Load center profile``, when checked |cbc|, the temporal profile of the center pixel will automatically be displayed and updated in the :ref:`Profile View` tab.
+Sensors / Products Panel
+========================
 
+This panel show details on the *sensors* or *image product* types the time series
+consists of, e.g. the number of bands and the spatial resolution.
 
-Map Views
-.........
+For better handling, the *sensor names* can be changed.
 
-A map view is a row of map canvases that show the time series images of different sensors/product in the same band combination, e.g. as "True Color bands".
-The map view panel allows to add or remove map views and to specifiy how the images of each sensor are to be rendered.
+.. figure:: img/sensor_panel.gif
 
+    The sensor panel show sensor details and allows to change their names
 
-* You can *add new Map Views* using the |mActionAddMapView| button. This will create a new row of map canvases. Remove a map view with the |mActionRemoveMapView| button.
-* In case the Map View does not refresh correctly, you can 'force' the refresh using the |mActionRefresh| button (which will also apply all the render settings).
-* Access the settings for individual Map Views by clicking in the mapview |mapviewbutton|
-* You can use the |questionmark| button to highlight the current Map View selected in the dropdown menu (respective image chips will show red margin for a few seconds).
+Cursor Location Panel
+=====================
 
-
-For every Map View you can alter the following settings:
-
-* *Hide/Unhide* the Map View via the |mapviewHidden| :superscript:`Toggle visibility of this map view` button.
-
-* *Activate/Deactivate Crosshair* via the |crosshair| :superscript:`Show/hide a crosshair` button. Press the arrow button next to it to enter
-  the *Crosshair specifications* |symbology| , where you can customize e.g. color, opacity, thickness, size and further options.
-
-* You may rename the Map View by altering the text in the :guilabel:`Name` field.
-
-.. * **Vector Rendering** allows you to visualize vector data (e.g. a shapefile). In order to do so, open the file in QGIS. Once loaded in the QGIS Layers Panel, it will become selectable
-..  in the dropdown menu. Vector styling will be same as in QGIS (i.e. if you want to adjust it, do it in QGIS). Check |cbc| or uncheck |cbu| in order to activate/deactivate Vector Rendering.
-Furthermore, you can visualize the locations of :ref:`Temporal Profiles` or :ref:`Spectral Profiles <Spectral Library>` as points. Select the desired option
-from the dropdown list.
-
-**Layer representation:**
-
-
-* Similar to QGIS you can change the visual representation of raster or vector layers in the layer properties. To open them,
-  right-click on the layer you want to alter and select :menuselection:`Set Properties --> Style`
-
-  .. image:: img/layerproperties.png
-
-
-
-|
-
-Cursor Location Values
------------------------
-
-This tools lets you inspect the values of a layer or multiple layers at the location where you click in the map view. To select a location (e.g. pixel or feature)
-use the |select_location| :superscript:`Select Cursor Location` button and click somewhere in the map view.
+This panel lets you inspect the values of a layer or multiple layers at the location where you click in the map view.
+To load these layer details, activate the *identify cursor location value* tool
+|select_location| with option |mActionPropertiesWidget| and use the mouse to click on the
+location of interest.
 
 * The Cursor Location Value panel should open automatically and list the information for a selected location. The layers will be listed in the order they appear in the Map View.
   In case you do not see the panel, you can open it via :menuselection:`View --> Panels --> Cursor Location Values`.
 
   .. figure:: img/cursorlocationvalues.png
+
+    The cursor location value panel
 
 * By default, raster layer information will only be shown for the bands which are mapped to RGB. If you want to view all bands, change the :guilabel:`Visible` setting
   to :guilabel:`All` (right dropdown menu). Also, the first information is always the pixel coordinate (column, row).
@@ -191,87 +224,132 @@ use the |select_location| :superscript:`Select Cursor Location` button and click
 * Coordinates of the selected location are shown in the :guilabel:`x` and :guilabel:`y` fields. You may change the coordinate system of the displayed
   coordinates via the |mActionSetProjection| :superscript:`Select CRS` button (e.g. for switching to lat/long coordinates).
 
+.. figure:: img/cursor_location_panel.gif
+
+    Screencast showing how to use *cursor location info* tool to show pixel and vector object values
+
+
+Task Manager Panel
+==================
+
+The *Task Manager* panel shows the progress of `QGIS tasks <https://docs.qgis.org/latest/en/docs/pyqgis_developer_cookbook/tasks.html>`_
+which have been started from the EO Time Series Viewer.
+For example, to set the visibility of the individual raster sources,
+whether the source even contains valid raster pixels for the current displayed spatial map extent.
+
+.. figure:: img/task_manager_update_visibility.gif
+
+    The progress of the "update visibility" task is shown in the task manager panel (right).
+
+
+Time Series Panel
+=================
+
+The Time Series Panel show all raster sources that have been loaded into the time series.
+Each source can be enabled to disabled, so that is will be not be shown in the map views.
+Sources with a yellow background are currently displayed in a map canvas.
+The panel can be used to add additional sources, save the current sources into a
+CSV file, or remove sources from the time series.
+
+.. figure:: img/time_series_panel.gif
+
+    Showing and hiding of single observations sources in the time series panel.
+
+Temporal Profile View
+=====================
+
+Here you can visualize temporal profiles that have been loaded for point coordinates.
+
+To load a temporal profile, activate the *identify cursor location value* tool
+|select_location| with option *collect tempral profiles* |mIconTemporalProfile| and click with the mouse
+on a location of interest.
+
+The temporal profile view allows profiles from different vector layers to be shown together.
+A detailed description can be found in the :ref:`Temporal Profiles section <temporal_profiles>`.
+
+.. figure:: img/temporal_profile_panel.gif
+
+    Collecting temporal profiles.
+
+Spectral Profile View
+=====================
+
+This panel is used to visualize the spectral profiles.
+To load a spectral profile from a raster image, activate the *identify cursor location value* tool
+|select_location| with option *collect spectral profiles* |profile| and click with the mouse
+on a location of interest.
+
+The spectral profile view panel is the same as used in the :ref:`EnMAP-Box <EnMAP-Box>` .
+For details, please visit the EnMAP-Box documentation for
+`using spectral libraries <https://enmap-box.readthedocs.io/en/latest/usr_section/usr_manual/gui.html#spectral-library-view>`_.
+
+.. figure:: img/spectral_profile_view.gif
+
+    Collecting spectral profiles
 
 
 
-|
+Attribute Table
+===============
 
-Profile Visualization
------------------------
+As known from QGIS, the attribute table allows to show and edit attributes of vector layer features.
+The EO Time Series Viewer offers a similar attribute table with additional shortcuts for navigation and labeling.
 
-.. figure:: img/example_2dprofile.png
+For selected features, attribute values can be calculated based on short cuts accessible from
+the map canvas and the temporal profile view context menus. These shortcuts are described in detail
+in the :ref:`Quick Labeling <quick_labeling>` section.
 
-    Example: Temporal NDSI (Normalized Difference Snow Index) profile for 2 locations using Landsat 7 and 8 images.
+.. figure:: img/attribute_table.gif
 
-
-
-Temporal Profiles
-.................
-
-The Temporal Profiles panel lets you visualize temporal profiles.
-On the left side you can switch between the |mIconTemporalProfile2D| profile and the coordinates |mActionOpenTable| page. The latter
-lists all coordinates of selected or imported profile locations.
-
-Adding and managing a temporal profile:
- * You can use the |mIconTemporalProfile| button to click on a location on the map an retrieve the temporal profile, or
-   in the toolbar select |select_location| + |mIconTemporalProfile|.
- * Mind how the selected pixel now also appears on the coordinates |mActionOpenTable| page!
- * If you select further pixels ( |mIconTemporalProfile| ), they will be listed in the coordinates page,
-   but not automatically visualized in the plot.
- * Use |mActionAdd| to create an additional plot layer, and double-click in the :guilabel:`Coordinate` field in order to select the
-   desired location (so e.g. the newly chosen pixel) or just change the location in the current plot layer.
- * Similarly, you can change the sensor to be visualized by double-clicking inside the :guilabel:`Sensor` field and choosing from
-   the dropdown.
- * Click inside the :guilabel:`Style` field to change the visual representation of your time series in the plot.
- * Remove a time series profile by selecting the desired row(s) and click |mActionRemove|.
- * The :guilabel:`DN or Index` field depicts which values will be plotted.
-
-     * Here you may select single bands (e.g. ``b1`` for the first band)
-     * or you can calculate indices on-the-fly: e.g. for the Landsat images in the example dataset the expression ``(b4-b3)/(b4+b3)``
-       would return the NDVI.
-
-         .. figure:: img/example_temppindex.png
-
-             Example of visualizing the NDVI for the same location for different sensors (example dataset).
-
- * You can also move the map views to a desired date from the plot directly by right-click into plot :menuselection:`--> Move maps to ...`
-
- .. note:: The EO TSV won't extract and load all pixel values into memory by default in order to reduce processing time (only the ones required).
-           You can manually load all the values by clicking the |mIconTemporalProfileRefresh| :sup:`Load missing band values` button
-           on the coordinates |mActionOpenTable| page.
+    Attribute panel and map visualization can be linked for panning the
+    map extent automatically to selected vector features.
 
 
-Importing or exporting locations:
- * You can also import locations from a vector file instead of collecting them from the map: Go to the coordinates |mActionOpenTable| page
-   and add locations via the |mActionAddOgrLayer| button.
- * If you want to save your locations, e.g. as shapefile or CSV, click on |mActionFileSave|.
+.. AUTOGENERATED SUBSTITUTIONS - DO NOT EDIT PAST THIS LINE
 
-
-
-|
-
-
-Spectral Profiles
-.................
-
-The spectral library view allows you to visualize, label and export spectral profiles.
-
-.. image:: img/spectrallibrarypanel.png
-
-* Use the |pickrasterspectrum| :superscript:`Select a spectrum from a map` button to extract and visualize a pixels profile
-  (by clicking on a pixel on the map).
-* You can add a selected spectrum to your spectral library by clicking on |profile2speclib|.
-* The gathered spectra are listed in the table on the right. For every spectrum additional metadata will be stored, e.g.
-  the date, day of year and sensor.
-* When the |profile2speclib_auto| button is activated, the profile will be directly added to the library after clicking on a pixel.
-* Change the display style (color, shape, linetype) in the Spectral Library Properties, which can be accessed via the |action| button in the lower right.
-
-
-.. note::
-    The spectral library table behaves quite similar to the attribute table you know from QGIS:
-        * You can edit the content by entering the editing mode |mActionToggleEditing|
-        * You can add further information by adding fields via the |mActionNewAttribute| button (e.g. different class labels).
-          Remove them with |mActionDeleteAttribute|, accordingly.
-        * Double-click into a desired field to change its content
-        * Remove spectra by selecting the desired row(s) in the table and click |mActionDeleteSelected|
-
+.. |mActionAddMapView| image:: /icons/mActionAddMapView.png
+   :width: 28px
+.. |mActionAddOgrLayer| image:: /icons/mActionAddOgrLayer.png
+   :width: 28px
+.. |mActionAddRasterLayer| image:: /icons/mActionAddRasterLayer.png
+   :width: 28px
+.. |mActionAddTS| image:: /icons/mActionAddTS.png
+   :width: 28px
+.. |mActionCapturePolygon| image:: /icons/mActionCapturePolygon.png
+   :width: 28px
+.. |mActionPan| image:: /icons/mActionPan.png
+   :width: 28px
+.. |mActionPropertiesWidget| image:: /icons/mActionPropertiesWidget.png
+   :width: 28px
+.. |mActionRefresh| image:: /icons/mActionRefresh.png
+   :width: 28px
+.. |mActionRemoveTS| image:: /icons/mActionRemoveTS.png
+   :width: 28px
+.. |mActionSaveEdits| image:: /icons/mActionSaveEdits.png
+   :width: 28px
+.. |mActionSaveTS| image:: /icons/mActionSaveTS.png
+   :width: 28px
+.. |mActionSelectRectangle| image:: /icons/mActionSelectRectangle.png
+   :width: 28px
+.. |mActionSetProjection| image:: /icons/mActionSetProjection.png
+   :width: 28px
+.. |mActionToggleEditing| image:: /icons/mActionToggleEditing.png
+   :width: 28px
+.. |mActionZoomActual| image:: /icons/mActionZoomActual.png
+   :width: 28px
+.. |mActionZoomFullExtent| image:: /icons/mActionZoomFullExtent.png
+   :width: 28px
+.. |mActionZoomIn| image:: /icons/mActionZoomIn.png
+   :width: 28px
+.. |mActionZoomOut| image:: /icons/mActionZoomOut.png
+   :width: 28px
+.. |mIconTemporalProfile| image:: /icons/mIconTemporalProfile.png
+   :width: 28px
+.. |pan_center| image:: /icons/pan_center.png
+   :width: 28px
+.. |profile| image:: /icons/profile.png
+   :width: 28px
+.. |qgsMapCenter| image:: /icons/qgsMapCenter.png
+   :width: 28px
+.. |select_location| image:: /icons/select_location.png
+   :width: 28px

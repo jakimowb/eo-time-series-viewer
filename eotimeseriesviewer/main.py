@@ -359,7 +359,7 @@ class TaskManagerStatusButton(QToolButton):
 
 
 class EOTimeSeriesViewer(QgisInterface, QObject):
-    sigCurrentDateChanged = pyqtSignal(TimeSeriesDate)
+    # sigCurrentDateChanged = pyqtSignal(TimeSeriesDate)
     sigCurrentLocationChanged = pyqtSignal([QgsCoordinateReferenceSystem, QgsPointXY],
                                            [QgsCoordinateReferenceSystem, QgsPointXY, QgsMapCanvas])
 
@@ -456,17 +456,25 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         tswidget.setTimeSeries(self.mTimeSeries)
         self.ui.dockSensors.setTimeSeries(self.mTimeSeries)
-        self.ui.dockProfiles.setTimeSeries(self.mTimeSeries)
-        self.ui.dockProfiles.setVectorLayerTools(self.mVectorLayerTools)
-        self.ui.dockProfiles.layerAttributeTableRequest.connect(self.showAttributeTables)
 
         mw.setTimeSeries(self.mTimeSeries)
         # mvd.setTimeSeries(self.mTimeSeries)
         mvd.setMapWidget(mw)
 
         self.profileDock: TemporalProfileDock = self.ui.dockProfiles
-        self.profileDock.sigMoveToDate.connect(self.setCurrentDate)
+        self.profileDock.setTimeSeries(self.mTimeSeries)
+        self.profileDock.setVectorLayerTools(self.mVectorLayerTools)
+        self.profileDock.layerAttributeTableRequest.connect(self.showAttributeTables)
+
+        def onSetCurrentDate(date, mode):
+            self.setCurrentDate(date, mode)
+            self.profileDock.setMapDateRange(*self.mapWidget().currentDateRange())
+
+        self.profileDock.sigMoveToDate.connect(onSetCurrentDate)
+
         self.profileDock.setProject(self.mapLayerStore())
+
+        mw.sigDateRangeChanged.connect(self.profileDock.setMapDateRange)
 
         # mw.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
         mw.sigVisibleDatesChanged.connect(self.timeSeries().setVisibleDates)
@@ -475,7 +483,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             lambda crs, pt, canvas=mw: self.setCurrentLocation(SpatialPoint(crs, pt),
                                                                mapCanvas=mw.currentMapCanvas()))
         mw.sigCurrentLayerChanged.connect(self.updateCurrentLayerActions)
-        mw.sigCurrentDateChanged.connect(self.sigCurrentDateChanged)
+        # mw.sigCurrentDateChanged.connect(self.sigCurrentDateChanged)
         mw.sigCurrentDateChanged.connect(tswidget.setCurrentDate)
 
         self.ui.optionSyncMapCenter.toggled.connect(self.mapWidget().setSyncWithQGISMapCanvas)
@@ -735,6 +743,13 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         jsonNode.appendChild(cdata)
         node.appendChild(jsonNode)
         root.appendChild(node)
+
+    def onCurrentDateChanged(self, date):
+        tp_dock = self.temporalProfileDock()
+        if isinstance(tp_dock, TemporalProfileDock):
+            d0, d1 = self.mapWidget().currentDateRange()
+            if isinstance(d0, QDateTime):
+                tp_dock.setMapDateRange(d0, d1)
 
     def onReadProject(self, doc: QDomDocument) -> bool:
         """
@@ -1123,7 +1138,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if date:
             self.setCurrentDate(date)
 
-    def setCurrentDate(self, tsd: TimeSeriesDate, show_if_hidden: bool = True):
+    def setCurrentDate(self, tsd: TimeSeriesDate, mode: str = 'center', show_if_hidden: bool = True):
         """
         Moves the viewport of the scroll window to a specific TimeSeriesDate
         :param show_if_hidden:
@@ -1133,7 +1148,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if isinstance(tsd, TimeSeriesDate):
             if show_if_hidden:
                 self.mTimeSeries.showTSDs([tsd], b=True)
-            self.ui.mMapWidget.setCurrentDate(tsd)
+            self.ui.mMapWidget.setCurrentDate(tsd, mode)
 
     def mapCanvases(self) -> List[MapCanvas]:
         """

@@ -27,6 +27,7 @@ from typing import Any, Iterator, List, Optional, Set, Union
 
 import numpy as np
 from osgeo import gdal
+
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QModelIndex, Qt
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QTreeView
@@ -34,7 +35,6 @@ from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDateTimeRange, \
     QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsRasterLayer, QgsRectangle, QgsTask, \
     QgsTaskManager
-
 from eotimeseriesviewer import messageLog
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import relativePath, SpatialExtent
@@ -42,6 +42,7 @@ from eotimeseriesviewer.sensors import sensorIDtoProperties, SensorInstrument, S
 from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.timeseries.tasks import TimeSeriesFindOverlapTask, TimeSeriesLoadingTask
+from eotimeseriesviewer.utils import findNearestDateIndex
 
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
 
@@ -1150,26 +1151,17 @@ class TimeSeries(QAbstractItemModel):
                     return tssCandidate
         return None
 
-    def findDate(self, date: Union[str, QDateTime, datetime.datetime, TimeSeriesDate]) -> Optional[TimeSeriesDate]:
+    def findDate(self, date: Union[str, QDateTime, datetime.datetime, TimeSeriesDate, TimeSeriesSource]) \
+            -> Optional[TimeSeriesDate]:
         """
-        Returns a TimeSeriesDate closest to that in date
+        Returns the TimeSeriesDate closest to the date input argument
         :param date: QDateTime | str | TimeSeriesDate | datetime.datetime
         :return: TimeSeriesDate
         """
-        if isinstance(date, TimeSeriesDate):
-            date = date.dtg()
-        elif isinstance(date, str):
-            date = QDateTime.fromString(date, Qt.ISODateWithMs)
-
-        if not isinstance(date, QDateTime):
-            s = ""
-        assert isinstance(date, QDateTime)
-
         if len(self) == 0:
             return None
 
-        secs2date = [date.secsTo(tsd.dtg()) for tsd in self.mTSDs]
-        i = np.argmin(np.abs(np.asarray(secs2date)))
+        i = findNearestDateIndex(date, self.mTSDs)
         return self.mTSDs[i]
 
     def flags(self, index):

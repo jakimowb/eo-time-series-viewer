@@ -25,7 +25,7 @@ import pathlib
 from qgis.core import Qgis, QgsApplication
 from qgis.PyQt.QtGui import QIcon
 
-__version__ = '2.0.0'  # sub-subversion number is added automatically
+__version__ = '2.0.1'
 
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
@@ -54,6 +54,7 @@ PATH_CHANGELOG = DIR_REPO / 'CHANGELOG.md'
 PATH_CONTRIBUTORS = DIR_REPO / 'CONTRIBUTORS.md'
 PATH_ABOUT = DIR_REPO / 'ABOUT.md'
 
+DIR_QGIS_IMAGES = DIR_REPO / ''
 DIR_QGIS_RESOURCES = DIR_REPO / 'qgisresources'
 URL_QGIS_RESOURCES = r'https://box.hu-berlin.de/f/6949ab1099044018a5e4/?dl=1'
 

@@ -160,10 +160,13 @@ class TemporalProfileFieldFormatter(QgsFieldFormatter):
     def id(self) -> str:
         return TPF_EDITOR_WIDGET_KEY
 
-    def representValue(self, layer: QgsVectorLayer, fieldIndex: int, config: dict, cache, value):
+    def representValue(self, layer: QgsVectorLayer, fieldIndex: int, config: dict, cache, value) -> str:
 
         if value not in [None, NULL]:
-            return str(value)
+            if isinstance(value, dict):
+                return json.dumps(value, ensure_ascii=False, indent=None)
+            else:
+                return str(value)
             # return f'{SPECTRAL_PROFILE_FIELD_REPRESENT_VALUE} ({layer.fields().at(fieldIndex).typeName()})'
         else:
             return 'NULL'

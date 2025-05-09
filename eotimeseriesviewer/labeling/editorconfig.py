@@ -13,7 +13,7 @@ from qgis.PyQt.QtWidgets import QComboBox, QLineEdit, QWidget
 
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme, \
-    ClassificationSchemeWidget
+    ClassificationSchemeComboBoxModel, ClassificationSchemeWidget, ClassInfo
 from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import datetime64
 from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi
 
@@ -122,6 +122,8 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
         self.cbLabelType.currentIndexChanged[int].connect(self.onLabelTypeChanged)
 
         self.mLabelGroupModel: LabelShortcutGroupModel = LabelShortcutGroupModel.instance()
+        self.mLabelGroupModel.readFromLayer(vl)
+
         self.cbLabelGroup.setModel(self.mLabelGroupModel)
         self.cbLabelGroup.setEditable(True)
         self.cbLabelGroup.currentIndexChanged.connect(self.changed.emit)
@@ -289,27 +291,42 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
     def __init__(self, vl: QgsVectorLayer, fieldIdx: int, editor: QWidget, parent: QWidget):
         super(LabelShortcutEditorWidgetWrapper, self).__init__(vl, fieldIdx, editor, parent)
 
+        self.mEditor = None
+        self.mModel = None
+
     def createWidget(self, parent: QWidget = None) -> QWidget:
         """
         Create the data input widget
         :param parent: QWidget
         :return: QLineEdit | QgsDateTimeEdit | QSpinBox
         """
-        # log('createWidget')
-        # labelType = self.configLabelType()
+        conf = self.config()
+        labelType = LabelShortcutType.fromConfig(conf)
         fieldType = self.field().type()
-        if fieldType == QVariant.Date:
-            return QgsDateEdit(parent)
-        elif fieldType == QVariant.DateTime:
-            return QgsDateTimeEdit(parent)
-        elif fieldType == QVariant.Time:
-            return QgsTimeEdit(parent)
-        elif fieldType == QVariant.Double:
-            return QgsDoubleSpinBox(parent)
-        elif fieldType == QVariant.Int:
-            return QgsSpinBox(parent)
+
+        w = None
+        if labelType == LabelShortcutType.Classification:
+            w = QComboBox(parent)
+        elif fieldType == QMetaType.QDate:
+            w = QgsDateEdit(parent)
+        elif fieldType == QMetaType.QDateTime:
+            w = QgsDateTimeEdit(parent)
+        elif fieldType == QMetaType.QTime:
+            w = QgsTimeEdit(parent)
+        elif fieldType == [QMetaType.Float, QMetaType.Double]:
+            w = QgsDoubleSpinBox(parent)
+            w.setShowClearButton(True)
+        elif fieldType in [QMetaType.Int, QMetaType.Long, QMetaType.LongLong,
+                           QMetaType.UInt, QMetaType.ULong, QMetaType.ULongLong]:
+            w = QgsSpinBox(parent)
+            w.setShowClearButton(True)
         else:
-            return QLineEdit(parent)
+            # default
+            w = QLineEdit(parent=parent)
+
+        self.mEditor = w
+        # print(f'# parent w: {w.parent().objectName()}')
+        return w
 
     def initWidget(self, editor: QWidget):
         # log(' initWidget')
@@ -320,6 +337,9 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
         #        self.mEditor.setClassificationScheme(cs)
         #        self.mEditor.currentIndexChanged.connect(self.onValueChanged)
 
+        conf = self.config()
+        labelType = LabelShortcutType.fromConfig(conf)
+        # print(f'# parent: {editor.parent().objectName()}')
         if isinstance(editor, QLineEdit):
             editor.textChanged.connect(self.onValueChanged)
         elif isinstance(editor, (QgsTimeEdit, QgsDateEdit, QgsDateTimeEdit)):
@@ -333,6 +353,11 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
             editor.valueChanged.connect(self.onValueChanged)
         elif isinstance(editor, (QgsDoubleSpinBox, QgsSpinBox)):
             editor.valueChanged.connect(self.onValueChanged)
+        elif isinstance(editor, QComboBox) and labelType == LabelShortcutType.Classification:
+            cs = ClassificationScheme.fromMap(conf['classification'])
+            self.mModel = ClassificationSchemeComboBoxModel()
+            self.mModel.setClassificationScheme(cs)
+            editor.setModel(self.mModel)
 
         else:
             s = ""
@@ -349,7 +374,7 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
         :return: bool
         """
         # return isinstance(self.mEditor, (ClassificationSchemeComboBox, QLineEdit))
-        return isinstance(self.widget(), (QLineEdit, QgsDateTimeEdit, QgsTimeEdit,
+        return isinstance(self.widget(), (QLineEdit, QgsDateTimeEdit, QgsTimeEdit, QComboBox,
                                           QgsDateEdit, QgsSpinBox, QgsDoubleSpinBox))
 
     def value(self, *args, **kwargs):
@@ -360,6 +385,8 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
         :return:
         """
         typeCode = self.field().type()
+        conf = self.config()
+        labelType = LabelShortcutType.fromConfig(conf)
 
         editor = self.widget()
         if isinstance(editor, QLineEdit):
@@ -388,6 +415,16 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
 
         elif isinstance(editor, (QgsSpinBox, QgsDoubleSpinBox)):
             return editor.value()
+
+        elif isinstance(editor, QComboBox) and labelType == LabelShortcutType.Classification:
+            if isinstance(self.mModel, ClassificationSchemeComboBoxModel):
+                c: ClassInfo = editor.currentData(Qt.UserRole)
+                if typeCode in [QMetaType.QString]:
+                    return c.name()
+                elif typeCode in [QMetaType.QColor]:
+                    return c.color()
+                else:
+                    return c.label()
         else:
             s = ""
         return self.defaultValue()
@@ -434,6 +471,12 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
                 w.setValue(value)
             elif isinstance(w, QLineEdit):
                 w.setText(str(value))
+            elif isinstance(w, QComboBox):
+                for i in range(w.count()):
+                    c: ClassInfo = w.itemData(i, role=Qt.UserRole)
+                    if value in [c.color(), c.label(), c.name()]:
+                        w.setCurrentIndex(i)
+                        break
             else:
                 s = ""
 
@@ -535,8 +578,18 @@ class LabelShortcutGroupModel(QAbstractListModel):
     def rowCount(self, parent=None, *args, **kwargs):
         return len(self.mGroups)
 
-    def addGroup(self, name: str):
+    def readFromLayer(self, layer: QgsVectorLayer):
+        """
+        Adds the quick label grous defined in the layer
+        :param layer: QgsVectorLayer
+        """
+        from .quicklabeling import quickLayerGroups
+        for g in quickLayerGroups(layer):
+            self.addGroup(g)
 
+    def addGroup(self, name: str):
+        if name is None:
+            name = ''
         if name not in self.mGroups:
             i = bisect.bisect(self.mGroups, name)
             self.beginInsertRows(QModelIndex(), i, i)

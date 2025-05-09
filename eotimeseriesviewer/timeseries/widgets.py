@@ -10,7 +10,6 @@ from qgis.PyQt.QtGui import QContextMenuEvent, QCursor, QDragEnterEvent, QDragMo
 from qgis.PyQt.QtWidgets import QAbstractItemView, QAction, QHeaderView, QMainWindow, QMenu, QToolBar, QTreeView
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsProject
 from qgis.gui import QgisInterface, QgsDockWidget
-
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi, SpatialExtent
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
@@ -69,7 +68,9 @@ class TimeSeriesTreeView(QTreeView):
 
         selectedTSDs = []
         selectedTSSs = []
-        for idx in self.selectionModel().selectedRows():
+        selectedRows = self.selectionModel().selectedRows()
+
+        for idx in selectedRows:
             node = idx.data(Qt.UserRole)
             if isinstance(node, TimeSeriesDate):
                 selectedTSDs.append(node)
@@ -80,6 +81,11 @@ class TimeSeriesTreeView(QTreeView):
 
         menu = QMenu(self)
 
+        if len(selectedRows) > 0:
+            a = menu.addAction('Clear Selection')
+            a.triggered.connect(self.clearSelection)
+            menu.addSeparator()
+
         a = menu.addAction('Copy path(s)')
         a.setEnabled(len(selectedTSSs) > 0)
         a.triggered.connect(lambda _, tss=selectedTSSs: self.setClipboardUris(tss))
@@ -89,12 +95,12 @@ class TimeSeriesTreeView(QTreeView):
         menu.addSeparator()
 
         if isinstance(node, TimeSeriesDate):
-            a = menu.addAction('Move to date {}'.format(node.dtgString()))
+            a = menu.addAction(f'Move maps to date {node.dtgString()}')
             a.setToolTip(f'Sets the current map date to {node.dtg()}.')
             a.triggered.connect(lambda *args, tsd=node: self.sigMoveToDate.emit(tsd))
 
-            a = menu.addAction('Move to extent {}'.format(node.dtg()))
-            a.setToolTip('Sets the current map extent')
+            a = menu.addAction('Move maps to extent')
+            a.setToolTip(f'Sets the current map extent to:<br>{node.spatialExtent()}')
             a.triggered.connect(lambda *args, tsd=node: self.onMoveToExtent(tsd.spatialExtent()))
 
             menu.addSeparator()

@@ -3,13 +3,13 @@ import re
 from pathlib import Path
 from typing import Dict
 
+from qgis.PyQt.QtCore import NULL, QMetaType, QVariant
 from qgis.core import edit, Qgis, QgsApplication, QgsFeature, QgsFeatureSink, QgsField, QgsFields, QgsMapLayer, \
     QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext, QgsProcessingException, QgsProcessingFeedback, \
     QgsProcessingOutputVectorLayer, QgsProcessingParameterBoolean, QgsProcessingParameterCrs, \
     QgsProcessingParameterFeatureSink, QgsProcessingParameterFieldMapping, QgsProcessingParameterFile, \
     QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessingParameterVectorLayer, \
     QgsProcessingProvider, QgsProcessingRegistry, QgsProcessingUtils, QgsVectorFileWriter, QgsVectorLayer
-from qgis.PyQt.QtCore import QMetaType
 from qgis.PyQt.QtGui import QIcon
 
 from eotimeseriesviewer import icon
@@ -106,6 +106,12 @@ class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):
         }
 
         for fdef in other_fields:
+            fdef: dict
+            # replace QVariant() with None
+            for k in fdef.keys():
+                if fdef[k] in [QVariant(), NULL]:
+                    fdef[k] = None
+
             if 'name' not in fdef:
                 raise QgsProcessingException(f'{self.OTHER_FIELDS} description misses "name": {fdef}')
             fname = fdef['name']
@@ -118,6 +124,7 @@ class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):
                 field_kw = default_field_attributes.copy()
                 field_kw.update(fdef)
                 field_kw = {LUT_KW[k]: v for k, v in field_kw.items() if k in LUT_KW}
+
                 new_field = QgsField(**field_kw)
             if 'alias' in fdef:
                 new_field.setAlias(fdef['alias'])

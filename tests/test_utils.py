@@ -16,16 +16,62 @@ import unittest
 import os
 
 from qgis.core import QgsMapLayer, QgsProject, QgsRasterLayer, QgsRectangle
-from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
-from eotimeseriesviewer.utils import layerStyleString, setLayerStyleString
-from example.Images import Img_2014_04_21_LC82270652014111LGN00_BOA
 from qgis.gui import QgsMapCanvas
+
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
+from eotimeseriesviewer.utils import index_window, layerStyleString, setLayerStyleString
+from example.Images import Img_2014_04_21_LC82270652014111LGN00_BOA
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 
 start_app()
 
 
 class TestUtils(EOTSVTestCase):
+
+    def test_index_window(self):
+        examples = [
+            # n = 3 out of 2 -> return all available indices
+            (2, 3, 'center', 1, [0, 1]),
+            (2, 3, 'start', 1, [0, 1]),
+            (2, 3, 'end', 1, [0, 1]),
+
+            # special case: empty list
+            (0, 3, 'center', 1, []),
+            (0, 3, 'start', 1, []),
+            (0, 3, 'end', 1, []),
+
+            (10, 3, 'start', 9, [7, 8, 9]),
+            (10, 3, 'start', 0, [0, 1, 2]),
+            (10, 3, 'start', 1, [1, 2, 3]),
+            (10, 3, 'start', 8, [7, 8, 9]),
+
+            (10, 3, 'end', 0, [0, 1, 2]),
+            (10, 3, 'end', 1, [0, 1, 2]),
+            (10, 3, 'end', 2, [0, 1, 2]),
+            (10, 3, 'end', 3, [1, 2, 3]),
+            (10, 3, 'end', 9, [7, 8, 9]),
+
+            # n_indices, window size, mode, target index, expected indices
+            (10, 3, 'center', 0, [0, 1, 2]),
+            (10, 3, 'center', 1, [0, 1, 2]),
+            (10, 3, 'center', 2, [1, 2, 3]),
+            (10, 3, 'center', 9, [7, 8, 9]),
+            (10, 3, 'center', 8, [7, 8, 9]),
+            (10, 3, 'center', 7, [6, 7, 8]),
+            (10, 3, 'center', 9, [7, 8, 9]),
+            # even window size? requested item is right-of-center (median)
+            (10, 2, 'center', 0, [0, 1]),
+            (10, 2, 'center', 1, [0, 1]),
+            (10, 2, 'center', 2, [1, 2]),
+            (10, 2, 'center', 3, [2, 3]),
+            (10, 2, 'center', 8, [7, 8]),
+            (10, 2, 'center', 9, [8, 9]),
+        ]
+
+        for i, conf in enumerate(examples):
+            n, w, mode, t, expected = conf
+            window = index_window(t, n, w, mode=mode)
+            self.assertEqual(expected, window, msg=f'Failed for example {i + 1}: {conf}')
 
     def test_spatialExtent(self):
         canvas = QgsMapCanvas()

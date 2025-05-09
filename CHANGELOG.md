@@ -1,6 +1,11 @@
 # Changelog
 
-## 2025-04-19 (version 2.0)
+## EOTSV 2.1 (2025-06-05)
+
+* added map region window to temporal profile plot
+* revised online documentation (GUI, temporal profiles), added several animated gif
+
+## EOTSV 2.0 (2025-04-19)
 
 * revised map visualization
 * faster image loading by using the QGIS task manager and parallel background threads
@@ -26,7 +31,7 @@
 
 * FORCE product import allows to filter data by start and end date
 
-## 2024-12-08 (version 1.20)
+## EOTSV 1.20 (2024-12-08)
 
 * added FORCE Product Import
 * restore / reload EOTSV workbench from QGIS Project, e.g.
@@ -36,7 +41,7 @@
 * background tasks can be canceled in task manager.
 * fixed fatal crash related to a missing QgsRasterDataProvider python ref
 
-## 2024-09-29 (version 1.19)
+## EOTSV 1.19 (2024-09-29)
 
 * API fixes to run with QGIS 3.34 - 3.38
 * updates Spectral Library Module
@@ -47,14 +52,14 @@
 * maps can flash selected features
 * spectral profiles now extracted with context information
 
-## 2023-04-07 (version 1.18)
+## EOTSV 1.18 (2023-04-07)
 
 _Stability Update_
 
 * removed several issues related to updates in QGIS and GDAL
 * updated QPS library, which introduces several updates to the SpectralLibrary handling
 
-## 2021-03-10 (version 1.17)
+## EOTSV 1.17 (2021-03-10)
 
 * quick raster band selection and GDAL Metadata panel now appear in QGIS layer properties dialog
 * fixed smaller issues related to plugin loading and unloading
@@ -70,7 +75,7 @@ _Stability Update_
 * set map extent from/to QGIS with F2/ALT+F2
 * modified observation slider, slider shows range of visible dates
 
-## 2021-02-02 (version 1.16)
+## EOTSV 1.16 (2021-02-02)
 
 * fixed smaller issues
 * forward / backward button to move in time now shifts by number of opened observation dates/maps
@@ -78,7 +83,7 @@ _Stability Update_
   update the map dates according to the availability of raster sources for the new map extent
 * faster updates of observation data visibility
 
-## 2020-11-23 (version 1.15)
+## EOTSV 1.15 (2020-11-23)
 
 * source files can be opened by drag and drop to the time series tree view
 * maps can be organized in multiple rows per map view (rows x columns)
@@ -89,7 +94,7 @@ _Stability Update_
 * added wildcard + regular expression filter to time series table
 * smaller bug fixes and improvements
 
-## 2020-11-06 (version 1.14)
+## EOTSV 1.14 (2020-11-06)
 
 * this version focuses on stability updates and improvements of the "quick label" system
 * map canvas menu now available with standard map tool (like zoom tool)
@@ -99,7 +104,7 @@ _Stability Update_
 * improved SpectralLibrary tool
 * fixed bugs
 
-## 2020-07-23 (version 1.13)
+## EOTSV 1.13 (2020-07-23)
 
 * time series and map settings can be stored to and reloaded from QGIS Projects
 * refactored layer styling and default raster stretching
@@ -107,19 +112,19 @@ _Stability Update_
 * quick labels can be used to write date / datetime data into vector fields of type QDate or QDateTime
 * refactored context menus, e.g. in map view layer tree view, fixed #106
 
-## 2020-04-09 (version 1.12)
+## EOTSV 1.12 (2020-04-09)
 
 * TimeSeries tree view allows to change the visibility of single source images, e.g. to hide clouded observations
 * several updates to the Spectral Library Widget, e.g. import / export of profiles from ASD, ARTMO, EcoSYS or SPECCHIO
 * EOTSV allows to open images from sources with subdatasets, e.g. from Sentinel-2 or HDF images.
 
-## 2020-01-23 (version 1.11)
+## EOTSV 1.11 (2020-01-23)
 
 * revised unit tests for CI pipelines
 * fixed smaller issues in SensorModel
 * fixed #103: EOTSV crashed on Linux, caused by an attempt to storing a unpickable QgsTextFormat to QSettings
 
-## 2019-11-25 (version 1.10)
+## EOTSV 1.10 (2019-11-25)
 
 * improved matching of source images to sensors: matching can be specified in the settings dialog. Sensor matching
   based on ground sampling distance + number of bands + data type and optionally wavelength and/or sensor name
@@ -129,20 +134,20 @@ _Stability Update_
 * failed image sources are logged in the EO Time Series Viewer log panel
 * Spectral Library Viewer better handles large collections of spectral profiles
 
-## 2019-10-02 (version 1.9)
+## EOTSV 1.9 (2019-10-02)
 
 * includes several smaller updates
 * fixed error 'shortcutVisibleInContextMenu' error that occurred with Qt < 5.10
 * enhanced wavelength extraction from GDAL metadata: wavelength can be specified per band
 
-## 2019-09-19 (version 1.8)
+## EOTSV 1.8 (2019-09-19)
 
 * updated spectral library module
 * fixed #104: error in case of wrong spatial extent
 * default CRS properly shown in map view settings
 * user-defined CRS visible
 
-## 2019-08-06 (version 1.7)
+## EOTSV 1.7 (2019-08-06)
 
 * increased contrast for default map view text
 * improved reading of wavelength information, e.g. from Pleiades, Sentinel-2 and RapidEye data
@@ -151,7 +156,7 @@ _Stability Update_
 * current extent can be copied via MapCanvas context menu
 * fixed #102: move maps to date of interest selected in a temporal profile plot
 
-## 2019-07-16 (version 1.6)
+## EOTSV 1.6 (2019-07-16)
 
 * re-design of map visualization: faster and more compact, the number of maps is fixed to n dates x m map views
 * date, sensor or map view information can be plotted within each map and become available in screenshots
@@ -159,7 +164,7 @@ _Stability Update_
 * slider + buttons to navigate over time series
 * fixed preview in crosshair dialog
 
-## 2019-07-07 (version 1.5)
+## EOTSV 1.5 (2019-07-07)
 
 * closing the EO Time Series Viewer instance will release all of its resources
 * added "Lock Map Panel" to avoid unwanted resizing of central widget
@@ -168,7 +173,7 @@ _Stability Update_
 * fixes feature selection error
 * added quick label source image to label the path of raster layer
 
-## 2019-07-02 (version 1.4)
+## EOTSV 1.4 (2019-07-02)
 
 * adding vector layers with sublayers will add all sublayers
 * map canvas context menu "Focus on Spatial Extent" will hide maps without time series data for the current spatial
@@ -182,19 +187,19 @@ _Stability Update_
 * fixed spelling error in stacked band input dialog
 * MapViews can add raster layers that have been opened in QGIS, e.g. XYZ Tile with OpenStreetMap data
 
-## 2019-06-12 (version 1.3)
+## EOTSV 1.3 (2019-06-12)
 
 * fixed #99: opening example closes QGIS on linux
 * fixed #96 and #99 : docutils not installed error when showing rst/md content
 * fixed #97: TSV does not start (Linux)
 
-## 2019-05-31 (version 1.2)
+## EOTSV 1.2 (2019-05-31)
 
 * added SaveAllMapsDialog and menu option to export all maps as image files.
 * fixed #91: select Temporal Profile / Spectral Profile button activates the required map tools.
 * fixed #92: map canvas context menu "copy to clipboard" options.
 
-## 2019-05-24 (version 1.1)
+## EOTSV 1.1 (2019-05-24)
 
 * dates and data sources of the TimeSeries are now shown in a TreeView instead TableView
 * observation dates of current visible map canvases are highlighted in the time series tree view
@@ -202,7 +207,7 @@ _Stability Update_
 * fixed: StackedInputDialog, MapCanvas context menu, "Save Changes?" labeling dialog (#85), remove temporal profile (
   #86), draw new feature error (#84), Crosshair button status (#90), and some more
 
-## 2019-05-15 (version 1.0, major update)
+## EOTSV 1.0 (2019-05-15)
 
 * labeling tools to modify vector layers.
 * quick labeling for time-labels information
@@ -211,39 +216,27 @@ _Stability Update_
 * simplified MapView control dock, each MapView has it's own layer tree.
 * improved MapTool organization
 * removed PyQtGraph from list of required external python packages
-
-## 2019-03-29
-
 * renamed plugin folder from "timeseriesviewerplugin" to "EOTimeSeriesViewer".
 * improved SpectraLibrary tool
 * CI tests with bitbucket pipelines
 * several bug fixes
 
-## 2019-03-01 (version 0.8)
+## EOTSV 0.8 (2019-03-01)
 
 * added labeling panel
 * scheduled map canvas refreshes
 * multiple images per observationdata & sensor
 * fixed several bugs
-
-## 2018-11-13
-
 * fixed bugs which where caused by CRS changes
 * fixed macOS QGIS (3.4.1.) crashes caused by QgsMapCanvas constructor
-
-## 2018-11-09
-
 * uses QgsTaskManager for background loading
 * own QgsMapLayerStore to not mix-up with (main) QGIS layers
 * fixed bugs related to changes in QGIS API
 
-## 2018-06-20 (version 0.7)
+## EOTSV 0.7 (2018-06-20)
 
 * Visualization of images with stacked temporal information (each band = one observation date)
 * some bugfixes
-
-## 2018-06-12
-
 * Speclib I/O as CSV or ENVI-Spectral Library + CSV table for attributes
 * temporary VRTs now created in-memory (gdal VSI mechanism) instead in a disk temp path
 * Spectral Library: profile coordinate now in center of map pixel (issue #66)
@@ -251,7 +244,7 @@ _Stability Update_
 * Width of plot lines now scale-independent (issue #64, QPen.setCosmetic(True))
 * adding fields to spectral library (issue #61)
 
-## 2018-06-04 (version 0.6)
+## EOTSV 0.6 (2018-06-04)
 
 SpectralLibrary Module
 
@@ -266,40 +259,34 @@ Temporal Profile Module
 * Band values of temporal profiles can be exported as CSV file
 * Locations of temporal profiles can be rendered on MapCanvases
 
-## 2018-04-17 (version 0.5)
+## EOTSV 0.5 (2018-04-17)
 
 * ported to QGIS 3, Qt5 and Python 3.6
 * improvements in temporal profile visualization
 * removed several bug
 * visibility of vector and raster layers can be toggled per map view
 * improved interaction between QGIS and EOTSV (Buttons to import/export spatial extent of map canvas or center)
-
-## 2018-03-29
-
 * improved definition of individual 2D / 3D charts per sensor & pixel-location
 * added based OpenGL based 3D plot features (axis, grids, labels)
 * changed name to "EO Time Series Viewer" (EOTSV)
-
-## 2018-02-11
-
 * merged updates to temporal profile visualization, e.g.
   save temporal profiles, compare 2D profiles between different location, experimental 3D visualization
 
-## 2018-01-31
+## EOTSV 0.3 (2018-01-31)
 
 * added file filters for OpenFileDialog
 
-## 2018-01-19
+## EOTSV 0.2 (2018-01-19)
 
 * initialized Sphinx-based documentation
 * improved map visualization + map settings
 
-## 2017-05-21
+## EOTSV 0.2 (2017-05-21)
 
 * many changes, done in development branch "develop",
 * e.g: QGIS MapCanvases for interactive maps, temporal profiles, ...
 
-## 2017-02-14
+## EOTSV 0.1 (2017-02-14)
 
 * first setup for test users in the recent development branch
 
