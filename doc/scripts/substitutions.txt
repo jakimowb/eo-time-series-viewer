@@ -10,6 +10,8 @@
 .. |questionmark| image:: /img/questionmark.png
 
 .. |reg| unicode:: U+000AE .. REGISTERED SIGN
+
+.. |eotsv| replace:: EO Time Series Viewer
 .. |EnMAP-Box| replace:: `EnMAP-Box <https://enmap-box.readthedocs.io>`_
 .. |PyCharm| replace:: `PyCharm <https://www.jetbrains.com/pycharm/>`_
 .. |PyQtGraph| replace:: `PyQtGraph <https://pyqtgraph.readthedocs.io/en/latest/>`_

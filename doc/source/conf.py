@@ -74,7 +74,7 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.ifconfig',
               'sphinx.ext.viewcode',
               'sphinx_tabs.tabs',
-              'sphinx.ext.autosectionlabel',
+              # 'sphinx.ext.autosectionlabel',
               'myst_parser',
               ]
 

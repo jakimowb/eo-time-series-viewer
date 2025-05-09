@@ -7,12 +7,12 @@ from pathlib import Path
 import numpy as np
 from PyQt5.QtCore import QDateTime, QMetaType, Qt
 from PyQt5.QtWidgets import QDockWidget, QListWidget
-from qgis.PyQt.QtCore import QSize
-from qgis.PyQt.QtWidgets import QApplication, QWidget
 from qgis._core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsField, QgsFields, \
     QgsMultiBandColorRenderer, QgsRasterLayer, QgsRectangle, QgsVectorLayer
-from qgis.core import edit
 
+from qgis.PyQt.QtCore import QSize
+from qgis.PyQt.QtWidgets import QApplication, QWidget
+from qgis.core import edit
 from eotimeseriesviewer import DIR_REPO, initAll
 from eotimeseriesviewer.forceinputs import FindFORCEProductsTask
 from eotimeseriesviewer.labeling.editorconfig import LabelShortcutType
@@ -249,7 +249,7 @@ class CreateScreenshots(EOTSVTestCase):
     def test_others(self):
 
         # makePNG(TS.ui, 'mainGUI')
-
+        TSV = EOTimeSeriesViewer()
         TSV.ui.resize(QSize(1000, 600))
 
         QApplication.processEvents()
