@@ -3,7 +3,8 @@
 ## EOTSV 2.1 (2025-06-05)
 
 * added map region window to temporal profile plot
-* revised online documentation (GUI, temporal profiles), added several animated gif
+* revised quick labeling tools
+* revised documentation, added more animated gifs
 
 ## EOTSV 2.0 (2025-04-19)
 
