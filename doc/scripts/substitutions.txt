@@ -1,6 +1,14 @@
 # manually defined substitutions
 # run update_substitutions to append / update in each *.rst file
 # the substitution definitions for used icons or the substitutes defined below
+# can contain substitutes:
+#    1. substitute:
+#        definition: ..|MySubstitute| replace:: substitute text
+#        use:  lore |MySubstitute| ipsum
+#
+#    2. links
+#        definition: .. _MyLink: https://foobar.com
+#        use: lore MyLink_ ipsum
 
 .. |cbc| image:: /img/checkbox_checked.png
 .. |cbu| image:: /img/checkbox_unchecked.png
@@ -12,25 +20,26 @@
 .. |reg| unicode:: U+000AE .. REGISTERED SIGN
 
 .. |eotsv| replace:: EO Time Series Viewer
-.. |EnMAP-Box| replace:: `EnMAP-Box <https://enmap-box.readthedocs.io>`_
-.. |PyCharm| replace:: `PyCharm <https://www.jetbrains.com/pycharm/>`_
-.. |PyQtGraph| replace:: `PyQtGraph <https://pyqtgraph.readthedocs.io/en/latest/>`_
-.. |PyDev| replace:: `PyDev <https://www.pydev.org>`_
-.. |OSGeo4W| replace:: `OSGeo4W <https://www.osgeo.org/projects/osgeo4w>`_
-.. |Bitbucket| replace:: `Bitbucket <https://bitbucket.org>`_
-.. |Git| replace:: `Git <https://git-scm.com/>`_
-.. |GitHub| replace:: `GitHub <https://github.com/>`_
-.. |GDAL| replace:: `GDAL <https://www.gdal.org>`_
-.. |QtWidgets| replace:: `QtWidgets <https://doc.qt.io/qt-5/qtwidgets-index.html>`_
-.. |QtCore| replace:: `QtCore <https://doc.qt.io/qt-5/qtcore-index.html>`_
-.. |QtGui| replace:: `QtGui <https://doc.qt.io/qt-5/qtgui-index.html>`_
-.. |QGIS| replace:: `QGIS <https://www.qgis.org>`_
-.. |qgis.gui| replace:: `qgis.gui <https://api.qgis.org/api/group__gui.html>`_
-.. |qgis.core| replace:: `qgis.core <https://api.qgis.org/api/group__core.html>`_
-.. |Miniconda| replace:: `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_
-.. |miniconda| replace:: `miniconda <https://docs.conda.io/en/latest/miniconda.html>`_
-.. |Numba| replace:: `Numba <https://numba.pydata.org/>`_
-.. |Conda| replace:: `Conda <https://docs.anaconda.com/miniconda/>`_
-.. |conda| replace:: `conda <https://docs.anaconda.com/miniconda/>`_
-.. |conda-forge| replace:: `conda-forge <https://conda-forge.org/>`_
-.. |pip| replace:: `pip <https://pip.pypa.io/en/stable>`_
+
+.. _EnMAP-Box: https://enmap-box.readthedocs.io>
+.. _PyCharm: https://www.jetbrains.com/pycharm
+.. _PyQtGraph: https://pyqtgraph.readthedocs.io/en/latest/
+.. _PyDev: https://www.pydev.org
+.. _OSGeo4W: https://www.osgeo.org/projects/osgeo4w
+.. _Bitbucket: https://bitbucket.org
+.. _Git: https://git-scm.com/
+.. _GitHub: https://github.com/
+.. _GDAL: https://www.gdal.org
+.. _QtWidgets: https://doc.qt.io/qt-5/qtwidgets-index.html
+.. _QtCore: https://doc.qt.io/qt-5/qtcore-index.html
+.. _QtGui: https://doc.qt.io/qt-5/qtgui-index.html
+.. _QGIS: https://www.qgis.org
+.. _qgis.gui: https://api.qgis.org/api/group__gui.html
+.. _qgis.core: https://api.qgis.org/api/group__core.html
+.. _Miniconda: https://docs.conda.io/en/latest/miniconda.html
+.. _miniconda: https://docs.conda.io/en/latest/miniconda.html
+.. _Numba: https://numba.pydata.org/
+.. _Conda: https://docs.anaconda.com/miniconda/
+.. _conda: https://docs.anaconda.com/miniconda/
+.. _conda-forge: https://conda-forge.org/
+.. _pip: https://pip.pypa.io/en/stable
