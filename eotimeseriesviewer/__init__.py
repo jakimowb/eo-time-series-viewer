@@ -25,7 +25,7 @@ import pathlib
 from qgis.core import Qgis, QgsApplication
 from qgis.PyQt.QtGui import QIcon
 
-__version__ = '2.0.1'
+__version__ = '2.1.0'
 
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
