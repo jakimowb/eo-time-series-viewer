@@ -11,8 +11,7 @@ Loading
 =======
 
 Temporal profiles can be loaded (a) interactively with the *cursor location info* tool, or
-(b) for point locations that are defined in a vector layer, using the
-*read temporal profiles* processing algorithms.
+(b) for point locations that are defined in a vector layer, using the *read temporal profiles* processing algorithms.
 
 a) To load a single temporal profile *on-the-fly*, activate the *identify cursor location value* tool
 |select_location| with option *collect temporal profiles* |mIconTemporalProfile|. Then click with the mouse
@@ -24,7 +23,7 @@ and visualized in the temporal profile view.
     Collecting temporal profiles.
 
 
-b) The :ref:`*read temporal profiles* <qpa-readtemporalprofiles>` processing algorithm loads temporal profiles
+b) The :ref:`read temporal profiles <qpa-readtemporalprofiles>` processing algorithm loads temporal profiles
 for multiple point locations. It can be started from menu bar *Tools* -> *Read Temporal Profiles* or the QGIS processing toolbox:
 
 .. figure:: /img/gui_qpa_read_tp.png
@@ -144,7 +143,7 @@ Temporal profiles are visualized in the *Temporal Profile View* widget. If not a
         </filter>
       </defs>
 
-        <image href="_static/img/temporal_profile_panel.png" x="0" y="0"
+        <image href="../_static/img/temporal_profile_panel.png" x="0" y="0"
             width="824" height="355" />
 
           <g class="svg-hover-group">
