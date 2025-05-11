@@ -385,7 +385,7 @@ def find_by_ext(folder, extension) -> List[Path]:
     return found_files
 
 
-if __name__ == '__main__':
+def update_all():
     collection = SubstituteCollection(DIR_SOURCE)
 
     path_manual = Path(__file__).parent / 'substitutions.txt'
@@ -399,3 +399,7 @@ if __name__ == '__main__':
         collection.updateRST(file)
 
     # collection.print()
+
+
+if __name__ == '__main__':
+    update_all()
