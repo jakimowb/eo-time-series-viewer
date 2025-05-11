@@ -26,7 +26,7 @@ to its linked descriptions.
         </filter>
       </defs>
 
-        <image href="/_static/img/gui_overview.png" x="0" y="0"
+        <image href="../_static/img/gui_overview.png" x="0" y="0"
             width="1085" height="682" />
 
           <g class="svg-hover-group">
