@@ -5,6 +5,7 @@
 * added map region window to temporal profile plot
 * revised quick labeling tools
 * revised documentation, added more animated gifs
+* temporal profile plot: fixed band matching, added quick label shortcuts
 
 ## EOTSV 2.0 (2025-04-19)
 
