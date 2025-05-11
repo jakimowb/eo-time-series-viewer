@@ -137,8 +137,9 @@ The *Time Series Panel* lists the individual *time series dates* and their *time
 * **nb**: number of bands
 * **image**: path to the raster file
 
-You can add new rasters to the time series by clicking |mActionAddRasterLayer| :superscript:`Add image to time series`.
-Remove them by selecting the desired rows in the table (click on the row number) and pressing the |mActionRemoveTSD| :superscript:`Remove image from time series` button.
+You can add new rasters to the time series by clicking |mActionAddRasterLayer|.
+Remove them by selecting the desired rows in the table (click on the row number) and pressing the |mActionRemoveTSD|
+button.
 
 .. tip::
 
