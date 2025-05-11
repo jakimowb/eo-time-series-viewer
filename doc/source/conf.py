@@ -97,7 +97,7 @@ def setup(app):
 
 
 source_suffix = ['.rst', '.md']
-
+todo_include_todos = True
 master_doc = 'index'
 
 # General information about the project.

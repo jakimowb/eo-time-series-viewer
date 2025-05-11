@@ -139,6 +139,34 @@ class CreateScreenshots(EOTSVTestCase):
         stretchToExtent(mv)
 
         self.showGui(eotsv.ui)
+        eotsv.close()
+
+    def test_quick_labeling_tp(self):
+
+        DOI = QDateTime.fromString('2014-06-24', Qt.ISODate)
+        eotsv = EOTimeSeriesViewer()
+        eotsv.loadExampleTimeSeries(loadAsync=False)
+
+        eotsv.setMapsPerMapView(4, 1)
+        eotsv.setCurrentDate(DOI)
+        sidLS, sidRE = self.prepareExampleDataSensors(eotsv)
+
+        QgsApplication.processEvents()
+        self.taskManagerProcessEvents()
+
+        mv = eotsv.mapViews()[0]
+        mv.setName('NIR-SWIR-R')
+        mv.layers()
+
+        QgsApplication.processEvents()
+        self.taskManagerProcessEvents()
+
+        setBandCombination(mv, sidRE, 5, 4, 3)
+        setBandCombination(mv, sidLS, 4, 5, 3)
+        stretchToExtent(mv)
+
+        self.showGui(eotsv.ui)
+        eotsv.close()
 
     def test_quick_labeling_label_groups(self):
         DOI = QDateTime.fromString('2014-06-24', Qt.ISODate)
