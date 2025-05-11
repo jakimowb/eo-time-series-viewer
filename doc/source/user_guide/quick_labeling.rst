@@ -159,10 +159,12 @@ open the attribute table of the *example_points* layer.
 
 .. figure:: /img/quicklabel_example_open_attributetable.png
 
-Now use the the map visualization and the toolbar identify the landcover for selected points.
-Using the context menu of a map, the derived quick label information can be written directly in
-The attributes of the selected points. They do not have to be entered individually
-into the attribute table. Using the |mActionArrowDown| and |mActionArrowUp| buttons
+From now on, the map context menu offers quick label shortcuts. If triggered, they write
+the derived date or time data, or the selected class information into the attributes of selected
+vector features. This ca save you a lot of time, as these attributes no longer have to be entered individually,
+and are also written for multiple selected features at once.
+
+Using the |mActionArrowDown| and |mActionArrowUp| buttons
 selects the next (or previous) vector feature and pans the maps too.
 
 .. figure:: /img/quicklabel_example_select_and_write.gif
@@ -170,6 +172,10 @@ selects the next (or previous) vector feature and pans the maps too.
     Quick labels are set from the map context menu. Attributes are derived from the
     map observation date or map layers and written into the attributes of selected
     vector features.
+
+.. todo::
+
+    Add example with quick label context menu for temporal profile plot.
 
 Label Groups
 ============

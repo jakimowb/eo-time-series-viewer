@@ -3,11 +3,11 @@ from typing import Dict, Iterable, List, Optional, Tuple
 from datetime import datetime
 
 import numpy as np
+
 from qgis.PyQt.QtWidgets import QDateTimeEdit, QFrame, QGridLayout, QMenu, QRadioButton, QWidget, QWidgetAction
 from qgis.core import QgsVectorLayer
 from qgis.PyQt.QtGui import QAction, QColor
 from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QPointF, Qt
-
 from eotimeseriesviewer.labeling.quicklabeling import addQuickLabelMenu
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.graphicsItems.ViewBox.ViewBoxMenu import ViewBoxMenu
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
@@ -18,6 +18,44 @@ from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.GraphicsScene.
     MouseClickEvent
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
 from eotimeseriesviewer.temporalprofile.plotitems import MapDateRangeItem, TemporalProfilePlotDataItem
+
+
+class DateTimePlotDataItem(pg.PlotDataItem):
+
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+        self.mFeatureID = None
+        self.mLayerId = None
+        self.mTemporalProfile: Optional[dict] = None
+        self.mObservationIndices: Optional[np.ndarray] = None
+        self.mSelectedPoints: List[SpotItem] = []
+
+    def hasSelectedPoints(self) -> bool:
+        return len(self.mSelectedPoints) > 0
+
+    def addSelectedPoints(self, indices: Iterable[SpotItem]):
+        for p in indices:
+            if p not in self.mSelectedPoints:
+                self.mSelectedPoints.append(p)
+
+    def setSelectedPoints(self, indices: Iterable[SpotItem]):
+        self.mSelectedPoints.clear()
+        self.addSelectedPoints(indices)
+
+    def removeSelectedPoints(self, indices: Iterable[SpotItem]) -> List[SpotItem]:
+        removed = []
+        for p in indices:
+            if p in self.mSelectedPoints:
+                self.mSelectedPoints.remove(p)
+                removed.append(p)
+        return removed
+
+    def selectedPoints(self) -> List[SpotItem]:
+        return sorted(self.mSelectedPoints, key=lambda s: s.index())
+
+    def setTemporalProfile(self, d: dict, obs_indices: np.ndarray):
+        self.mTemporalProfile = d
+        self.mObservationIndices = obs_indices
 
 
 class DateTimePlotItem(pg.PlotItem):
@@ -285,6 +323,11 @@ class DateTimePlotWidget(pg.PlotWidget):
         # print(self.mHoveredPositions)
         return True
 
+    def hoveredPointItems(self) -> Iterable[Tuple[DateTimePlotDataItem, SpotItem]]:
+        for values in self.mHoveredPositions.values():
+            for (pdi, spotItem) in values:
+                yield pdi, spotItem
+
     def selectedPointItems(self):
 
         for item in self.plotItem.items:
@@ -297,7 +340,7 @@ class DateTimePlotWidget(pg.PlotWidget):
         parent = item.parentItem()
         if isinstance(parent, DateTimePlotDataItem):
             parent: DateTimePlotDataItem
-            print(parent)
+            # print(parent)
             if bool(event.modifiers() & Qt.ControlModifier):
                 parent.addSelectedPoints(array)
             else:
@@ -324,21 +367,33 @@ class DateTimePlotWidget(pg.PlotWidget):
     def onPopulateContextMenu(self, menu: QMenu):
 
         layers = []
-        src = None
-        for item in self.selectedPointItems():
-            item: DateTimePlotDataItem
-            if src is None:
-                for spotItem in item.selectedPoints():
-                    spotItem: SpotItem
-                    i = item.mObservationIndices[spotItem.index()]
-                    dtg = item.mTemporalProfile[TemporalProfileUtils.Date][i]
-                    src = ImageDateUtils.datetime(dtg)
-                    # get TSD / TSS
+        dtg = None
+        for (item, spotItem) in self.hoveredPointItems():
+            if dtg is None:
+                i = item.mObservationIndices[spotItem.index()]
+                dtg = item.mTemporalProfile[TemporalProfileUtils.Date][i]
+                dtg = ImageDateUtils.datetime(dtg)
+
             lyr = item.mLayer()
             if isinstance(lyr, QgsVectorLayer) and lyr not in layers:
                 layers.append(lyr)
+            s = ""
 
-        addQuickLabelMenu(menu, layers, src)
+        if False:
+            for item in self.selectedPointItems():
+                item: DateTimePlotDataItem
+                if src is None:
+                    for spotItem in item.selectedPoints():
+                        spotItem: SpotItem
+                        i = item.mObservationIndices[spotItem.index()]
+                        dtg = item.mTemporalProfile[TemporalProfileUtils.Date][i]
+                        src = ImageDateUtils.datetime(dtg)
+                        # get TSD / TSS
+                lyr = item.mLayer()
+                if isinstance(lyr, QgsVectorLayer) and lyr not in layers:
+                    layers.append(lyr)
+
+        addQuickLabelMenu(menu, layers, dtg)
 
     def onCurveClicked(self, item, event):
 
@@ -496,41 +551,3 @@ class DateTimeAxis(pg.DateAxisItem):
             p.translate(-rect.center())  # revert coordinate system
             p.drawText(rect, flags, text)
             p.restore()  # restore the painter state
-
-
-class DateTimePlotDataItem(pg.PlotDataItem):
-
-    def __init__(self, *args, **kwds):
-        super().__init__(*args, **kwds)
-        self.mFeatureID = None
-        self.mLayerId = None
-        self.mTemporalProfile: Optional[dict] = None
-        self.mObservationIndices: Optional[np.ndarray] = None
-        self.mSelectedPoints: List[SpotItem] = []
-
-    def hasSelectedPoints(self) -> bool:
-        return len(self.mSelectedPoints) > 0
-
-    def addSelectedPoints(self, indices: Iterable[SpotItem]):
-        for p in indices:
-            if p not in self.mSelectedPoints:
-                self.mSelectedPoints.append(p)
-
-    def setSelectedPoints(self, indices: Iterable[SpotItem]):
-        self.mSelectedPoints.clear()
-        self.addSelectedPoints(indices)
-
-    def removeSelectedPoints(self, indices: Iterable[SpotItem]) -> List[SpotItem]:
-        removed = []
-        for p in indices:
-            if p in self.mSelectedPoints:
-                self.mSelectedPoints.remove(p)
-                removed.append(p)
-        return removed
-
-    def selectedPoints(self) -> List[SpotItem]:
-        return sorted(self.mSelectedPoints, key=lambda s: s.index())
-
-    def setTemporalProfile(self, d: dict, obs_indices: np.ndarray):
-        self.mTemporalProfile = d
-        self.mObservationIndices = obs_indices
