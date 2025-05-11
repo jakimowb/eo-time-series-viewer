@@ -12,6 +12,7 @@ a *Map View*. Using multiple map views allows visualizing different band combina
 
     Visualization of raster time series in different band combinations.
 
+.. _mapvis_properties:
 
 Map Properties
 ==============
@@ -41,6 +42,9 @@ as width.
 .. * :guilabel:`Set Extent` zoom the QGIS Map View to the same extent as the EO TSV Map View
 .. * :guilabel:`Get Extent` zoom the EO TSV Map View to the same extent as the QGIS Map View
 .. * ``Load center profile``, when checked |cbc|, the temporal profile of the center pixel will automatically be displayed and updated in the :ref:`Profile View` tab.
+
+
+.. _mapvis_canvas:
 
 Map Canvas
 ==========
@@ -103,8 +107,11 @@ For every Map View you can alter the following settings:
 * You may rename the Map View by altering the text in the `Name` field.
 
 
-Layer representation
-====================
+.. _mapvis_layerstyling:
+
+
+Layer Styling
+=============
 
 
 Similar to QGIS, you can change the layer representation in the layer properties dialog. It
@@ -117,6 +124,9 @@ can be opened from the layer tree or the map canvas context menu.
   .. figure:: /img/layerproperties_dialog.png
 
     The layer properties dialog.
+
+
+.. _mapvis_source_visibility:
 
 
 Source Visibility

@@ -68,6 +68,7 @@ as published by the Free Software Foundation. See also :ref:`license`.
     Installation <user_guide/installation.rst>
     Quick Start <user_guide/quick_start.rst>
     GUI <user_guide/gui.rst>
+    Time Series Model <user_guide/timeseries.rst>
     Map Visualization <user_guide/map_visualization.rst>
     Temporal Profiles <user_guide/temporal_profiles.rst>
     Spectral Profiles <user_guide/spectral_profiles.rst>
