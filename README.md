@@ -15,6 +15,6 @@ cd eo-time-series-viewer
 git submodule update --init --recursive
 ````
 
-## Licence and Use ##
+## License and Use ##
 
-The EO Time Series Viewer is licenced under the [GPL-3 Licence](GPL-3.0.txt).
+The EO Time Series Viewer is licenced under the [GNU GPL-3 Licence](https://www.gnu.org/licenses/gpl-3.0.de.html).
