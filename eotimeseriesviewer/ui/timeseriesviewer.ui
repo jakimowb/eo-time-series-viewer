@@ -291,8 +291,8 @@
   </action>
   <action name="actionAddTSD">
    <property name="icon">
-    <iconset>
-     <normaloff>:/eotimeseriesviewer/icons/mActionAddRasterLayer.svg</normaloff>:/eotimeseriesviewer/icons/mActionAddRasterLayer.svg</iconset>
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionAddRasterLayer.svg</normaloff>:/images/themes/default/mActionAddRasterLayer.svg</iconset>
    </property>
    <property name="text">
     <string>Add Images</string>

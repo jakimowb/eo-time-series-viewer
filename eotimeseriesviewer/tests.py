@@ -20,16 +20,18 @@
 """
 import os
 import pathlib
+import random
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Match, Pattern, Union
 
 import numpy as np
 from osgeo import gdal, osr
+
 from qgis.core import edit, QgsApplication, QgsError, QgsFeature, QgsFields, QgsGeometry, QgsMapToPixel, QgsPointXY, \
     QgsRasterLayer, QgsVectorLayer
+from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtWidgets import QWidget
-
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
@@ -38,7 +40,7 @@ from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, rasterLa
 from eotimeseriesviewer.timeseries.source import TimeSeriesSource
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from eotimeseriesviewer.sensors import SensorInstrument
-from eotimeseriesviewer.dateparser import DateTimePrecision
+from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 
 start_app = start_app
 
@@ -266,16 +268,27 @@ class TestObjects(TObj):
         return datasets
 
     @staticmethod
-    def createMultiSourceTimeSeries() -> list:
+    def createMultiSourceTimeSeries(n_max: int = -1) -> list:
 
         # real files
         files = TestObjects.exampleImagePaths()
+
+        if n_max > 0:
+            n_max = min(n_max, len(files))
+        else:
+            n_max = len(files)
+
         movedFiles = []
         uid = uuid.uuid4()
-        for pathSrc in files[0:10]:
+
+        for i, pathSrc in enumerate(files[0: n_max]):
             bn = os.path.basename(pathSrc)
-            pathDst = f'/vsimem/{uid}_shifted_{bn}.bsq'
+
             dsSrc = gdal.Open(pathSrc)
+            dtg = ImageDateUtils.datetime(pathSrc)
+            dtg2 = dtg.addSecs(random.randint(60, 300)
+                               )
+            pathDst = f'/vsimem/{uid}_shifted_{i}.bsq'
             tops = gdal.TranslateOptions(format='ENVI')
             gdal.Translate(pathDst, dsSrc, options=tops)
             dsDst = gdal.Open(pathDst, gdal.GA_Update)
@@ -286,6 +299,8 @@ class TestObjects(TObj):
             gt[3] = gt[3] + abs(0.5 * nl * gt[5])
             dsDst.SetGeoTransform(gt)
             dsDst.SetMetadata(dsSrc.GetMetadata(''), '')
+
+            dsDst.SetMetadataItem('ACQUISITIONDATETIME', dtg2.toString(Qt.ISODate), 'IMAGERY')
             dsDst.FlushCache()
             del dsDst
             dsDst = None

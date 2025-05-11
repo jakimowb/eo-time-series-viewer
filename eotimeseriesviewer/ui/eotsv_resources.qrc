@@ -12,7 +12,6 @@
     <file>icons/qgsMapCenter.svg</file>
     <file>icons/mIconTemporalProfileRefresh.svg</file>
     <file>icons/profile2speclib_auto.svg</file>
-    <file>icons/mActionAddOgrLayer.svg</file>
     <file>icons/mapCenterExport.svg</file>
     <file>icons/mapCenterImport.svg</file>
     <file>icons/mapExtentExport.svg</file>
@@ -21,18 +20,11 @@
     <file>icons/mIconTemporalProfile3D.svg</file>
     <file>icons/mIconTemporalProfile.svg</file>
     <file>icons/ActionIdentifyTimeSeries.svg</file>
-    <file>icons/speclib_add.svg</file>
-    <file>icons/speclib_save.svg</file>
-    <file>icons/speclib.svg</file>
     <file>icons/spectralprofile.svg</file>
-    <file>icons/CRS.svg</file>
     <file>icons/IconTimeSeries.svg</file>
-    <file>icons/copyright_label.svg</file>
-    <file>icons/crosshair.svg</file>
     <file>icons/icon.svg</file>
     <file>icons/logo_hub.svg</file>
     <file>icons/mActionAddMapView.svg</file>
-    <file>icons/mActionAddRasterLayer.svg</file>
     <file>icons/mActionAddTS.svg</file>
     <file>icons/mActionAddVirtualRaster.svg</file>
     <file>icons/mActionRemoveMapView.svg</file>
@@ -41,9 +33,6 @@
     <file>icons/mActionRemoveVirtualRaster.svg</file>
     <file>icons/mActionSaveTS.svg</file>
     <file>icons/mActionZoomPoint.svg</file>
-    <file>icons/mActionZoomToArea.svg</file>
-    <file>icons/mIconFieldTime.svg</file>
-    <file>icons/mIconRaster.svg</file>
     <file>icons/mIconRasterClassification.svg</file>
     <file>icons/mIconRasterImage.svg</file>
     <file>icons/mIconRasterMask.svg</file>
@@ -52,8 +41,5 @@
     <file>icons/mapviewHidden.svg</file>
     <file>icons/pickrasterspectrum.svg</file>
     <file>icons/profile2speclib.svg</file>
-    <file>icons/settings.svg</file>
-    <file>icons/stylepreset.svg</file>
-    <file>icons/symbology.svg</file>
   </qresource>
 </RCC>
