@@ -5,7 +5,7 @@ Installation
 ============
 
 
-.. important:: The EO TSV plugin requires `QGIS Version 3.10 or higher <https://www.qgis.org/en/site/forusers/download.html>`_
+.. important:: The EO Time Series Viewer plugin requires `QGIS Version 3.38 or higher <https://www.qgis.org/download/>`_
 
 
 
