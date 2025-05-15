@@ -27,7 +27,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        conda_env: [ eotsv ]
+        conda_env: [ "eotsv", "eotsv_minimum" ]
 
     steps:
       - name: Checkout

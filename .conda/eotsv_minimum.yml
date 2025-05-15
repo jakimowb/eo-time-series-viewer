@@ -1,0 +1,32 @@
+# install: conda env create --file=eotsv.yml
+# update: conda env update --file=eotsv.yml
+# see also https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-from-an-environment-yml-file
+name: eotsv_minimum
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - qgis=3.38
+  - gdal=3.8
+  - gitpython
+  - markdown
+  - sphinx_rtd_theme > 1
+  - sphinx-copybutton
+  - sphinx-autobuild
+  - sphinx-tabs
+  - pytest
+  - matplotlib
+  - pytest-cov
+  - pytest-xdist
+  - flake8
+  - doc8
+  - openpyxl
+  - pip # pip as dependency
+
+  - pip: # pip requirements
+      - flake8-qgis
+      - pytest-env
+      - pytest-xdist
+
+variables:
+  QT_MAC_WANTS_LAYER: 1
