@@ -7,7 +7,7 @@ channels:
 dependencies:
   - python=3.10
   - qgis=3.38
-  - gdal=3.8
+  - gdal=3.9
   - gitpython
   - markdown
   - sphinx_rtd_theme > 1
