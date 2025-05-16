@@ -185,7 +185,7 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
 
 
 class TimeSeriesLoadingSubTask(QgsTask):
-    imagesLoaded = pyqtSignal(list)
+    imagesLoaded = pyqtSignal(object)
 
     def __init__(self,
                  sources: List[str], *args,
@@ -239,7 +239,7 @@ class TimeSeriesLoadingSubTask(QgsTask):
 
 
 class TimeSeriesLoadingTask(EOTSVTask):
-    imagesLoaded = pyqtSignal(list)
+    imagesLoaded = pyqtSignal(object)
 
     executed = pyqtSignal(bool, EOTSVTask)
 
