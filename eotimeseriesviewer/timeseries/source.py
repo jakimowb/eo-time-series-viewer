@@ -5,14 +5,20 @@ from typing import Iterator, List, Optional, Tuple, Union
 from osgeo import gdal
 
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
-from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
+from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent, px2geo
 from eotimeseriesviewer.sensors import create_sensor_id, SensorInstrument
+from qgis.PyQt.QtCore import QMetaType, QPoint
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractTableModel, QDate, QDateTime, QMimeData, QModelIndex, Qt
 from qgis.core import QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, \
     QgsMimeDataUtils, QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRectangle
+from qgis.core import QgsFeature, QgsFields, QgsField, QgsCoordinateTransform, QgsProject, Qgis
 
 
-class TimeSeriesSource(object):
+class TimeSeriesException(Exception):
+    pass
+
+
+class TimeSeriesSource(QgsFeature):
     """Provides information on source images"""
 
     MIMEDATA_FORMATS = ['text/uri-list']
@@ -46,16 +52,100 @@ class TimeSeriesSource(object):
         """
 
         d = json.loads(jsonData)
-        layer = QgsRasterLayer(d[TimeSeriesSource.MKeySource],
-                               name=d.get(TimeSeriesSource.MKeyName),
-                               providerType=d.get(TimeSeriesSource.MKeyProvider))
-        dtg = QDateTime.fromString(d[TimeSeriesSource.MKeyDateTime], Qt.ISODateWithMs)
-        return TimeSeriesSource(layer, dtg)
+
+        provider = d.get(TimeSeriesSource.MKeyProvider)
+        if provider == 'gdal':
+            ds = gdal.Open(d[TimeSeriesSource.MKeySource])
+            return TimeSeriesSource.fromGDALDataset(ds,
+                                                    name=d.get(TimeSeriesSource.MKeyName))
+        else:
+            layer = QgsRasterLayer(d[TimeSeriesSource.MKeySource],
+                                   name=d.get(TimeSeriesSource.MKeyName),
+                                   providerType=d.get(TimeSeriesSource.MKeyProvider))
+            dtg = QDateTime.fromString(d[TimeSeriesSource.MKeyDateTime], Qt.ISODateWithMs)
+            return TimeSeriesSource(layer, dtg)
 
     def qgsMimeDataUtilsUri(self) -> QgsMimeDataUtils.Uri:
 
         uri = QgsMimeDataUtils.Uri(self.asRasterLayer())
         return uri
+
+    @classmethod
+    def px2geo(cls, x, y, gt) -> Tuple[float, float]:
+        return gt[0] + x * gt[1] + y * gt[2], \
+               gt[3] + x * gt[4] + y * gt[5]
+
+    @classmethod
+    def fromGDALDataset(cls,
+                        ds: Union[str, Path, gdal.Dataset],
+                        dtg: Optional[QDateTime] = None,
+                        name: Optional[str] = None) -> 'TimeSeriesSource':
+
+        if isinstance(ds, (str, Path)):
+            ds = gdal.Open(str(ds))
+
+        assert isinstance(ds, gdal.Dataset), f'Unable to open {ds} as gdal.Dataset'
+
+        gt = ds.GetGeoTransform()
+        ul = px2geo(QPoint(0, 0), gt, pxCenter=False)
+        ur = px2geo(QPoint(ds.RasterXSize, 0), gt, pxCenter=False)
+        lr = px2geo(QPoint(ds.RasterXSize, ds.RasterYSize), gt, pxCenter=False)
+        ll = px2geo(QPoint(0, ds.RasterYSize), gt, pxCenter=False)
+
+        crs = QgsCoordinateReferenceSystem(ds.GetProjectionRef())
+        assert crs.isValid()
+        extent = QgsGeometry.fromPolygonXY([[ul, ur, lr, ll, ul]])
+
+        if dtg is None:
+            dtg = ImageDateUtils.dateTimeFromGDALDataset(ds)
+        assert isinstance(dtg, QDateTime) and dtg.isValid()
+
+        if not isinstance(name, str):
+            name = ds.GetDescription()
+
+        sid = create_sensor_id(ds)
+        dims = [ds.RasterCount, ds.RasterYSize, ds.RasterXSize]
+        tss = TimeSeriesSource(
+            source=ds.GetDescription(),
+            dtg=dtg,
+            sid=sid,
+            dims=dims,
+            crs=crs,
+            extent=extent,
+            provider='gdal',
+            name=name
+        )
+        return tss
+
+    @classmethod
+    def fromQgsRasterLayer(cls,
+                           layer: QgsRasterLayer,
+                           dtg: Optional[QDateTime] = None,
+                           name: Optional[str] = None):
+
+        assert isinstance(layer, QgsRasterLayer) and layer.isValid()
+        if dtg is None:
+            dtg = ImageDateUtils.dateTimeFromLayer(layer)
+        assert isinstance(dtg, QDateTime) and dtg.isValid()
+        if name is None:
+            name = layer.name()
+            if name == '':
+                name = Path(layer.source()).name
+        assert isinstance(name, str) and len(name) > 0
+
+        sid = create_sensor_id(layer)
+        dims = [layer.bandCount(), layer.height(), layer.width()]
+        tss = TimeSeriesSource(
+            source=layer.source(),
+            dtg=dtg,
+            sid=sid,
+            dims=dims,
+            crs=layer.crs(),
+            extent=QgsGeometry.fromRect(layer.extent()),
+            provider='gdal',
+            name=name
+        )
+        return tss
 
     @classmethod
     def create(cls, source: Union[QgsRasterLayer, str, Path]) -> 'TimeSeriesSource':
@@ -64,42 +154,80 @@ class TimeSeriesSource(object):
         :param source: gdal.Dataset, str or QgsRasterLayer
         :return: TimeSeriesSource
         """
-        if isinstance(source, (str, Path)):
-            options = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
-            source = QgsRasterLayer(str(source), options=options)
-        elif isinstance(source, gdal.Dataset):
-            source = QgsRasterLayer(source.GetDescription(), providerType='gdal')
-
-        if isinstance(source, QgsRasterLayer) and source.isValid():
-            date = ImageDateUtils.dateTimeFromLayer(source)
-            if isinstance(date, QDateTime):
-                return TimeSeriesSource(source, date)
-            else:
-                raise Exception(f'Unable to read observation date for {source.source()}')
+        if isinstance(source, QgsRasterLayer):
+            return cls.fromQgsRasterLayer(source)
         else:
-            raise Exception(f'Unable to open {source} as QgsRasterLayer')
+            return cls.fromGDALDataset(source)
 
-    def __init__(self, layer: Union[QgsRasterLayer, str, Path], dtg: QDateTime):
+    FIELDS = QgsFields()
+    FIELDS.append(QgsField(MKeySource, QMetaType.QString))
+    FIELDS.append(QgsField(MKeyName, QMetaType.QString))
+    FIELDS.append(QgsField(MKeyProvider, QMetaType.QString))
+    FIELDS.append(QgsField(MKeySensor, QMetaType.QString))
+    FIELDS.append(QgsField(MKeyDateTime, QMetaType.QDateTime))
 
-        if isinstance(layer, (Path, str)):
-            layer = QgsRasterLayer(Path(layer).as_posix())
+    CRS = QgsCoordinateReferenceSystem('EPSG:4326')
 
-        assert isinstance(layer, QgsRasterLayer) and layer.isValid()
-        assert isinstance(dtg, QDateTime)
+    def __init__(self,
+                 source: str,
+                 dtg: QDateTime,
+                 sid: str,
+                 dims: List[int],
+                 crs: QgsCoordinateReferenceSystem,
+                 extent: QgsGeometry,
+                 provider: str = 'gdal',
+                 name: Optional[str] = None):
+        """
+        :param source: path to source
+        :param dtg: date-time of observation
+        :param sid: sensor id
+        :param dims: source dimensions (nb, nl, ns)
+        :param crs: source native coordinate reference system
+        :param extent: the raster extent in source CRS. Should be as precise as possible.
+        :param provider: QgsRasterLayer provider, defaults to 'gdal'
+        :param name: name of source
+        """
+
+        assert isinstance(source, str) and len(source) > 0
+        assert isinstance(dtg, QDateTime) and dtg.isValid()
+        assert isinstance(crs, QgsCoordinateReferenceSystem) and crs.isValid()
+        assert isinstance(extent, QgsGeometry)
+
+        assert isinstance(dims, (list, tuple)) and len(dims) == 3
+        for d in dims:
+            assert isinstance(d, int) and d > 0
+
+        if isinstance(extent, QgsRectangle):
+            extent = QgsGeometry.fromRect(extent)
+
+        assert isinstance(extent, QgsGeometry) and extent.isSimple()
+        fields = QgsFields()
+        super().__init__(fields, hash(source))
+
+        # set feature geometry in EPSG:4326
+        transform = QgsCoordinateTransform(crs, self.CRS, QgsProject.instance().transformContext())
+        g = QgsGeometry(extent)
+        assert g.transform(transform) == Qgis.GeometryOperationResult.Success
+        self.setGeometry(g)
+
+        self.setAttributes([source, name, provider, sid, dtg])
 
         self.mIsVisible: bool = True
-        self.mCrs: QgsCoordinateReferenceSystem = layer.crs()
-        self.mExtent: QgsRectangle = layer.extent()
-        self.mSource: str = layer.source()
-        self.mName: str = layer.name()
-        self.mProvider: str = layer.dataProvider().name()
-        self.mSid: str = create_sensor_id(layer)
-        self.mDims = [layer.bandCount(), layer.height(), layer.width()]
+        self.mCrs: QgsCoordinateReferenceSystem = crs
+        self.mSource: str = source
+        self.mSourceExtent: Optional[SpatialExtent] = None
+        self.mName: str = name
+        self.mProvider: str = provider
+        self.mSid: str = sid
+        self.mDims = dims
         self.mIsVisible: bool = True
         self.mDTG: QDateTime = dtg
 
-        self.mLayer: QgsRasterLayer = layer
+        # will be set later
         self.mTimeSeriesDate: Optional[TimeSeriesDate] = None
+
+    def provider(self) -> str:
+        return self.mProvider
 
     def nb(self) -> int:
         """
@@ -155,8 +283,6 @@ class TimeSeriesSource(object):
         :return:
         """
         return self.mName
-        # bn = os.path.basename(self.mSource)
-        # return '{} {}'.format(bn, self.dtg())
 
     def asRasterLayer(self, loadDefaultStyle: bool = False) -> QgsRasterLayer:
         loptions = QgsRasterLayer.LayerOptions(loadDefaultStyle=loadDefaultStyle)
@@ -205,13 +331,18 @@ class TimeSeriesSource(object):
         """
         return self.mCrs
 
-    def spatialExtent(self) -> SpatialExtent:
+    def spatialExtent(self, source_crs: bool = True) -> SpatialExtent:
         """
-        Returns the SpatialExtent
-        :return:
-        :rtype:
+        Returns the source bounding box
+        :param source_crs: if True (default) the extent is returned in the source CRS, otherwise in EPSG 4326.
+        :return: SpatialExtent
         """
-        return SpatialExtent(self.mCrs, self.mExtent)
+        if source_crs:
+            if self.mSourceExtent is None:
+                self.mSourceExtent = SpatialExtent.fromRasterSource(self.mSource)
+            return self.mSourceExtent
+        else:
+            return SpatialExtent(self.CRS, self.geometry().boundingBox())
 
     def asDataset(self) -> gdal.Dataset:
         """

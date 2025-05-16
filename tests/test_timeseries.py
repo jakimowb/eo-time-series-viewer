@@ -6,26 +6,26 @@ import unittest
 import numpy as np
 from osgeo import gdal
 
-from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QDateTime, QMimeData, QPointF, \
-    QSortFilterProxyModel, Qt, QUrl
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsMimeDataUtils, \
-    QgsProject, QgsRasterLayer, QgsVector
-from eotimeseriesviewer.tasks import EOTSVTask
-from qgis.gui import QgsTaskManagerWidget
-from qgis.PyQt.QtGui import QDropEvent
-from qgis.PyQt.QtWidgets import QTableView, QTreeView
-import example.Images
-from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 import example
 import example.Images
+from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
-from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from eotimeseriesviewer.sensors import registerDataProvider, sensorID, SensorInstrument, SensorMockupDataProvider
+from eotimeseriesviewer.tasks import EOTSVTask
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.timeseries.tasks import TimeSeriesFindOverlapSubTask, TimeSeriesFindOverlapTask, \
     TimeSeriesLoadingTask
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from eotimeseriesviewer.timeseries.widgets import TimeSeriesDock
+from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QDateTime, QMimeData, QPointF, \
+    QSortFilterProxyModel, Qt, QUrl
+from qgis.PyQt.QtGui import QDropEvent
+from qgis.PyQt.QtWidgets import QTableView, QTreeView
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsMimeDataUtils, \
+    QgsProject, QgsRasterLayer, QgsVector
+from qgis.core import QgsGeometry, QgsFeature
+from qgis.gui import QgsTaskManagerWidget
 
 start_app()
 
@@ -238,8 +238,20 @@ class TestTimeSeries(EOTSVTestCase):
             print('Test input source: {}'.format(src))
             tss = TimeSeriesSource.create(src)
             self.assertIsInstance(tss, TimeSeriesSource)
-            self.assertIsInstance(tss.spatialExtent(), SpatialExtent)
-            self.assertIsInstance(tss, TimeSeriesSource)
+            self.assertIsInstance(tss, QgsFeature)
+            self.assertIsInstance(tss.geometry(), QgsGeometry)
+            extent = tss.spatialExtent(source_crs=False)
+            self.assertIsInstance(extent, SpatialExtent)
+            self.assertEqual(extent.crs(), QgsCoordinateReferenceSystem('EPSG:4326'))
+
+            lyr = tss.asRasterLayer()
+            self.assertIsInstance(lyr, QgsRasterLayer)
+            self.assertTrue(lyr.isValid())
+
+            extent = tss.spatialExtent()
+            self.assertIsInstance(extent, SpatialExtent)
+            self.assertEqual(extent.crs(), lyr.crs())
+
             self.assertIsInstance(tss.dtg(), QDateTime)
 
             if not isinstance(ref, TimeSeriesSource):
@@ -258,7 +270,9 @@ class TestTimeSeries(EOTSVTestCase):
             self.assertEqual(lyr.width(), tss.ns())
             self.assertEqual(lyr.height(), tss.nl())
             ext1 = SpatialExtent.fromLayer(lyr)
-            ext2 = tss.spatialExtent()
+            ext_ds = SpatialExtent.fromRasterSource(tss.asDataset())
+            ext2 = tss.spatialExtent(source_crs=True)
+
             if ext1 != ext2:
                 s = ""
             self.assertEqual(SpatialExtent.fromLayer(lyr), tss.spatialExtent())

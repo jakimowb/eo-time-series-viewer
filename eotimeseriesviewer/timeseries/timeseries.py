@@ -28,13 +28,6 @@ from typing import Any, Iterator, List, Optional, Set, Union
 import numpy as np
 from osgeo import gdal
 
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QModelIndex, Qt
-from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import QTreeView
-from qgis.PyQt.QtXml import QDomDocument
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDateTimeRange, \
-    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsRasterLayer, QgsRectangle, QgsTask, \
-    QgsTaskManager
 from eotimeseriesviewer import messageLog
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import relativePath, SpatialExtent
@@ -43,6 +36,14 @@ from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.timeseries.tasks import TimeSeriesFindOverlapTask, TimeSeriesLoadingTask
 from eotimeseriesviewer.utils import findNearestDateIndex
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QModelIndex, Qt
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QTreeView
+from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDateTimeRange, \
+    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsRasterLayer, QgsRectangle, QgsTask, \
+    QgsTaskManager
+from qgis.core import QgsSpatialIndex
 
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
 
@@ -185,6 +186,8 @@ class TimeSeries(QAbstractItemModel):
         self.mTreeView: QTreeView = None
         self.mDateTimePrecision = DateTimePrecision.Day
         self.mSensorMatchingFlags = SensorMatching.PX_DIMS
+
+        self.mSpatialIndex: QgsSpatialIndex = QgsSpatialIndex()
 
         self.mLUT_Path2TSD = {}
         self.mVisibleDates: Set[TimeSeriesDate] = set()
@@ -547,6 +550,9 @@ class TimeSeries(QAbstractItemModel):
                 tsd.sigSourcesAdded.disconnect(self.sigSourcesAdded)
                 tsd.sigSourcesRemoved.disconnect(self.sigSourcesRemoved)
 
+                for tss in tsd.sources():
+                    self.mSpatialIndex.deleteFeature(tss)
+
                 removed.append(tsd)
             self.endRemoveRows()
 
@@ -634,7 +640,7 @@ class TimeSeries(QAbstractItemModel):
         for sensor in to_remove:
             self.removeSensor(sensor)
 
-    def removeSensor(self, sensor: SensorInstrument) -> SensorInstrument:
+    def removeSensor(self, sensor: SensorInstrument) -> Optional[SensorInstrument]:
         """
         Removes a sensor and all linked images
         :param sensor: SensorInstrument
@@ -775,6 +781,7 @@ class TimeSeries(QAbstractItemModel):
         # add the source
 
         tsd.addSource(tss)
+        self.mSpatialIndex.addFeature(tss)
         self.mLUT_Path2TSD[tss.source()] = tsd
         return newTSD
 
