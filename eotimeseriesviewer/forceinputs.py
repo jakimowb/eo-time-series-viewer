@@ -85,8 +85,8 @@ class FindFORCEProductsTask(EOTSVTask):
 
         self.mProduct = product
         self.mPath = path
-        self.mDateMin = ImageDateUtils.datetime(dateMin) if dateMin else None
-        self.mDateMax = ImageDateUtils.datetime(dateMax) if dateMax else None
+        self.mDateMin = ImageDateUtils.datetime(dateMin).date() if dateMin else None
+        self.mDateMax = ImageDateUtils.datetime(dateMax).date() if dateMax else None
         self.mRxProduct = re.compile(FORCE_PRODUCTS[product][0])
         self.setDescription(f'Search {self.mProduct} in "../{self.mPath.name}"')
         self.mFiles: List[Path] = []
