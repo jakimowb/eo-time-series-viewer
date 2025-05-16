@@ -28,6 +28,10 @@ import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
+import qgis.utils
+from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QDir, QMimeData, QObject, QPoint, QPointF, QRect, QRectF, QSize, Qt, \
+    QTime, QTimer
+from qgis.PyQt.QtGui import QColor, QFont, QIcon, QMouseEvent, QPainter
 from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QMenu, QSizePolicy, QStyle, QStyleOptionProgressBar
 from qgis.core import Qgis, QgsApplication, QgsContrastEnhancement, QgsCoordinateReferenceSystem, QgsDateTimeRange, \
     QgsExpression, QgsLayerTreeGroup, QgsMapLayer, QgsMapLayerStore, QgsMapSettings, \
@@ -35,12 +39,8 @@ from qgis.core import Qgis, QgsApplication, QgsContrastEnhancement, QgsCoordinat
     QgsProject, QgsRasterBandStats, QgsRasterDataProvider, QgsRasterLayer, QgsRasterLayerTemporalProperties, \
     QgsRasterRenderer, QgsRectangle, QgsRenderContext, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, \
     QgsTextFormat, QgsTextRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes
-import qgis.utils
 from qgis.gui import QgisInterface, QgsAdvancedDigitizingDockWidget, QgsFloatingWidget, QgsGeometryRubberBand, \
     QgsMapCanvas, QgsMapCanvasItem, QgsMapTool, QgsMapToolCapture, QgsMapToolPan, QgsMapToolZoom, QgsUserInputWidget
-from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QDir, QMimeData, QObject, QPoint, QPointF, QRect, QRectF, QSize, Qt, \
-    QTime, QTimer
-from qgis.PyQt.QtGui import QColor, QFont, QIcon, QMouseEvent, QPainter
 from .labeling.quicklabeling import addQuickLabelMenu
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairDialog, CrosshairMapCanvasItem, CrosshairStyle
 from .qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
@@ -48,8 +48,8 @@ from .qgispluginsupport.qps.maptools import CursorLocationMapTool, FullExtentMap
     PixelScaleExtentMapTool, QgsMapToolAddFeature, QgsMapToolSelect, QgsMapToolSelectionHandler
 from .qgispluginsupport.qps.qgisenums import QGIS_RASTERBANDSTATISTIC
 from .qgispluginsupport.qps.utils import filenameFromString, findParent, SpatialExtent, SpatialPoint
-from .settings.settings import EOTSVSettingsManager
 from .sensors import has_sensor_id, sensor_id, SensorMockupDataProvider
+from .settings.settings import EOTSVSettingsManager
 from .timeseries.source import TimeSeriesDate
 from .utils import copyMapLayerStyle, layerStyleString, setLayerStyleString
 
@@ -1097,11 +1097,11 @@ class MapCanvas(QgsMapCanvas):
         m.addSeparator()
 
         action = m.addAction('CRS (EPSG)')
-        action.triggered.connect(lambda: QApplication.clipboard().setText(self.crs().authid()))
+        action.triggered.connect(lambda *args, _crs=self.crs(): QApplication.clipboard().setText(_crs.authid()))
         action = m.addAction('CRS (WKT)')
-        action.triggered.connect(lambda: QApplication.clipboard().setText(self.crs().toWkt()))
+        action.triggered.connect(lambda *args, _crs=self.crs(): QApplication.clipboard().setText(_crs.toWkt()))
         action = m.addAction('CRS (Proj4)')
-        action.triggered.connect(lambda: QApplication.clipboard().setText(self.crs().toProj4()))
+        action.triggered.connect(lambda *args, _crs=self.crs(): QApplication.clipboard().setText(_crs.toProj4()))
 
         m: QMenu = menu.addMenu('Save to...')
         m.setToolTipsVisible(True)
@@ -1111,28 +1111,6 @@ class MapCanvas(QgsMapCanvas):
         action.triggered.connect(lambda: self.saveMapImageDialog('JPG'))
 
         menu.addSeparator()
-
-        """
-        classSchemes = []
-        for layer in lyrWithSelectedFeaturs:
-            for classScheme in layerClassSchemes(layer):
-                assert isinstance(classScheme, ClassificationScheme)
-                if classScheme in classSchemes:
-                    continue
-
-                classMenu = m.addMenu('Classification "{}"'.format(classScheme.name()))
-                assert isinstance(classMenu, QMenu)
-                for classInfo in classScheme:
-                    assert isinstance(classInfo, ClassInfo)
-                    a = classMenu.addAction(classInfo.name())
-                    a.setIcon(classInfo.icon())
-                    a.setToolTip('Write "{}" or "{}" to connected vector field attributes'.format(classInfo.name(), classInfo.label()))
-
-                    a.triggered.connect(
-                        lambda *args, tsd=self.tsd(), ci = classInfo:
-                        applyShortcutsToRegisteredLayers(tsd, [ci]))
-                classSchemes.append(classScheme)
-        """
 
         if isinstance(self.tsd(), TimeSeriesDate) and isinstance(eotsv, EOTimeSeriesViewer):
             menu.addSeparator()
