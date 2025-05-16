@@ -1,18 +1,19 @@
 import enum
 import json
+import math
 import re
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
-from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsDataProvider, QgsMessageLog, QgsPointXY, \
-    QgsProviderMetadata, QgsProviderRegistry, QgsRasterDataProvider, QgsRasterInterface, QgsRasterLayer, QgsRectangle
-from qgis.PyQt.QtCore import pyqtSignal, QObject
-from qgis.PyQt import sip
 from osgeo import gdal
 
 from eotimeseriesviewer.qgispluginsupport.qps.qgsrasterlayerproperties import QgsRasterLayerSpectralProperties
 from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
 from eotimeseriesviewer.qgispluginsupport.qps.utils import LUT_WAVELENGTH
+from qgis.PyQt import sip
+from qgis.PyQt.QtCore import pyqtSignal, QObject
+from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsDataProvider, QgsMessageLog, QgsPointXY, \
+    QgsProviderMetadata, QgsProviderRegistry, QgsRasterDataProvider, QgsRasterInterface, QgsRasterLayer, QgsRectangle
 
 GDAL_DATATYPES = {}
 for var in vars(gdal):
@@ -22,29 +23,54 @@ for var in vars(gdal):
         GDAL_DATATYPES[match.group('type')] = number
         GDAL_DATATYPES[match.group()] = number
 
+GDAL_TO_QGIS_DATATYPES = dict()
+for dt in Qgis.DataType:
+    if dt.name in GDAL_DATATYPES:
+        GDAL_TO_QGIS_DATATYPES[GDAL_DATATYPES[dt.name]] = dt
 
-def create_sensor_id(lyr: QgsRasterLayer) -> Optional[str]:
+
+def create_sensor_id(source: Union[QgsRasterLayer, gdal.Dataset]) -> Optional[str]:
     """
     Creates a unique sensor_id
-    :param lyr:
+    :param source:
     :return:
     """
-    assert isinstance(lyr, QgsRasterLayer) and lyr.isValid()
+    assert isinstance(source, (QgsRasterLayer, gdal.Dataset))
 
-    nb = lyr.bandCount()
-    dp: QgsRasterDataProvider = lyr.dataProvider()
-    px_size_x = lyr.rasterUnitsPerPixelX()
-    px_size_y = lyr.rasterUnitsPerPixelY()
-    dt = dp.dataType(1)
+    if isinstance(source, QgsRasterLayer):
+        assert source.isValid()
 
-    name = sensorName(lyr)
-    wl = wlu = None
-    spectralProperties = QgsRasterLayerSpectralProperties.fromRasterLayer(lyr)
-    if spectralProperties:
-        wl = spectralProperties.wavelengths()
-        wlu = spectralProperties.wavelengthUnits()
-        if isinstance(wlu, list):
-            wlu = wlu[0]
+        nb = source.bandCount()
+        dp: QgsRasterDataProvider = source.dataProvider()
+        px_size_x = source.rasterUnitsPerPixelX()
+        px_size_y = source.rasterUnitsPerPixelY()
+        dt = dp.dataType(1)
+
+        name = sensorName(source)
+        wl = wlu = None
+        spectralProperties = QgsRasterLayerSpectralProperties.fromRasterLayer(source)
+        if spectralProperties:
+            wl = spectralProperties.wavelengths()
+            wlu = spectralProperties.wavelengthUnits()
+            if isinstance(wlu, list):
+                wlu = wlu[0]
+
+    elif isinstance(source, gdal.Dataset):
+        nb = source.RasterCount
+        gt = source.GetGeoTransform()
+        px_size_x = math.hypot(gt[1], gt[2])  # √(pixelWidth² + rotX²)
+        px_size_y = math.hypot(gt[4], gt[5])
+
+        dt = GDAL_TO_QGIS_DATATYPES.get(source.GetRasterBand(1).DataType, None)
+        assert isinstance(dt, Qgis.DataType)
+        name = sensorName(source)
+        wl = wlu = None
+        spectralProperties = QgsRasterLayerSpectralProperties.fromGDALDataset(source)
+        if spectralProperties:
+            wl = spectralProperties.wavelengths()
+            wlu = spectralProperties.wavelengthUnits()
+            if isinstance(wlu, list):
+                wlu = wlu[0]
 
     return sensorID(nb, px_size_x, px_size_y, dt, wl, wlu, name)
 
@@ -53,9 +79,9 @@ def sensorID(nb: int,
              px_size_x: float,
              px_size_y: float,
              dt: Qgis.DataType,
-             wl: list = None,
-             wlu: str = None,
-             name: str = None) -> str:
+             wl: Optional[list] = None,
+             wlu: Optional[str] = None,
+             name: Optional[str] = None) -> str:
     """
     Creates a sensor ID str
     :param name:
@@ -409,22 +435,33 @@ class SensorMatching(enum.Flag):
         return '\n'.join(parts)
 
 
-regSensorName = re.compile(r'(SATELLITEID|(sensor|product)[ _]?(type|name))', re.IGNORECASE)
-rxSensorName = re.compile(r'<li>(SATELLITEID|(sensor|product)[ _]?(type|name))=(?P<name>[^<]+)</li>', re.I)
+rxSensorName = re.compile(r'(SATELLITEID|(sensor|product)[ _]?(type|name))', re.IGNORECASE)
+rxSensorNameHtml = re.compile(r'<li>(SATELLITEID|(sensor|product)[ _]?(type|name))=(?P<name>[^<]+)</li>', re.I)
 
 
-def sensorName(layer: QgsRasterLayer) -> Optional[str]:
+def sensorName(layer: Union[QgsRasterLayer, gdal.Dataset]) -> Optional[str]:
     """
     Reads the sensor/product name. Returns None if a proper name can not be extracted.
     :param dataset: gdal.Dataset
     :return: str
     """
-    assert isinstance(layer, QgsRasterLayer) and layer.isValid()
+    assert isinstance(layer, (QgsRasterLayer, gdal.Dataset))
+    if isinstance(layer, gdal.Dataset):
 
-    html = layer.htmlMetadata()
-    match = rxSensorName.search(html)
-    if match:
-        return match.group('name')
+        domains = layer.GetMetadataDomainList()
+        domains = sorted(domains, key=lambda d: d in ['IMAGE_STRUCTURE', 'ENVI'], reverse=True)
+
+        for domain in domains:
+            for k, v in layer.GetMetadata_Dict(domain).items():
+                if rxSensorName.match(k):
+                    return v
+
+    elif isinstance(layer, QgsRasterLayer):
+        assert layer.isValid()
+        html = layer.htmlMetadata()
+        match = rxSensorNameHtml.search(html)
+        if match:
+            return match.group('name')
     return None
 
 
