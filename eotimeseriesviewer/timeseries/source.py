@@ -18,6 +18,24 @@ class TimeSeriesException(Exception):
     pass
 
 
+def datasetExtent(ds: gdal.Dataset) -> Tuple[QgsCoordinateReferenceSystem, QgsGeometry]:
+    """
+    Returns the CRS and the extent as QgsGeometry of a gdal.Dataset
+    :param ds:
+    :return:
+    """
+    assert isinstance(ds, gdal.Dataset)
+
+    gt = ds.GetGeoTransform()
+    ul = px2geo(QPoint(0, 0), gt, pxCenter=False)
+    ur = px2geo(QPoint(ds.RasterXSize, 0), gt, pxCenter=False)
+    lr = px2geo(QPoint(ds.RasterXSize, ds.RasterYSize), gt, pxCenter=False)
+    ll = px2geo(QPoint(0, ds.RasterYSize), gt, pxCenter=False)
+    crs = QgsCoordinateReferenceSystem(ds.GetProjectionRef())
+    extent = QgsGeometry.fromPolygonXY([[ul, ur, lr, ll, ul]])
+    return crs, extent
+
+
 class TimeSeriesSource(QgsFeature):
     """Provides information on source images"""
 
@@ -86,15 +104,8 @@ class TimeSeriesSource(QgsFeature):
 
         assert isinstance(ds, gdal.Dataset), f'Unable to open {ds} as gdal.Dataset'
 
-        gt = ds.GetGeoTransform()
-        ul = px2geo(QPoint(0, 0), gt, pxCenter=False)
-        ur = px2geo(QPoint(ds.RasterXSize, 0), gt, pxCenter=False)
-        lr = px2geo(QPoint(ds.RasterXSize, ds.RasterYSize), gt, pxCenter=False)
-        ll = px2geo(QPoint(0, ds.RasterYSize), gt, pxCenter=False)
-
-        crs = QgsCoordinateReferenceSystem(ds.GetProjectionRef())
+        crs, extent = datasetExtent(ds)
         assert crs.isValid()
-        extent = QgsGeometry.fromPolygonXY([[ul, ur, lr, ll, ul]])
 
         if dtg is None:
             dtg = ImageDateUtils.dateTimeFromGDALDataset(ds)

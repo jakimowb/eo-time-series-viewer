@@ -19,8 +19,10 @@ from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.processing.processingalgorithms import ReadTemporalProfiles
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 from eotimeseriesviewer.timeseries.source import TimeSeriesSource
+from eotimeseriesviewer.timeseries.tasks import hasValidPixel
 from qgis import processing
 from qgis.core import QgsApplication, QgsProcessingAlgRunnerTask, QgsProject, QgsRasterLayer, QgsTaskManager
+from qgis.core import QgsCoordinateReferenceSystem, QgsRectangle
 
 start_app()
 initAll()
@@ -54,6 +56,86 @@ def get_sheet(name: str, book: Workbook) -> Worksheet:
 
 @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Benchmark Tests. Not to run in CI')
 class BenchmarkTestCase(EOTSVTestCase):
+
+    @unittest.skipIf(not FORCE_MOSAICS.is_dir(), 'Missing FORCE_CUBE')
+    def test_load_mosaic_overlap(self):
+        path_files = DIR_BENCHMARKS / 'benchmark_load_mosaics_files.json'
+        path_json = DIR_BENCHMARKS / 'benchmark_load_mosaics_overlap.json'
+        files = None
+
+        import tqdm
+
+        if not path_files.is_file():
+            task = FindFORCEProductsTask('BOA', FORCE_MOSAICS, dateMax='1986-12-31')
+            task.run_task_manager()
+            files = [f.as_posix() for f in task.files()]
+            with open(path_files, 'w') as f:
+                json.dump(files, f)
+        else:
+            with open(path_files, 'r') as f:
+                files = json.load(f)
+
+        assert isinstance(files, list)
+        files = files[0:min(100, len(files))]
+
+        n = len(files)
+        self.assertTrue(n > 0)
+        duration_lyr = []
+        duration_gdal = []
+        sample_size = 256
+
+        crs = QgsCoordinateReferenceSystem('EPSG:3035')
+        extent_wkt = 'Polygon ((4553985.05148862022906542 3290907.41572995623573661, 4555977.23898862022906542 3290907.41572995623573661, 4555977.23898862022906542 3292899.60322995623573661, 4553985.05148862022906542 3292899.60322995623573661, 4553985.05148862022906542 3290907.41572995623573661))'
+        extent = QgsRectangle.fromWkt(extent_wkt)
+
+        def get_overlap(path, use_gdal: bool):
+            t = datetime.datetime.now()
+            success, err = hasValidPixel(path, crs, extent, use_gdal=use_gdal)
+            dt = datetime.datetime.now() - t
+            return success, err, dt.total_seconds()
+
+        # 20210609_LEVEL2_LND08_BOA.vrt
+        #
+        with tqdm.tqdm(files) as pbar:
+            for file in pbar:
+                file = str(file)
+                success1, err1, t1 = get_overlap(file, False)
+                success2, err2, t2 = get_overlap(file, True)
+                self.assertEqual(success1, success2)
+                if success1:
+                    duration_lyr.append(t1)
+                    duration_gdal.append(t2)
+                pbar.update(1)
+
+        if path_json.is_file():
+            with open(path_json, 'r') as f:
+                RESULTS = json.load(f)
+        else:
+            RESULTS = dict()
+
+        dur_gdal = np.asarray(duration_gdal)
+        dur_ts = np.asarray(duration_lyr)
+
+        descr = 'test mosaic overlap'
+        INFO = {'description': descr,
+                'n_files': n,
+                'root': FORCE_MOSAICS.as_posix(),
+                't_lyr_total': float(dur_ts.sum()),
+                't_lyr_mean': float(dur_ts.mean()),
+                't_lyr_min': float(dur_ts.min()),
+                't_lyr_max': float(dur_ts.max()),
+                't_lyr_std': float(dur_ts.std()),
+                't_gdal_total': float(dur_gdal.sum()),
+                't_gdal_mean': float(dur_gdal.mean()),
+                't_gdal_min': float(dur_gdal.min()),
+                't_gdal_max': float(dur_gdal.max()),
+                't_gdal_std': float(dur_gdal.std())
+                }
+
+        RESULTS[descr] = INFO
+
+        with open(path_json, 'w') as f:
+            json.dump(RESULTS, f, indent=2)
 
     @unittest.skipIf(not FORCE_MOSAICS.is_dir(), 'Missing FORCE_CUBE')
     def test_load_mosaic_sources(self):
