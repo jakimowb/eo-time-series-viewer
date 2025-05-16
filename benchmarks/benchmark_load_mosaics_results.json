@@ -1,0 +1,32 @@
+{
+  "load mosaics, TimeSeriesSource.create(file)": {
+    "description": "load mosaics, TimeSeriesSource.create(file)",
+    "n_files": 100,
+    "root": "X:/dc/deu/ard/mosaic",
+    "t_ts_total": 94.501182,
+    "t_ts_mean": 0.94501182,
+    "t_ts_min": 0.263709,
+    "t_ts_max": 37.493309,
+    "t_ts_std": 4.16063347663657,
+    "t_gdal_total": 3.173577,
+    "t_gdal_mean": 0.031735769999999996,
+    "t_gdal_min": 0.000999,
+    "t_gdal_max": 0.140915,
+    "t_gdal_std": 0.029897116013038783
+  },
+  "load mosaics, improved TimeSeriesSource.create(file)": {
+    "description": "load mosaics, improved TimeSeriesSource.create(file)",
+    "n_files": 100,
+    "root": "X:/dc/deu/ard/mosaic",
+    "t_ts_total": 14.89113,
+    "t_ts_mean": 0.1489113,
+    "t_ts_min": 0.102628,
+    "t_ts_max": 0.321888,
+    "t_ts_std": 0.04524826392349214,
+    "t_gdal_total": 2.8809759999999995,
+    "t_gdal_mean": 0.028809759999999997,
+    "t_gdal_min": 0.000999,
+    "t_gdal_max": 0.151925,
+    "t_gdal_std": 0.030675428457030557
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "test mosaic overlap": {
+    "description": "test mosaic overlap",
+    "n_files": 100,
+    "root": "X:/dc/deu/ard/mosaic",
+    "t_lyr_total": 36.72676799999999,
+    "t_lyr_mean": 2.623340571428571,
+    "t_lyr_min": 0.328037,
+    "t_lyr_max": 20.037732,
+    "t_lyr_std": 4.9029898785026305,
+    "t_gdal_total": 5.846649,
+    "t_gdal_mean": 0.4176177857142857,
+    "t_gdal_min": 0.072135,
+    "t_gdal_max": 1.164359,
+    "t_gdal_std": 0.35844753301308735
+  }
+}

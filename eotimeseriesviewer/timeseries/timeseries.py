@@ -112,41 +112,6 @@ def getDS(pathOrDataset) -> Optional[gdal.Dataset]:
         return None
 
 
-def verifyInputImage(datasource):
-    """
-    Checks if an image source can be uses as TimeSeriesDate, i.e. if it can be read by gdal.Open() and
-    if we can extract an observation date as numpy.datetime64.
-    :param datasource: str with data source uri or gdal.Dataset
-    :return: bool
-    """
-
-    if datasource is None:
-        return None
-    if isinstance(datasource, str):
-        datasource = gdal.Open(datasource)
-    if not isinstance(datasource, gdal.Dataset):
-        return False
-
-    if datasource.RasterCount == 0 and len(datasource.GetSubDatasets()) > 0:
-        # logger.error('Can not open container {}.\nPlease specify a subdataset'.format(path))
-        return False
-
-    if datasource.GetDriver().ShortName == 'VRT':
-        files = datasource.GetFileList()
-        if len(files) > 0:
-            for f in files:
-                subDS = gdal.Open(f)
-                if not isinstance(subDS, gdal.Dataset):
-                    return False
-
-    from eotimeseriesviewer.dateparser import parseDateFromDataSet
-    date = parseDateFromDataSet(datasource)
-    if date is None:
-        return False
-
-    return True
-
-
 class TimeSeries(QAbstractItemModel):
     """
     The sorted list of data sources that specify the time series
@@ -662,17 +627,24 @@ class TimeSeries(QAbstractItemModel):
         :param sources:  list-of-TimeSeriesSources
         """
         assert isinstance(sources, list)
-        if len(sources) > 0:
+        n = len(sources)
+        if n > 0:
             # print(f'Add {len(sources)} sources...', flush=True)
             addedDates = []
+            t0 = datetime.datetime.now()
             for i, source in enumerate(sources):
                 assert isinstance(source, TimeSeriesSource)
                 newTSD = self.addTimeSeriesSource(source)
                 if isinstance(newTSD, TimeSeriesDate):
                     addedDates.append(newTSD)
+            t1 = datetime.datetime.now()
 
             if len(addedDates) > 0:
                 self.sigTimeSeriesDatesAdded.emit(addedDates)
+            t2 = datetime.datetime.now()
+            dt1 = (t1 - t0).total_seconds()
+            dt2 = (t2 - t1).total_seconds()
+            print(f'# added {n}: t_avg: {dt1 / n: 0.3f}s t_total: {dt1} s, signale: {dt2: 0.3f}s')
 
     def addSources(self,
                    sources: list,
