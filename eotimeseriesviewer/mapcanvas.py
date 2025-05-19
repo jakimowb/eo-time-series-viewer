@@ -674,7 +674,10 @@ class MapCanvas(QgsMapCanvas):
         expected = []
 
         existing: List[QgsMapLayer] = self.layers()
-        existingSources = [l.source() for l in existing]
+        existing_sources: List[str] = [l.source() for l in existing]
+        expected_sources: List[str] = []
+        missing_sources: List[str] = []
+
         from .mapvisualization import MapView
         from .sensors import SensorInstrument
 
@@ -691,24 +694,33 @@ class MapCanvas(QgsMapCanvas):
         for lyr in mapView.visibleLayers():
             assert isinstance(lyr, QgsMapLayer)
             dp = lyr.dataProvider()
+
+            # handle time series raster layer
             if isinstance(dp, SensorMockupDataProvider):
                 if sensor == dp.sensor():
                     # check if we need to add a new source
                     for tss in [s for s in self.tsd() if s.isVisible()]:
 
                         source = tss.source()
-                        if source in existingSources:
-                            sourceLayer = existing[existingSources.index(source)]
+                        if source in existing_sources:
+                            sourceLayer = existing[existing_sources.index(source)]
                         else:
+                            missing_sources.append()
                             # create a new source layer
                             sid = self.tsd().sensor().id()
-
                             use_as_masterstyle = not lyr.customProperty(
                                 SensorInstrument.PROPERTY_KEY_STYLE_INITIALIZED,
                                 False)
+
+                            missing_sources.append({'source': tss.source(),
+                                                    'provider': tss.provider(),
+                                                    'loadDefaultStyle': use_as_masterstyle})
+
+                            # t0 = datetime.datetime.now()
                             sourceLayer = tss.asRasterLayer(loadDefaultStyle=use_as_masterstyle)
                             sourceLayer.setCustomProperty(SensorInstrument.PROPERTY_KEY, sid)
-
+                            # dt = datetime.datetime.now() - t0
+                            # print(f'# t tss.asRasterLayer {dt.total_seconds()}')
                             s_range1 = sourceLayer.temporalProperties().fixedTemporalRange()
                             assert self.tsd().dateTimeRange().contains(
                                 sourceLayer.temporalProperties().fixedTemporalRange())
@@ -729,6 +741,7 @@ class MapCanvas(QgsMapCanvas):
                                 sourceLayer.temporalProperties().setFixedTemporalRange(s_range1)
 
                         assert isinstance(sourceLayer, QgsRasterLayer)
+
                         expected.append(sourceLayer)
                 else:
                     # skip any other SensorProxyLayer that relates to another sensor
