@@ -51,7 +51,7 @@ class TestTimeSeries(EOTSVTestCase):
 
         # save time series, relative paths
         pathTSFileRel = self.createTestOutputDirectory() / 'timeseries_rel.txt'
-        ts.saveToFile(pathTSFileRel, relative_path=False)
+        ts.saveToFile(pathTSFileRel, relative_path=True)
         self.assertTrue(os.path.isfile(pathTSFileRel))
 
         # load time series
