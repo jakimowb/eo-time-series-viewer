@@ -24,6 +24,7 @@ import pathlib
 
 from qgis.core import Qgis, QgsApplication
 from qgis.PyQt.QtGui import QIcon
+from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import PlotDataItem
 
 __version__ = '2.1.0'
 
