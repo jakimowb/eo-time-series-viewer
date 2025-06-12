@@ -399,8 +399,6 @@ class TPVisGroup(PropertyItemGroup):
     """
     MIME_TYPE = 'application/eotsv/temporalprofiles/PropertyItems'
 
-    sensorNameChanged = pyqtSignal(str, str)
-
     class ContextGenerator(QgsExpressionContextGenerator):
 
         def __init__(self, vis_group):
@@ -567,13 +565,21 @@ class TPVisGroup(PropertyItemGroup):
 
         if isinstance(self.mLayer, QgsVectorLayer):
             self.mLastLayerFields[self.mLayer.id()] = self.field()
-            self.mLayer.featuresDeleted.disconnect(self.update)
+            # self.mLayer.featuresDeleted.disconnect(self.update)
 
+        changed = self.mLayer != layer
         self.mLayer = layer
-        self.mLayer.featuresDeleted.connect(self.update)
-        self.mLayer.selectionChanged.connect(self.update)
-        self.mLayer.featureAdded.connect(self.update)
-        self.mLayer.attributeAdded.connect(self.update)
+
+        if changed:
+            model = self.model()
+            if isinstance(model, PlotSettingsTreeModel):
+                model.layerChanged.emit()
+
+        # self.layerChanged.emit()
+        # self.mLayer.featuresDeleted.connect(self.update)
+        # self.mLayer.selectionChanged.connect(self.update)
+        # self.mLayer.featureAdded.connect(self.update)
+        # self.mLayer.attributeAdded.connect(self.update)
 
         if not self.field() in layer.fields().names():
             self.setField(self.mLastLayerFields.get(layer.id()))
@@ -860,6 +866,8 @@ class PlotSettingsTreeModel(QStandardItemModel):
     cName = 0
     cValue = 1
 
+    layersChanged = pyqtSignal()
+
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
 
@@ -909,6 +917,14 @@ class PlotSettingsTreeModel(QStandardItemModel):
 
     def visualizations(self) -> List[TPVisGroup]:
         return [v for v in self.mVisualizations if isinstance(v, TPVisGroup)]
+
+    def layers(self) -> List[QgsVectorLayer]:
+        layers = []
+        for vis in self.visualizations():
+            lyr = vis.layer()
+            if isinstance(lyr, QgsVectorLayer) and lyr.isValid() and lyr not in layers:
+                layers.append(lyr)
+        return layers
 
     def addVisualizations(self, vis: Union[TPVisGroup, List[TPVisGroup]]):
 

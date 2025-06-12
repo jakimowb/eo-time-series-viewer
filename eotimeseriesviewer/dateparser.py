@@ -408,19 +408,20 @@ class ImageDateUtils(object):
     @classmethod
     def dateTimeFromLayer(cls, layer: Union[Path, str, QgsRasterLayer, gdal.Dataset]) -> Optional[QDateTime]:
         if isinstance(layer, Path):
-            return ImageDateUtils.dateTimeFromLayer(QgsRasterLayer(layer.as_posix()))
-        elif isinstance(layer, str):
-            return ImageDateUtils.dateTimeFromLayer(QgsRasterLayer(layer))
+            layer = str(layer)
         elif isinstance(layer, gdal.Dataset):
-            return ImageDateUtils.dateTimeFromLayer(layer.GetDescription())
-        if not isinstance(layer, QgsRasterLayer) and layer.isValid():
+            layer = layer.GetDescription()
+        loptions = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
+        if isinstance(layer, str):
+            return ImageDateUtils.dateTimeFromLayer(QgsRasterLayer(layer, options=loptions))
+        if not (isinstance(layer, QgsRasterLayer) and layer.isValid()):
             return None
 
         if ImageDateUtils.PROPERTY_KEY in layer.customPropertyKeys():
             dateString = layer.customProperty(ImageDateUtils.PROPERTY_KEY)
             return ImageDateUtils.dateTimeFromString(dateString)
         else:
-
+            # try to find an observation date
             dtg = None
             filepath = Path(layer.source())
 
