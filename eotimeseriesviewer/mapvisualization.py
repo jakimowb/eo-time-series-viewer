@@ -18,7 +18,7 @@
  *                                                                         *
  ***************************************************************************/
 """
-
+import datetime
 import enum
 import math
 import sys
@@ -354,13 +354,6 @@ class MapView(QFrame):
             self.mMapBackgroundColor = color
             self.sigCanvasAppearanceChanged.emit()
         return self.mMapBackgroundColor
-
-    def visibleMapCanvases(self) -> list:
-        """
-        Returns the currently visible mapcanvases
-        :return: [list-of-MapCanvases]
-        """
-        return [m for m in self.mapCanvases() if m.isVisibleToViewport()]
 
     def onAddMapLayer(self, filter: QgsMapLayerProxyModel.Filter = QgsMapLayerProxyModel.All):
         """
@@ -1475,7 +1468,12 @@ class MapWidget(QFrame):
                         if isinstance(c.tsd(), TimeSeriesDate) and c.tsd().sensor().id() == sid:
                             for lyr in c.layers():
                                 if sensor_id(lyr) == sid:
+                                    t0 = datetime.datetime.now()
                                     c.stretchToCurrentExtent(layer=lyr)
+
+                                    dt = datetime.datetime.now() - t0
+                                    print(f'# stretch time:{dt.total_seconds(): 0.2f}s')
+
                                     proxyLayer.setCustomProperty(SensorInstrument.PROPERTY_KEY_STYLE_INITIALIZED, True)
             self.mMapRefreshBlock = False
         return True
@@ -2515,9 +2513,10 @@ QSlider::add-page {{
                         if errorText == '':
                             errorText = expr.parserErrorString()
 
-                canvas.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
+                # canvas.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
                 if canvas.canvasColor() != bg:
-                    canvas.addToRefreshPipeLine(mapView.mapBackgroundColor())
+                    canvas.setCanvasColor(bg)
+                    # canvas.addToRefreshPipeLine(mapView.mapBackgroundColor())
 
             mapView.setInfoExpressionError(errorText)
 

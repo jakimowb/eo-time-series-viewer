@@ -19,11 +19,12 @@
 import os
 import unittest
 
-from example import examplePoints
 from qgis.core import QgsCoordinateReferenceSystem, QgsProject
 from qgis.gui import QgsMapCanvas
+
 from eotimeseriesviewer.main import EOTimeSeriesViewer, SaveAllMapsDialog
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
+from example import examplePoints
 
 start_app()
 
@@ -79,7 +80,7 @@ class TestMain(EOTSVTestCase):
         self.taskManagerProcessEvents()
         TSV = EOTimeSeriesViewer()
 
-        TSV.loadExampleTimeSeries(loadAsync=True)
+        # TSV.loadExampleTimeSeries(loadAsync=True)
         self.taskManagerProcessEvents()
 
         self.showGui(TSV.ui)

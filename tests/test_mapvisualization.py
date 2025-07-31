@@ -20,7 +20,18 @@ import os
 import unittest
 
 import numpy as np
+from qgis._core import QgsMapLayer
 
+from eotimeseriesviewer.mapcanvas import MapCanvas
+from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
+from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import rendererFromXml, rendererToXml
+from eotimeseriesviewer.qgispluginsupport.qps.maptools import MapTools
+from eotimeseriesviewer.qgispluginsupport.qps.utils import bandClosestToWavelength, file_search, parseWavelength, \
+    SpatialExtent, UnitLookup
+from eotimeseriesviewer.sensors import SensorInstrument
+from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
+from eotimeseriesviewer.tests import EOTSVTestCase, example_raster_files, start_app, TestObjects
+from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
 from qgis.PyQt.QtCore import QSize
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QApplication, QGridLayout, QLabel, QPushButton, QSpinBox, QWidget
@@ -29,16 +40,6 @@ from qgis.core import QgsFeatureRenderer, QgsHillshadeRenderer, QgsMultiBandColo
     QgsProject, QgsRasterLayer, QgsRasterRenderer, QgsRasterShader, QgsSingleBandColorDataRenderer, \
     QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsVectorLayer, QgsVirtualLayerDefinition
 from qgis.gui import QgsFontButton
-from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
-from eotimeseriesviewer.tests import EOTSVTestCase, example_raster_files, start_app, TestObjects
-from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
-from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import rendererFromXml, rendererToXml
-from eotimeseriesviewer.qgispluginsupport.qps.maptools import MapTools
-from eotimeseriesviewer.qgispluginsupport.qps.utils import bandClosestToWavelength, file_search, parseWavelength, \
-    SpatialExtent, UnitLookup
-from eotimeseriesviewer.sensors import SensorInstrument
-from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
 
 start_app()
 
@@ -116,6 +117,49 @@ class TestMapVisualization(EOTSVTestCase):
 
         btn.changed.connect(onChanged)
         self.showGui()
+
+    def test_load_layers_async(self):
+
+        from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA, Img_2014_03_20_LC82270652014079LGN00_BOA, \
+            re_2014_08_17
+        from example import examplePoints, exampleNoDataImage
+        from eotimeseriesviewer.mapvis.tasks import LoadMapCanvasLayers
+        
+        def onExecuted(bool, layers):
+            s = ""
+
+        raster_sources = {str(Img_2014_05_07_LC82270652014127LGN00_BOA): Img_2014_05_07_LC82270652014127LGN00_BOA,
+                          str(Img_2014_03_20_LC82270652014079LGN00_BOA): None,
+                          str(re_2014_08_17): {'type': QgsRasterLayer,
+                                               'uri': re_2014_08_17,
+                                               'providerType': 'gdal'},
+                          'nonexistent': 'foobar',
+                          }
+
+        other_sources = {
+            str(examplePoints): None,
+            str(exampleNoDataImage): None
+        }
+
+        task = LoadMapCanvasLayers(raster_sources)
+        task.executed.connect(onExecuted)
+        task.run_task_manager()
+
+        for srcId, lyr in task.mResults.items():
+            self.assertTrue(srcId in raster_sources)
+            self.assertIsInstance(lyr, QgsRasterLayer)
+            self.assertTrue(lyr.isValid())
+
+        self.assertTrue(len(task.mErrors) == 1)
+        self.assertTrue('nonexistent' in task.mErrors)
+
+        task = LoadMapCanvasLayers(other_sources)
+        task.run()
+
+        results = task.mResults
+        self.assertEqual(len(results), 2)
+        for srcId, lyr in results.items():
+            self.assertIsInstance(lyr, QgsMapLayer)
 
     def test_mapWidget(self):
 
