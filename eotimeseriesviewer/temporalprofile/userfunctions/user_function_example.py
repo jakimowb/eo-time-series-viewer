@@ -4,7 +4,7 @@ import numpy as np
 global x, y
 assert isinstance(x, np.ndarray)
 assert isinstance(y, np.ndarray)
-# x = time stamps used for plotting, float
+# x = time stamps (float) used for plotting
 # y = profile values, e.g., calculated NDVI values
 # dates = the time as numpy np.ndarray
 
@@ -12,6 +12,8 @@ assert isinstance(y, np.ndarray)
 results = {
     'x': x - 0.5,
     'y': y * 0.75,
+    'pen': 'red',
+    'name': 'My derived profile',
 }
 
 # `results` can be:

@@ -1,22 +1,18 @@
 import json
+import random
 import re
 import unittest
-import random
 
 import numpy as np
 
-from qgis.PyQt.QtGui import QAction, QIcon, QPen, QStandardItemModel
-from qgis.core import QgsApplication, QgsProject, QgsVectorLayer
-from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
-from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import PlotCurveItem
-from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.examples.ExampleApp import QColor
-from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QPushButton, QSplitter, QTreeView, QVBoxLayout, QWidget
-from qgis.gui import QgsMapCanvas
-from qgis.PyQt.QtCore import QSize, Qt
+from eotimeseriesviewer import initResources
 from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
+from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
+from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import PlotCurveItem
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint
 from eotimeseriesviewer.qgispluginsupport.qps.vectorlayertools import VectorLayerTools
+from eotimeseriesviewer.sensors import SensorInstrument
 from eotimeseriesviewer.sensorvisualization import SensorDockUI
 from eotimeseriesviewer.temporalprofile.datetimeplot import copyProfiles, DateTimePlotDataItem, DateTimePlotWidget
 from eotimeseriesviewer.temporalprofile.plotsettings import PlotSettingsTreeView, PythonCodeItem, TPVisSensor, \
@@ -24,9 +20,12 @@ from eotimeseriesviewer.temporalprofile.plotsettings import PlotSettingsTreeView
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileEditorWidgetFactory, TemporalProfileUtils
 from eotimeseriesviewer.temporalprofile.visualization import TemporalProfileDock, TemporalProfileVisualization
 from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app, TestObjects
-from eotimeseriesviewer import initResources
-from eotimeseriesviewer.sensors import SensorInstrument
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
+from qgis.PyQt.QtCore import QSize, Qt
+from qgis.PyQt.QtGui import QAction, QIcon, QPen, QStandardItemModel, QColor
+from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QPushButton, QSplitter, QTreeView, QVBoxLayout, QWidget
+from qgis.core import QgsApplication, QgsProject, QgsVectorLayer
+from qgis.gui import QgsMapCanvas
 
 start_app()
 initResources()

@@ -1,4 +1,4 @@
-# NAME: user function example
+# NAME: user function 2
 import numpy as np
 
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import mkPen, PlotDataItem
@@ -13,8 +13,8 @@ assert isinstance(y, np.ndarray)
 # this example returns two segments
 i = int(len(x) / 2)
 results = [
-    PlotDataItem(x=x[:i], y=y + 2, pen=mkPen('green')),
-    PlotDataItem(x=x[i:], y=y - 1, pen=mkPen('red'))
+    PlotDataItem(x=x[:i], y=y[:i] + 2, pen=mkPen('green')),
+    PlotDataItem(x=x[i:], y=y[i:] - 1, pen=mkPen('red'))
 ]
 
 # `results` can be:
