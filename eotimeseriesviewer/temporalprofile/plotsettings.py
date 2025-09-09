@@ -2,6 +2,19 @@ import itertools
 import json
 from typing import Any, Dict, List, Optional, Union
 
+from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
+from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, \
+    PlotStyleDialog, PlotStyleWidget
+from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
+from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibraryplotmodelitems import PlotStyleItem, \
+    PropertyItem, PropertyItemBase, PropertyItemGroup, PropertyLabel, QgsPropertyItem
+from eotimeseriesviewer.sensors import SensorInstrument
+from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
+from eotimeseriesviewer.spectralindices import spectral_indices
+from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
+from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
+from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileLayerFieldComboBox, TemporalProfileUtils
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
 from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, \
     QPixmap, QStandardItem, QStandardItemModel
@@ -11,19 +24,6 @@ from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsEx
     QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsGeometry, QgsProject, QgsProperty, \
     QgsPropertyDefinition, QgsVectorLayer
 from qgis.gui import QgsFieldExpressionWidget
-from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
-from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, \
-    PlotStyleDialog, PlotStyleWidget
-from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
-from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibraryplotmodelitems import PlotStyleItem, \
-    PropertyItem, PropertyItemBase, PropertyItemGroup, PropertyLabel, QgsPropertyItem
-from eotimeseriesviewer.sensors import SensorInstrument
-from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
-from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
-from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
-from eotimeseriesviewer.spectralindices import spectral_indices
-from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileLayerFieldComboBox, TemporalProfileUtils
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 
 
 class StyleItem(PlotStyleItem):
@@ -148,17 +148,10 @@ class ActionItem(QStandardItem):
 
 
 class PythonCodeItem(PropertyItem):
-    class Signals(PropertyItem.Signals):
-        validationRequest = pyqtSignal(dict)
 
-        def __init__(self, *args, **kwds):
-            super().__init__(*args, **kwds)
+    def __init__(self, *args, **kwds):
 
-    def __init__(self, *args, signals=None, **kwds):
-        if signals is None:
-            signals = PythonCodeItem.Signals()
-
-        super().__init__(*args, signals=signals, **kwds)
+        super().__init__(*args, **kwds)
 
         self.setEditable(True)
         self.mPythonExpression = 'b(1)'
@@ -167,7 +160,7 @@ class PythonCodeItem(PropertyItem):
     def createEditor(self, parent):
         w = FieldPythonExpressionWidget(parent=parent)
         w.setExpression(self.mPythonExpression)
-        w.validationRequest.connect(self.signals().validationRequest)
+        # w.validationRequest.connect(self.signals().validationRequest)
         return w
 
     def data(self, role: int = ...) -> Any:
@@ -461,11 +454,6 @@ class TPVisGroup(PropertyItemGroup):
         self.setDropEnabled(False)
         self.setDragEnabled(False)
 
-        # connect requestPlotUpdate signal
-        for propertyItem in self.propertyItems():
-            propertyItem: PropertyItem
-            propertyItem.signals().dataChanged.connect(self.signals().dataChanged.emit)
-        self.signals().dataChanged.connect(self.update)
         # self.initBasicSettings()
 
         self.mLayer: QgsVectorLayer = None
@@ -664,10 +652,7 @@ class TPVisGroup(PropertyItemGroup):
 
                 items.append(item)
 
-        if len(items) > 0:
-            self.appendRows(items)
-            for item in items:
-                item.signals().dataChanged.connect(self.update)
+        self.appendRows(items)
 
     def settingsMap(self, context: QgsExpressionContext = None) -> dict:
 
@@ -740,7 +725,7 @@ class TPVisSensor(PropertyItemGroup):
         self.mPBand.setToolTip('Band or spectral index to display.')
         self.mPBand.setText('b(1)')
         self.mPBand.setEditable(True)
-        self.mPBand.signals().validationRequest.connect(self.validate_sensor_band)
+        # self.mPBand.signals().validationRequest.connect(self.validate_sensor_band)
         # self.mPBand.label().setText('Band')
 
         items = [self.mPSymbol, self.mPBand]

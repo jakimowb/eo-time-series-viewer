@@ -78,7 +78,8 @@ class UserFunctionTests(TestCase):
         for i in derivedItems:
             assert isinstance(i, PlotDataItem)
 
-        model.showControllerSettingsDialog()
+        if not TestCase.runsInCI():
+            model.showControllerSettingsDialog()
 
         self.showGui(w)
 
