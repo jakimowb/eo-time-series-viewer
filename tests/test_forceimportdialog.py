@@ -136,7 +136,7 @@ class FORCEImportTestCases(EOTSVTestCase):
 
         task = FindFORCEProductsTask('BOA', FORCE_CUBE, tile_ids=[tile_id])
         task.run()
-        files = task.files()[0:20]
+        files = task.files()  # [0:20]
 
         eotsv.addTimeSeriesImages(files)
 

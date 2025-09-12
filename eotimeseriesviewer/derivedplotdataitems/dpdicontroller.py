@@ -277,7 +277,7 @@ class DPDIControllerModel(QObject):
 
     def populateContextMenu(self, menu: QMenu):
 
-        m = menu.addMenu('Derived Items')
+        m = menu.addMenu('User functions')
         m.setToolTipsVisible(True)
         a = m.addAction('Selected Only')
         a.setToolTip('Show for selected profiles only')

@@ -1522,7 +1522,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                     new_features.append(feature)
                     currentStyles[(fid, pfield.name())] = style
 
-                w.setCurrentProfiles(new_features, make_permanent=False, currentProfileStyles=currentStyles)
+                w.plotModel().addProfileCandidates(new_features, styles=currentStyles)
 
     @pyqtSlot(SpatialPoint)
     def loadCurrentTemporalProfile(self, spatialPoint: SpatialPoint):

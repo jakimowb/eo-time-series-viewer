@@ -65,7 +65,13 @@ class UserFunctionTests(TestCase):
 
         c = DPDIController()
         c.setName('My controller')
-        code = """y = y * 0.5\nx = x + 60*60*24*100\nresults = {'y':y, 'x':x, 'pen': 'red'}"""
+        code = """
+import numpy as np
+
+coefficients = np.polyfit(x, y, deg=1)
+y2 = np.polyval(coefficients, x)
+results = {'y':y2, 'x':x, 'pen': 'red', 'name':'linear'}"""
+
         assert c.setFunction(code), c.error()
 
         model.addController(c)
