@@ -13,6 +13,7 @@ from qgis.PyQt.QtCore import pyqtSignal, QObject, Qt
 from qgis.PyQt.QtGui import QAction
 from qgis.PyQt.QtWidgets import QCheckBox, QDialog, QFileDialog, QHBoxLayout, QLabel, QLineEdit, QMenu, QTabWidget, \
     QVBoxLayout, QWidget, QDialogButtonBox
+from qgis.PyQt.QtWidgets import QToolButton
 from qgis.gui import QgsCodeEditorPython, QgsMessageBar
 
 
@@ -218,6 +219,7 @@ class DPDIControllerModel(QObject):
         self.mController: List[DPDIController] = []
         self.mShowSelectedOnly: bool = True
 
+        self.mExampleFolder: Optional[Path] = None
         self.mExamplePDI: Optional[PlotDataItem] = None
 
     def setPlotDataItemExample(self, pdi: PlotDataItem):
@@ -249,9 +251,23 @@ class DPDIControllerModel(QObject):
         d = DPDIControllerSettingsDialog(self)
         d.validationRequest.connect(self.validateControllerSettings)
         d.controllerChanged.connect(lambda *args: d.updateModel(self))
+        if isinstance(self.mExampleFolder, Path):
+            d.setExampleFolder(self.mExampleFolder)
 
         if d.exec_() == QDialog.Accepted:
             d.updateModel(self)
+
+    def setExampleFolder(self, path: Union[str, Path]):
+        """
+        Sets a folder with *.py files that contain example user-defined functions
+        """
+        path = Path(path)
+        if path.is_dir():
+            self.mExampleFolder = path
+            return True
+        else:
+            self.mExampleFolder = None
+            return False
 
     def validateControllerSettings(self, data: dict):
         """
@@ -389,7 +405,7 @@ class DPDIControllerSettingsWidget(QWidget):
         self.codeEditor = QgsCodeEditorPython()
         self.cbShow = QCheckBox('Show')
         self.cbShow.setChecked(True)
-        self.cbShow.setToolTip('Show/hide the derived plot data items ')
+        self.cbShow.setToolTip('Show/hide in plot')
         self.messageBar: QgsMessageBar = QgsMessageBar(parent=self)
 
         l = QHBoxLayout()
@@ -487,9 +503,16 @@ class DPDIControllerSettingsDialog(QDialog):
 
         assert isinstance(model, DPDIControllerModel)
 
-        loadUi(Path(__file__).parent / 'dpdicontrollersettingsdialog.ui', self)
+        UI_DIR = Path(__file__).parent
+
+        loadUi(UI_DIR / 'dpdicontrollersettingsdialog.ui', self)
         self.setWindowTitle('Derived Plot Data Item Settings')
         self.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
+
+        path_help = UI_DIR / 'controllerhelp.md'
+        if path_help.is_file():
+            with open(path_help, 'r', encoding='utf8') as f:
+                self.textBrowser.setMarkdown(f.read())
 
         self.mModel: DPDIControllerModel = model
 
@@ -509,9 +532,7 @@ class DPDIControllerSettingsDialog(QDialog):
         self.mCodeWidgets: List[DPDIControllerSettingsWidget] = []
 
         if udf_folder:
-            self.setUDFFolder(udf_folder)
-
-        self.cbUDFFolder.currentIndexChanged.connect(self.onUDFFileSelected)
+            self.setExampleFolder(udf_folder)
 
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
@@ -553,9 +574,9 @@ class DPDIControllerSettingsDialog(QDialog):
         if os.path.isfile(path) and path.name.endswith('.py'):
             self.loadUDF(path)
 
-    def setUDFFolder(self, path: Union[str, Path]):
+    def setExampleFolder(self, path: Union[str, Path]):
         """
-        Defines a folder to store user-defined functions
+        Defines a folder stores exemplary user-defined functions
         :param path:
         """
 
@@ -567,11 +588,8 @@ class DPDIControllerSettingsDialog(QDialog):
 
     def onUDFFolderChanged(self):
         """
-        Populates the combo box with files in the defined folder
-        :return:
+        Populates the menu to open example files
         """
-        self.cbUDFFolder.clear()
-
         folder = self.mUDFFolder
 
         udf_files: List[Path] = []
@@ -579,11 +597,20 @@ class DPDIControllerSettingsDialog(QDialog):
             for e in os.scandir(folder):
                 if e.is_file() and e.name.endswith('.py'):
                     udf_files.append(Path(e.path))
-        for udf_file in udf_files:
-            self.cbUDFFolder.addItem(udf_file.name, userData=udf_file.as_posix())
 
-        self.cbUDFFolder.setVisible(folder is not None)
-        self.tbUDFFolder.setVisible(folder is not None)
+        if len(udf_files) > 0:
+            menu = QMenu(self.btnLoadUDF)
+            menu.setToolTipsVisible(True)
+
+            for udf_file in udf_files:
+                # create a load action
+                a: QAction = menu.addAction(udf_file.name)
+                a.setToolTip(f'Load {udf_file}')
+                a.triggered.connect(lambda *args, f=udf_file: self.loadUDF(f))
+            self.btnLoadUDF.setPopupMode(QToolButton.MenuButtonPopup)
+            self.btnLoadUDF.setMenu(menu)
+        else:
+            self.btnLoadUDF.setPopupMode(QToolButton.DelayedPopup)
 
     def currentUDFWidget(self) -> Optional[DPDIControllerSettingsWidget]:
         w = self.mTabWidget.currentWidget()
@@ -668,8 +695,9 @@ class DPDIControllerSettingsDialog(QDialog):
     def addControllerSettingsWidget(self, w: DPDIControllerSettingsWidget):
         assert isinstance(w, DPDIControllerSettingsWidget)
         w.nameChanged.connect(self.onNameChanged)
-        self.mTabWidget.addTab(w, w.name())
+        idx = self.mTabWidget.addTab(w, w.name())
         self.mCodeWidgets.append(w)
+        self.mTabWidget.setCurrentIndex(idx)
         w.validationRequest.connect(self.validationRequest)
         self.validate()
 

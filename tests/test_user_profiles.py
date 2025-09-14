@@ -63,7 +63,11 @@ class UserFunctionTests(TestCase):
         model = pi.mPlotDataControllerModel
         assert isinstance(model, DPDIControllerModel)
 
+        example_folder = DIR_REPO / 'eotimeseriesviewer/temporalprofile/userfunctions'
+        model.setExampleFolder(example_folder)
+
         c = DPDIController()
+
         c.setName('My controller')
         code = """
 import numpy as np
@@ -128,7 +132,7 @@ results = {'y':y2, 'x':x, 'pen': 'red', 'name':'linear'}"""
         d.controllerChanged.connect(onControllerChanged)
 
         udf_folder = DIR_REPO / 'eotimeseriesviewer/temporalprofile/userfunctions'
-        d.setUDFFolder(udf_folder)
+        d.setExampleFolder(udf_folder)
 
         w.show()
 
