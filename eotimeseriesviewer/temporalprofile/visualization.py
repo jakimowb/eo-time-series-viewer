@@ -20,19 +20,18 @@
 """
 import os
 import sys
-import weakref
 from itertools import chain
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QItemSelectionModel, QModelIndex, QObject, \
-    QPoint, Qt, QTimer
-from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import QAction, QMenu, QProgressBar, QSlider, QTableView, QToolButton, QWidgetAction
+from qgis.PyQt.QtGui import QColor, QPen
 from qgis.core import QgsApplication, QgsCoordinateTransform, QgsExpression, QgsExpressionContext, \
-    QgsExpressionContextUtils, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsProject, \
-    QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
+    QgsExpressionContextUtils, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsMapLayer, QgsPointXY, \
+    QgsProject, QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QItemSelectionModel, QModelIndex, QObject, \
+    QPoint, Qt
+from qgis.PyQt.QtWidgets import QAction, QMenu, QProgressBar, QSlider, QTableView, QToolButton, QWidgetAction
 from qgis.gui import QgsDockWidget, QgsFilterLineEdit
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
@@ -42,8 +41,7 @@ from .plotsettings import PlotSettingsProxyModel, PlotSettingsTreeModel, PlotSet
 from .temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
 from ..qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
 from ..qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
-from ..qgispluginsupport.qps.pyqtgraph.pyqtgraph import mkBrush, mkPen, PlotCurveItem
-from ..qgispluginsupport.qps.pyqtgraph.pyqtgraph.GraphicsScene.mouseEvents import MouseClickEvent
+from ..qgispluginsupport.qps.pyqtgraph.pyqtgraph import mkBrush, mkPen
 from ..qgispluginsupport.qps.utils import loadUi, SpatialPoint
 from ..qgispluginsupport.qps.vectorlayertools import VectorLayerTools
 from ..sensors import SensorInstrument
@@ -159,14 +157,18 @@ class TemporalProfileVisualization(QObject):
         self.mTreeView = treeView
         self.mPlotWidget = plotWidget
         self.mPlotWidget.plotItem.vb.moveToDate.connect(self.moveToDate)
-        self.mPlotWidget.preUpdateTask.connect(self.addPreUpdateTask)
         self.mPlotWidget.sigMapDateRequest.connect(self.moveToDate)
+        self.mPlotWidget.sigSelectFeatures.connect(self.onSelectFeatures)
         # plotWidget.setBackground('white')
         self.mPreUpdateTasks = list()
+
+        self.mLayerConnections: List[QgsVectorLayer] = []
+        self.mLayerConnectionSignalProxys: Dict[str, List[pg.SignalProxy]] = dict()
 
         self.mModel = PlotSettingsTreeModel()
         self.mModel.setPlotWidget(self.mPlotWidget)
         self.mModel.itemChanged.connect(self.onStyleChanged)
+        self.mModel.layersChanged.connect(self.updateLayerConnections)
 
         settingsActions = [
             self.mPlotWidget.dateTimeViewBox().mActionShowMapViewRange,
@@ -192,10 +194,62 @@ class TemporalProfileVisualization(QObject):
 
         self.mShowSelectedOnly = False
 
-        self.mUpdateTimer = QTimer()
-        self.mUpdateTimer.timeout.connect(self.preUpdates)
-        self.mUpdateTimer.setInterval(1000)
-        self.mUpdateTimer.start()
+    def removeLayerConnection(self, layerId: Union[QgsMapLayer, str]):
+        if isinstance(layerId, QgsMapLayer):
+            layerId = layerId.id()
+
+        if layerId in self.mLayerConnectionSignalProxys:
+            for proxy in self.mLayerConnectionSignalProxys[layerId]:
+                if isinstance(proxy, pg.SignalProxy):
+                    proxy.disconnect()
+                elif isinstance(proxy, Tuple):
+                    s1, s2 = proxy
+                    s1.disconnect(s2)
+
+            self.mLayerConnectionSignalProxys.pop(layerId)
+
+        to_remove = [l for l in self.mLayerConnections if l.id() == layerId]
+
+        for l in to_remove:
+            self.mLayerConnections.remove(l)
+
+    def updateLayerConnections(self):
+
+        old_state = self.mLayerConnections
+        new_state = self.mModel.layers()
+
+        to_add = [l for l in new_state if l not in old_state]
+        to_remove = [l for l in old_state if l not in new_state]
+
+        for lyr in to_add:
+            # register signals
+            lid = lyr.id()
+            if lid in self.mLayerConnectionSignalProxys:
+                continue
+
+            lyr.willBeDeleted.connect(lambda *args, _lid=lyr.id(): self.removeLayerConnection(_lid))
+
+            connections = [
+                (lyr.attributeValueChanged, self.updatePlot),
+                (lyr.selectionChanged, self.updatePlot),
+                (lyr.featureAdded, self.updatePlot),
+                (lyr.featureDeleted, self.updatePlot),
+                (lyr.rendererChanged, self.updatePlot),
+            ]
+
+            proxies = []
+            if False:
+                for (src, dst) in connections:
+                    proxies.append(pg.SignalProxy(src, slot=dst, rateLimit=60))
+            else:
+                for (src, dst) in connections:
+                    src.connect(dst)
+                    proxies.append((src, dst))
+            self.mLayerConnectionSignalProxys[lid] = proxies
+
+        for lyr in to_remove:
+            self.removeLayerConnection(lyr)
+        s = ""
 
     def setShowSelectedOnly(self, show: bool):
         update = self.mShowSelectedOnly != show
@@ -327,6 +381,13 @@ class TemporalProfileVisualization(QObject):
                 task.finished(task.run_serial())
         return True
 
+    def onSelectFeatures(self, select_features: Dict[str, List[int]]):
+
+        for lid, fids in select_features.items():
+            layer = self.project().mapLayer(lid)
+            if isinstance(layer, QgsVectorLayer) and layer.isValid():
+                layer.selectByIds(fids)
+
     def onInterimResults(self, *args):
 
         s = ""
@@ -451,29 +512,13 @@ class TemporalProfileVisualization(QObject):
             self.updatePlot(settings)
             # self.mLastStyle = settings
 
-    def addPreUpdateTask(self, task_name: str, task_kwds: dict):
+    def func_select_profile(self, pdi):
 
-        self.mPreUpdateTasks.append((task_name, task_kwds))
-
-    def preUpdates(self):
-        """Handles task that need to be done before updatePlot()"""
-        self.mUpdateTimer.stop()
-
-        updates = self.mPreUpdateTasks[:]
-
-        for update in updates:
-            k, v = update
-            if k == 'select_features':
-                lyr = v.get('layer')
-                fids = v.get('fids')
-                if isinstance(lyr, QgsVectorLayer) and isinstance(fids, list):
-                    lyr.selectByIds(fids)
-
-            else:
-                s = ""
-            self.mPreUpdateTasks.remove(update)
-
-        self.mUpdateTimer.start()
+        if isinstance(pdi, DateTimePlotDataItem):
+            p = QPen(pdi.mDefaultStyle.linePen)
+            # p.setColor(QColor('yellow'))
+            p.setWidth(p.width() + 3)
+            pdi.setPen(p)
 
     def updatePlot(self, settings: dict = None):
 
@@ -670,11 +715,6 @@ class TemporalProfileVisualization(QObject):
                     if is_candidate:
                         # style profile candidate
                         feature_line_style.setLinePen(cand_linestyle.linePen)
-                    if feature.id() in selected_fids:
-                        # style selected feature profiles
-                        selectedProfiles[lyr.id()] = selectedProfiles.get(lyr.id(), []) + [feature.id()]
-                        feature_line_style.setLineColor(QColor('yellow'))
-                        feature_line_style.setLineWidth(layer_line_style.lineWidth() + 3)
 
                     name = None
 
@@ -694,18 +734,19 @@ class TemporalProfileVisualization(QObject):
                     pdi = DateTimePlotDataItem(all_x, all_y,
                                                pen=feature_line_style.linePen,
                                                name=name,
-                                               symbol=all_symbols,
-                                               symbolSize=all_symbol_sizes,
-                                               symbolPen=all_symbol_pens,
-                                               symbolBrush=all_symbol_brushes,
+                                               symbol=all_symbols.tolist(),
+                                               symbolSize=all_symbol_sizes.tolist(),
+                                               symbolPen=all_symbol_pens.tolist(),
+                                               symbolBrush=all_symbol_brushes.tolist(),
                                                hoverable=True,
                                                pxMode=True,
                                                )
+
+                    pdi.setSelectedStyle(self.func_select_profile)
+                    pdi.setSelected(feature.id() in selected_fids)
                     # print(f'#PDI={pdi}')
                     pdi.setTemporalProfile(tpData, results['indices'])
-                    pdi.curve.setClickable(True)
-                    # pdi = DateTimePlotDataItem(data)
-                    # pdi.setCurveClickable(True)
+
                     pdi.scatter.opts['hoverable'] = True
                     pdi.scatter.setData(hoverSize=all_symbol_sizes[0] + 2,
                                         hoverPen=mkPen('yellow'))
@@ -723,7 +764,7 @@ class TemporalProfileVisualization(QObject):
                     # pdi.setAcceptHoverEvents(True)
                     # pdi.curve.setAcceptHoverEvents(True)
                     # pdi.setAcceptTouchEvents(True)
-                    pdi.mLayer = weakref.ref(lyr)
+                    pdi.mLayerId = lyr.id()
                     pdi.mFeatureID = feature.id()
                     if is_candidate:
                         pdi.setZValue(999998)
@@ -740,8 +781,6 @@ class TemporalProfileVisualization(QObject):
             # item.sigPointsHovered.connect(self.pointsHovered)
             self.mPlotWidget.plotItem.addItem(item)
 
-        self.setSelectedFeatures(selectedProfiles)
-
         if len(errors) > 0:
             info = ['TemporalProfile plotting errors:']
             for e, cnt in errors.items():
@@ -750,51 +789,6 @@ class TemporalProfileVisualization(QObject):
 
     def onTip(self, *args, **kwds) -> str:
         return None
-
-    def setSelectedFeatures(self, selected_features: dict):
-
-        if selected_features != self.mSelectedFeatures:
-            self.mSelectedFeatures.clear()
-            self.mSelectedFeatures.update(selected_features)
-            self.featureSelectionChanged.emit(self.mSelectedFeatures)
-
-    def selectedFeatures(self) -> dict:
-        return self.mSelectedFeatures
-
-    def __depr__itemClicked(self, item: Union[PlotCurveItem], event: MouseClickEvent):
-        s = ""
-        # print(f'Clicked {item}')
-
-        pdi = None
-        if isinstance(item, DateTimePlotDataItem):
-            pdi = item
-
-        if isinstance(item, PlotCurveItem) and isinstance(item.parentItem(), DateTimePlotDataItem):
-            pdi = item.parentItem()
-
-        if isinstance(pdi, DateTimePlotDataItem):
-            s = ""
-            lyr = pdi.mLayer()
-            fid = pdi.mFeatureID
-
-            if isinstance(lyr, QgsVectorLayer) and isinstance(fid, int):
-                fids: list = lyr.selectedFeatureIds()
-                if event.modifiers() & Qt.ControlModifier:
-                    if fid in fids:
-                        # remove from selection if already in
-                        fids = [f for f in fids if f != fid]
-                    else:
-                        # add to selection
-                        fids.append(fid)
-                else:
-                    fids = [fid]
-                self.mPreUpdateTasks.append(
-                    ('select_features', {'layer': lyr, 'fids': fids})
-                )
-
-                # lyr.selectByIds([fid])
-            # select feature in layer
-            event.accept()
 
     def initPlot(self):
 

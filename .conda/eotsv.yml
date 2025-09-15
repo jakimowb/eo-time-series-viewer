@@ -8,6 +8,7 @@ dependencies:
   - python>=3.10
   - qgis>=3.38
   - gitpython
+  - scipy
   - markdown
   - sphinx_rtd_theme > 1
   - sphinx-copybutton

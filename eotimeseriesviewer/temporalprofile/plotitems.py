@@ -65,7 +65,7 @@ class MapDateRangeItem(pg.LinearRegionItem):
         return d0, d1
 
 
-class TemporalProfilePlotDataItem(pg.PlotDataItem):
+class __DEPR__TemporalProfilePlotDataItem(pg.PlotDataItem):
 
     def __init__(self, plotStyle: TemporalProfilePlotStyle, parent=None):
         assert isinstance(plotStyle, TemporalProfilePlotStyle)

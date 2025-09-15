@@ -1,26 +1,31 @@
 import json
+import random
 import re
 import unittest
-import random
 
-from qgis.PyQt.QtGui import QAction, QIcon, QStandardItemModel
-from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QPushButton, QSplitter, QTreeView, QVBoxLayout, QWidget
-from qgis.gui import QgsMapCanvas
-from qgis.PyQt.QtCore import QSize, Qt
-from qgis.core import QgsProject, QgsVectorLayer
+import numpy as np
+
+from eotimeseriesviewer import initResources
+from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
+from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
+from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import PlotCurveItem
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint
 from eotimeseriesviewer.qgispluginsupport.qps.vectorlayertools import VectorLayerTools
+from eotimeseriesviewer.sensors import SensorInstrument
 from eotimeseriesviewer.sensorvisualization import SensorDockUI
-from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
+from eotimeseriesviewer.temporalprofile.datetimeplot import copyProfiles, DateTimePlotDataItem, DateTimePlotWidget
 from eotimeseriesviewer.temporalprofile.plotsettings import PlotSettingsTreeView, PythonCodeItem, TPVisSensor, \
     TPVisSettings
-from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileEditorWidgetFactory
+from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileEditorWidgetFactory, TemporalProfileUtils
 from eotimeseriesviewer.temporalprofile.visualization import TemporalProfileDock, TemporalProfileVisualization
 from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app, TestObjects
-from eotimeseriesviewer import initResources
-from eotimeseriesviewer.sensors import SensorInstrument
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
+from qgis.PyQt.QtCore import QSize, Qt
+from qgis.PyQt.QtGui import QAction, QIcon, QPen, QStandardItemModel, QColor
+from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QPushButton, QSplitter, QTreeView, QVBoxLayout, QWidget
+from qgis.core import QgsApplication, QgsProject, QgsVectorLayer
+from qgis.gui import QgsMapCanvas
 
 start_app()
 initResources()
@@ -179,9 +184,80 @@ class PlotSettingsTests(EOTSVTestCase):
         aZoom.trigger()
         self.assertEqual(cntZoom, 1)
 
+    def test_copy_profiles(self):
+
+        dates, ndvi_values = TestObjects.generate_seasonal_ndvi_dates()
+        x = np.asarray([ImageDateUtils.timestamp(d) for d in dates])
+        pdi = DateTimePlotDataItem(x=x, y=ndvi_values, name='Profile A')
+
+        pdi2 = DateTimePlotDataItem(x=x + 0.2, y=ndvi_values * 0.8, name='Profile B')
+
+        copyProfiles([pdi, pdi2], 'json')
+        md = QgsApplication.instance().clipboard().mimeData()
+        data = json.loads(md.text())
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), 2)
+
+        if pdi.mTemporalProfile:
+            copyProfiles([pdi, pdi2], 'tp_json')
+            md = QgsApplication.instance().clipboard().mimeData()
+            data = json.loads(md.text())
+            self.assertIsInstance(data, list)
+            self.assertEqual(len(data), 2)
+            for i, d in enumerate(data):
+                self.assertTrue(TemporalProfileUtils.isProfileDict(d))
+
+        copyProfiles([pdi, pdi2], 'csv')
+        md = QgsApplication.instance().clipboard().mimeData()
+        data = md.text()
+        self.assertIsInstance(data, str)
+        lines = data.splitlines()
+        self.assertEqual(lines[0], f'date,{pdi.name()},{pdi2.name()}')
+
+    def test_DateTimePlotItem(self):
+
+        dates, ndvi_values = TestObjects.generate_seasonal_ndvi_dates()
+        x = np.asarray([ImageDateUtils.timestamp(d) for d in dates])
+        pdi = DateTimePlotDataItem(x=x, y=ndvi_values, name='Profile A')
+        pdi2 = DateTimePlotDataItem(x=x + 0.2, y=ndvi_values * 0.8, name='Profile B')
+
+        selStyle = PlotStyle()
+        selStyle.setLineWidth(5)
+        selStyle.setLineColor('yellow')
+
+        def func_selection(pdi: DateTimePlotDataItem):
+            p = QPen(pdi.mDefaultStyle.linePen)
+            p.setColor(QColor('yellow'))
+            p.setWidth(p.width() + 3)
+            pdi.setPen(p)
+
+        pdi.setSelectedStyle(func_selection)
+        pdi2.setSelectedStyle(func_selection)
+
+        def onClicked(curve: PlotCurveItem):
+            pdi = curve.parentItem()
+
+            if not isinstance(pdi, DateTimePlotDataItem):
+                return
+
+        # pdi.setFlag(QGraphicsItem.ItemIsSelectable, True)
+        # pdi.curve.setFlag(QGraphicsItem.ItemIsSelectable, True)
+        coll = dict()
+        coll[pdi] = 'foo'
+        coll[pdi2] = 'bar'
+        self.assertEqual(coll[pdi], 'foo')
+        self.assertEqual(coll[pdi2], 'bar')
+
+        w = DateTimePlotWidget()
+
+        w.addItem(pdi)
+        w.addItem(pdi2)
+
+        self.showGui(w)
+
     def test_TemporalProfileDock(self):
 
-        if False and FORCE_CUBE and FORCE_CUBE.is_dir():
+        if FORCE_CUBE and FORCE_CUBE.is_dir():
             files = file_search(FORCE_CUBE, re.compile('.*BOA.tif$'), recursive=True)
             ts = TimeSeries()
             files = list(files)[:25]
