@@ -20,6 +20,15 @@ import traceback
 from typing import Optional
 
 import qgis.utils
+from processing import getTempFilename, ProcessingConfig
+from processing.core.ProcessingResults import resultsList
+from processing.gui.AlgorithmDialogBase import AlgorithmDialogBase
+from processing.gui.AlgorithmExecutor import execute, execute_in_place, executeIterating
+from processing.gui.BatchOutputSelectionPanel import BatchOutputSelectionPanel
+from processing.gui.BatchPanel import BatchPanelFillWidget, WIDGET
+from processing.gui.Postprocessing import determine_output_name, post_process_layer
+from processing.gui.wrappers import WidgetWrapper, WidgetWrapperFactory
+from processing.tools import dataobjects
 from qgis.PyQt.QtCore import QCoreApplication, QDir, QFileInfo
 from qgis.PyQt.QtGui import QColor, QPalette
 from qgis.PyQt.QtWidgets import QDialogButtonBox, QFileDialog, QHeaderView, QMessageBox, QPushButton, QTableWidgetItem
@@ -35,17 +44,54 @@ from qgis.gui import QgisInterface, QgsGui, QgsPanelWidget, QgsProcessingAlgorit
     QgsProcessingBatchAlgorithmDialogBase, QgsProcessingContextGenerator, QgsProcessingGui, \
     QgsProcessingHiddenWidgetWrapper, QgsProcessingParametersGenerator, QgsProcessingParametersWidget, \
     QgsProcessingParameterWidgetContext
-from qgis.gui import QgsProcessingGuiUtils
 
-from processing import getTempFilename, ProcessingConfig
-from processing.core.ProcessingResults import resultsList
-from processing.gui.AlgorithmDialogBase import AlgorithmDialogBase
-from processing.gui.AlgorithmExecutor import execute, execute_in_place, executeIterating
-from processing.gui.BatchOutputSelectionPanel import BatchOutputSelectionPanel
-from processing.gui.BatchPanel import BatchPanelFillWidget, WIDGET
-from processing.gui.Postprocessing import determine_output_name, post_process_layer
-from processing.gui.wrappers import WidgetWrapper, WidgetWrapperFactory
-from processing.tools import dataobjects
+
+def layerTreeResultsGroup(
+        layer_details: QgsProcessingContext.LayerDetails,
+        context: QgsProcessingContext,
+) -> Optional[QgsLayerTreeGroup]:
+    """
+    Returns the destination layer tree group to store results in, or None
+    if there is no target project available.
+    """
+
+    try:
+        from qgis.gui import QgsProcessingGuiUtils
+        return QgsProcessingGuiUtils.layerTreeResultsGroup(layer_details, context)
+    except Exception as e:
+        pass
+
+    destination_project: Optional[QgsProject] = layer_details.project or context.project()
+    if destination_project is None:
+        return None
+
+    results_group: Optional[QgsLayerTreeGroup] = None
+
+    # Respect a globally configured results group name (create if it doesn't exist)
+    settings = QgsSettings()
+    results_group_name = settings.value(
+        "Processing/Configuration/RESULTS_GROUP_NAME", ""
+    )
+    if results_group_name:
+        root = destination_project.layerTreeRoot()
+        results_group = root.findGroup(results_group_name)
+        if results_group is None:
+            results_group = root.insertGroup(0, results_group_name)
+            results_group.setExpanded(True)
+
+    # If this output has a specific group assigned, find or create it
+    if getattr(layer_details, "groupName", ""):
+        if results_group is None:
+            results_group = destination_project.layerTreeRoot()
+
+        group = results_group.findGroup(layer_details.groupName)
+        if group is None:
+            group = results_group.insertGroup(0, layer_details.groupName)
+            group.setExpanded(True)
+    else:
+        group = results_group
+
+    return group
 
 
 def handleAlgorithmResults(
@@ -96,23 +142,26 @@ def handleAlgorithmResults(
                 post_process_layer(output_name, layer, alg)
 
                 # Load layer to layer tree root or to a specific group
-                results_group = QgsProcessingGuiUtils.layerTreeResultsGroup(details, context)
+                results_group = layerTreeResultsGroup(details, context)
+                # results_group = QgsProcessingGuiUtils.layerTreeResultsGroup(details, context)
                 # results_group = get_layer_tree_results_group(details, context)
 
                 # note here that we may not retrieve an owned layer -- eg if the
                 # output layer already exists in the destination project
                 owned_map_layer = context.temporaryLayerStore().takeMapLayer(layer)
-                if owned_map_layer:
-                    # we don't add the layer to the tree yet -- that's done
-                    # later, after we've sorted all added layers
-                    # layer_tree_layer = QgsProcessingGuiUtils.ResultLayerDetails(owned_map_layer)
-                    result_layer_details = QgsProcessingGuiUtils.ResultLayerDetails(
-                        owned_map_layer
-                    )
-                    result_layer_details.targetLayerTreeGroup = results_group
-                    result_layer_details.sortKey = details.layerSortKey or 0
-                    result_layer_details.destinationProject = details.project
-                    added_layers.append(result_layer_details)
+                # if owned_map_layer:
+                # we don't add the layer to the tree yet -- that's done
+                # later, after we've sorted all added layers
+                # layer_tree_layer = QgsProcessingGuiUtils.ResultLayerDetails(owned_map_layer)
+
+                # result_layer_details = QgsProcessingGuiUtils.ResultLayerDetails(
+                #    owned_map_layer
+                # )
+
+                # result_layer_details.targetLayerTreeGroup = results_group
+                # result_layer_details.sortKey = details.layerSortKey or 0
+                # result_layer_details.destinationProject = details.project
+                # added_layers.append(result_layer_details)
 
                 if details.postProcessor():
                     # we defer calling the postProcessor set in the context
@@ -139,9 +188,9 @@ def handleAlgorithmResults(
     if iface is not None:
         iface.layerTreeView().setUpdatesEnabled(False)
 
-    QgsProcessingGuiUtils.addResultLayers(
-        added_layers, context, iface.layerTreeView() if iface else None
-    )
+    # addResultLayers(
+    #    added_layers, context, iface.layerTreeView() if iface else None
+    # )
 
     # all layers have been added to the layer tree, so safe to call
     # postProcessors now
