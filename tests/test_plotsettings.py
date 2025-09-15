@@ -4,6 +4,11 @@ import re
 import unittest
 
 import numpy as np
+from qgis.PyQt.QtCore import QSize, Qt
+from qgis.PyQt.QtGui import QAction, QIcon, QPen, QStandardItemModel, QColor
+from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QPushButton, QSplitter, QTreeView, QVBoxLayout, QWidget
+from qgis.core import QgsApplication, QgsProject, QgsVectorLayer
+from qgis.gui import QgsMapCanvas
 
 from eotimeseriesviewer import initResources
 from eotimeseriesviewer.dateparser import ImageDateUtils
@@ -21,11 +26,6 @@ from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileEd
 from eotimeseriesviewer.temporalprofile.visualization import TemporalProfileDock, TemporalProfileVisualization
 from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app, TestObjects
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
-from qgis.PyQt.QtCore import QSize, Qt
-from qgis.PyQt.QtGui import QAction, QIcon, QPen, QStandardItemModel, QColor
-from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QPushButton, QSplitter, QTreeView, QVBoxLayout, QWidget
-from qgis.core import QgsApplication, QgsProject, QgsVectorLayer
-from qgis.gui import QgsMapCanvas
 
 start_app()
 initResources()
@@ -169,13 +169,20 @@ class PlotSettingsTests(EOTSVTestCase):
         aZoom: QAction = dock.actionZoomToSelected
 
         lyr.selectByIds([fid])
+        dock.mVis.selectLayer(lyr)
+        dock.mVis.mModel.flushSignals()
 
         self.assertTrue(aPan.isEnabled())
         self.assertTrue(aZoom.isEnabled())
-        lyr.selectByIds([])
+        lyr.removeSelection()
+        dock.mVis.mModel.flushSignals()
+        self.showGui(dock)
+
         self.assertFalse(aPan.isEnabled())
         self.assertFalse(aZoom.isEnabled())
         lyr.selectByIds([fid])
+        dock.mVis.mModel.flushSignals()
+
         self.assertTrue(aPan.isEnabled())
         self.assertTrue(aZoom.isEnabled())
 

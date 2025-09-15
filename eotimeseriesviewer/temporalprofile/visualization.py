@@ -24,15 +24,15 @@ from itertools import chain
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
-
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QItemSelectionModel, QModelIndex, QObject, \
+    QPoint, Qt
 from qgis.PyQt.QtGui import QColor, QPen
+from qgis.PyQt.QtWidgets import QAction, QMenu, QProgressBar, QSlider, QTableView, QToolButton, QWidgetAction
 from qgis.core import QgsApplication, QgsCoordinateTransform, QgsExpression, QgsExpressionContext, \
     QgsExpressionContextUtils, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsMapLayer, QgsPointXY, \
     QgsProject, QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QItemSelectionModel, QModelIndex, QObject, \
-    QPoint, Qt
-from qgis.PyQt.QtWidgets import QAction, QMenu, QProgressBar, QSlider, QTableView, QToolButton, QWidgetAction
 from qgis.gui import QgsDockWidget, QgsFilterLineEdit
+
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from .datetimeplot import DateTimePlotDataItem, DateTimePlotWidget
@@ -145,7 +145,6 @@ class _SensorPoints(pg.PlotDataItem):
 class TemporalProfileVisualization(QObject):
     loadingProgress = pyqtSignal(float)
     moveToDate = pyqtSignal(QDateTime, str)
-
     featureSelectionChanged = pyqtSignal(dict)
 
     def __init__(self,
@@ -231,6 +230,7 @@ class TemporalProfileVisualization(QObject):
 
             connections = [
                 (lyr.attributeValueChanged, self.updatePlot),
+                (lyr.selectionChanged, self.onLayerFeatureSelectionChanged),
                 (lyr.selectionChanged, self.updatePlot),
                 (lyr.featureAdded, self.updatePlot),
                 (lyr.featureDeleted, self.updatePlot),
@@ -381,6 +381,9 @@ class TemporalProfileVisualization(QObject):
                 task.finished(task.run_serial())
         return True
 
+    def onLayerFeatureSelectionChanged(self, *args, **kwds):
+        s = ""
+
     def onSelectFeatures(self, select_features: Dict[str, List[int]]):
 
         for lid, fids in select_features.items():
@@ -484,6 +487,30 @@ class TemporalProfileVisualization(QObject):
         self.mModel.addVisualizations(v)
 
         return v
+
+    def selectLayer(self, layer: QgsVectorLayer):
+
+        if isinstance(layer, QgsVectorLayer):
+            lid = layer.id()
+            m = self.mTreeView.model()
+            for r in range(m.rowCount()):
+                idx = m.index(r, 0)
+                item = m.data(idx, Qt.UserRole)
+                if isinstance(item, TPVisGroup) and item.mLayerID == lid:
+                    sm: QItemSelectionModel = self.mTreeView.selectionModel()
+                    sm.select(idx,
+                              QItemSelectionModel.SelectionFlag.SelectCurrent | QItemSelectionModel.SelectionFlag.Rows)
+
+    def selectedFeatures(self) -> List[Tuple[QgsVectorLayer, List[int]]]:
+
+        results = []
+        for vis in self.selectedVisualizations():
+            lyr = vis.layer()
+            if isinstance(lyr, QgsVectorLayer) and lyr.isValid():
+                sids = lyr.selectedFeatureIds()
+                if len(sids) > 0:
+                    results.append((lyr, sids))
+        return results
 
     def selectedVisualizations(self) -> List[TPVisGroup]:
         """
@@ -873,7 +900,6 @@ class TemporalProfileDock(QgsDockWidget):
 
         self.mPlotWidget: DateTimePlotWidget
         self.mTreeView.layerAttributeTableRequest.connect(self.layerAttributeTableRequest)
-        self.mTreeView.model()
         self.mVectorLayerTool: Optional[VectorLayerTools] = None
 
         self.mVis = TemporalProfileVisualization(self.mTreeView, self.mPlotWidget)
@@ -902,8 +928,19 @@ class TemporalProfileDock(QgsDockWidget):
     def updateActions(self):
 
         self.mTreeView.selectedLayers()
-        b = len(self.mTreeView.selectedLayers())
-        self.actionShowAttributeTable.setEnabled(b)
+
+        selectedLayers = self.mTreeView.selectedLayers()
+
+        self.actionShowAttributeTable.setEnabled(len(selectedLayers) > 0)
+        b = False
+        for lyr in selectedLayers:
+            lyr: QgsVectorLayer
+            if lyr.selectedFeatureCount() > 0:
+                b = True
+                break
+        self.actionPanToSelected.setEnabled(b)
+        self.actionZoomToSelected.setEnabled(b)
+        self.actionDeselect.setEnabled(b)
 
     def onFeatureSelectionChanged(self, selected_features: dict):
         has_selected = len(selected_features) > 0
@@ -912,27 +949,20 @@ class TemporalProfileDock(QgsDockWidget):
         self.actionDeselect.setEnabled(has_selected)
 
     def deselect(self):
-        for lid, fids in self.mVis.selectedFeatures().copy().items():
-            lyr = self.project().mapLayer(lid)
-            if isinstance(lyr, QgsVectorLayer):
-                new_selection = [fid for fid in lyr.selectedFeatureIds() if fid not in fids]
-                lyr.selectByIds(new_selection)
+        for lyr, fids in self.mVis.selectedFeatures():
+            new_selection = [fid for fid in lyr.selectedFeatureIds() if fid not in fids]
+            lyr.selectByIds(new_selection)
 
     def panToSelected(self):
         if isinstance(self.mVectorLayerTool, VectorLayerTools):
-            selected = self.mVis.selectedFeatures()
-            for lid, fids in selected.items():
-                lyr = self.project().mapLayer(lid)
-                if isinstance(lyr, QgsVectorLayer) and len(fids) > 0:
-                    self.mVectorLayerTool.panToFeatures(lyr, fids)
+            for lyr, fids in self.mVis.selectedFeatures():
+                self.mVectorLayerTool.panToFeatures(lyr, fids)
 
     def zoomToSelected(self):
         if isinstance(self.mVectorLayerTool, VectorLayerTools):
-            selected = self.mVis.selectedFeatures()
-            for lid, fids in selected.items():
-                lyr = self.project().mapLayer(lid)
-                if isinstance(lyr, QgsVectorLayer) and len(fids) > 0:
-                    self.mVectorLayerTool.zoomToFeatures(lyr, fids)
+
+            for lyr, fids in self.mVis.selectedFeatures():
+                self.mVectorLayerTool.zoomToFeatures(lyr, fids)
 
     def setProgress(self, progress: float):
         btnCancelTask: QToolButton = self.btnCancelTask

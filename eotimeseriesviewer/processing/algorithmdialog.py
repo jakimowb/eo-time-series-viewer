@@ -19,14 +19,13 @@ import time
 import traceback
 from typing import Optional
 
-from qgis._gui import QgsProcessingGuiUtils
-
-from processing.tools import dataobjects
+import qgis.utils
 from qgis.PyQt.QtCore import QCoreApplication, QDir, QFileInfo
+from qgis.PyQt.QtGui import QColor, QPalette
 from qgis.PyQt.QtWidgets import QDialogButtonBox, QFileDialog, QHeaderView, QMessageBox, QPushButton, QTableWidgetItem
 from qgis.core import Qgis, QgsApplication, QgsExpressionContext, QgsExpressionContextScope, QgsExpressionContextUtils, \
-    QgsFeatureRequest, QgsFileUtils, QgsLayerTreeGroup, QgsLayerTreeLayer, QgsLayerTreeNode, QgsLayerTreeRegistryBridge, \
-    QgsMapLayer, QgsMessageLog, QgsProcessingAlgorithm, QgsProcessingAlgRunnerTask, QgsProcessingContext, \
+    QgsFeatureRequest, QgsFileUtils, QgsLayerTreeGroup, QgsLayerTreeLayer, QgsMapLayer, QgsMessageLog, \
+    QgsProcessingAlgorithm, QgsProcessingAlgRunnerTask, QgsProcessingContext, \
     QgsProcessingFeatureSourceDefinition, QgsProcessingFeedback, QgsProcessingModelAlgorithm, \
     QgsProcessingOutputBoolean, QgsProcessingOutputHtml, QgsProcessingOutputLayerDefinition, QgsProcessingOutputNumber, \
     QgsProcessingOutputString, QgsProcessingParameterDefinition, QgsProcessingParameterExtent, \
@@ -36,16 +35,17 @@ from qgis.gui import QgisInterface, QgsGui, QgsPanelWidget, QgsProcessingAlgorit
     QgsProcessingBatchAlgorithmDialogBase, QgsProcessingContextGenerator, QgsProcessingGui, \
     QgsProcessingHiddenWidgetWrapper, QgsProcessingParametersGenerator, QgsProcessingParametersWidget, \
     QgsProcessingParameterWidgetContext
-from processing.gui.BatchOutputSelectionPanel import BatchOutputSelectionPanel
-from processing.gui.AlgorithmExecutor import execute, execute_in_place, executeIterating
-from processing.gui.BatchPanel import BatchPanelFillWidget, WIDGET
-from processing.gui.Postprocessing import determine_output_name, post_process_layer
-from processing.gui.wrappers import WidgetWrapper, WidgetWrapperFactory
-from qgis.PyQt.QtGui import QColor, QPalette
-import qgis.utils
+from qgis.gui import QgsProcessingGuiUtils
+
 from processing import getTempFilename, ProcessingConfig
 from processing.core.ProcessingResults import resultsList
 from processing.gui.AlgorithmDialogBase import AlgorithmDialogBase
+from processing.gui.AlgorithmExecutor import execute, execute_in_place, executeIterating
+from processing.gui.BatchOutputSelectionPanel import BatchOutputSelectionPanel
+from processing.gui.BatchPanel import BatchPanelFillWidget, WIDGET
+from processing.gui.Postprocessing import determine_output_name, post_process_layer
+from processing.gui.wrappers import WidgetWrapper, WidgetWrapperFactory
+from processing.tools import dataobjects
 
 
 def handleAlgorithmResults(
