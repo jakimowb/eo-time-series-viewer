@@ -15,10 +15,9 @@ from qgis.gui import QgsFieldExpressionWidget
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, \
     PlotStyleDialog, PlotStyleWidget
-from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import SignalProxy
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibraryplotmodelitems import PlotStyleItem, \
-    PropertyItem, PropertyItemBase, PropertyItemGroup, PropertyLabel, QgsPropertyItem
+    PropertyItem, PropertyItemBase, PropertyItemGroup, PropertyLabel, QgsPropertyItem, QgsPropertyItemBool
 from eotimeseriesviewer.sensors import SensorInstrument
 from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
 from eotimeseriesviewer.spectralindices import spectral_indices
@@ -291,13 +290,17 @@ class TPVisSettings(PropertyItemGroup):
         if isinstance(settings.profileStyleCurrent, PlotStyle):
             self.mCandidateLineStyle.setPlotStyle(settings.profileStyleCurrent)
 
+        self.mAntialias = QgsPropertyItemBool('Antialias',
+                                              tooltip='Enable antialias. Can decrease rendering speed.',
+                                              value=True)
+
         self.mThreads = QgsPropertyItem('n_threads')
         self.mThreads.setDefinition(QgsPropertyDefinition(
             'Threads', 'Number of threads to use when loading profiles',
             QgsPropertyDefinition.StandardPropertyTemplate.IntegerPositiveGreaterZero))
         self.mThreads.setProperty(QgsProperty.fromValue(4))
 
-        for pItem in [self.mCandidateLineStyle, self.mThreads]:
+        for pItem in [self.mCandidateLineStyle, self.mAntialias, self.mThreads]:
             self.appendRow(pItem.propertyRow())
 
         self.setDropEnabled(False)
@@ -315,10 +318,13 @@ class TPVisSettings(PropertyItemGroup):
             context.appendScope(QgsExpressionContextUtils.globalScope())
             context.appendScope(QgsExpressionContextUtils.projectScope(QgsProject.instance()))
 
-        d['candidate_add'] = True
-        d['candidate_target'] = (None, None)
-        d['candidate_line_style'] = self.mCandidateLineStyle.plotStyle().map()
+        d['candidates'] = {'add': True,
+                           'target': (None, None),
+                           'line_style': self.mCandidateLineStyle.plotStyle().map()}
+
         d['n_threads'] = self.mThreads.value(context, 4)
+        d['antialias'] = self.mAntialias.value(context, False)
+
         return d
 
     def createProfileCandidatePixmap(self, size: QSize, hline: bool = True, bc: Optional[QColor] = None) -> QPixmap:
@@ -423,7 +429,7 @@ class TPVisGroup(PropertyItemGroup):
         self.setEditable(True)
         self.setSelectable(True)
 
-        self.mLayerSignalProxies: List[SignalProxy] = []
+        # self.mLayerSignalProxies: List[SignalProxy] = []
 
         self.mPField = ProfileFieldItem('Field')
         self.mPField.setToolTip('Field that contains temporal profiles.')
@@ -460,7 +466,6 @@ class TPVisGroup(PropertyItemGroup):
 
         # self.initBasicSettings()
         self.mLayerID: str = ''
-        self.mLayer: QgsVectorLayer = None
 
     def update(self):
 
@@ -568,13 +573,18 @@ class TPVisGroup(PropertyItemGroup):
         self.mLayerID = None
 
         if isinstance(layer, QgsVectorLayer) and layer.isValid():
+
             if layer.project() != self.project():
                 self.setProject(layer.project())
+
             self.mLayerID = layer.id()
+            return
             model = self.model()
+
             if isinstance(model, PlotSettingsTreeModel):
                 # this will create / update signal connections
                 model.layersChanged.emit()
+                pass
 
             if not self.field() in layer.fields().names():
                 self.setField(self.mLastLayerFields.get(layer.id()))
@@ -636,7 +646,7 @@ class TPVisGroup(PropertyItemGroup):
         return super().data(role)
 
     def field(self) -> str:
-        return self.mPField.field()
+        return str(self.mPField.field())
 
     def addSensors(self, sensors: Union[SensorInstrument, str, List[str], List[SensorInstrument]]):
 
@@ -892,11 +902,6 @@ class PlotSettingsTreeModel(QStandardItemModel):
         self.mSettingsNode = TPVisSettings()
         self.insertRow(0, self.mSettingsNode)
 
-    def flushSignals(self):
-        for vis in self.mVisualizations:
-            for proxy in vis.mLayerSignalProxies:
-                proxy.flush()
-
     def setProject(self, project: QgsProject):
         assert isinstance(project, QgsProject)
         self.mProject = project
@@ -939,6 +944,12 @@ class PlotSettingsTreeModel(QStandardItemModel):
             n = self.rowCount()
             self.insertRow(n, v)
 
+        if len(vis) > 0:
+            self.layersChanged.emit()
+
+    def removeAllVisualizations(self):
+        self.removeVisualizations(self.visualizations())
+
     def removeVisualizations(self, vis: Union[TPVisGroup, List[TPVisGroup]]):
         if isinstance(vis, TPVisGroup):
             vis = [vis]
@@ -949,6 +960,7 @@ class PlotSettingsTreeModel(QStandardItemModel):
                 self.mVisualizations.remove(v)
             if idx.isValid():
                 self.removeRow(idx.row(), idx.parent())
+        self.layersChanged.emit()
 
     def setData(self, index, value, role=None) -> bool:
 
@@ -1031,7 +1043,7 @@ class PlotSettingsTreeModel(QStandardItemModel):
             context.appendScope(QgsExpressionContextUtils.projectScope(self.project()))
 
         d = dict()
-        d['candidates'] = self.mSettingsNode.settingsMap(context=context)
+        d['general'] = self.mSettingsNode.settingsMap(context=context)
         d['visualizations'] = [v.settingsMap(context=context) for v in self.mVisualizations]
         return d
 
