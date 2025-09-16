@@ -542,15 +542,15 @@ class DateTimePlotWidget(pg.PlotWidget):
         n = len(selected_profiles)
         m.setEnabled(n > 0)
         if n > 0:
-            a = m.addAction(f'CSV')
+            a = m.addAction('CSV')
             a.setToolTip(f'Copy the {n} selected profile(s) in CSV format.')
             a.triggered.connect(lambda *args, pdis=selected_profiles: copyProfiles(pdis, 'csv'))
 
-            a = m.addAction(f'JSON')
+            a = m.addAction('JSON')
             a.setToolTip(f'Copy the {n} selected profile(s) in JSON format.')
             a.triggered.connect(lambda *args, pdis=selected_profiles: copyProfiles(pdis, 'json'))
 
-            a = m.addAction(f'Profile data (JSON)')
+            a = m.addAction('Profile data (JSON)')
             a.setToolTip(f'Copy the multi-sensor data of all {n} selected profiles.')
             a.triggered.connect(lambda *args, pdis=selected_profiles: copyProfiles(pdis, 'tp_json'))
 
