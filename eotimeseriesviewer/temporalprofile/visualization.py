@@ -566,7 +566,7 @@ class TemporalProfileVisualization(QObject):
                     if g_new.get(k) != g_old.get(k):
                         update_heavy = True
                         break
-                # todo: change background colors
+
             if update_heavy:
                 self.updatePlot(settings)
 
@@ -794,7 +794,8 @@ class TemporalProfileVisualization(QObject):
                                 name = None
                             else:
                                 name = f'{result}'
-
+                    if name is None:
+                        name = f'Feature {feature.id()}'
                     pdi = DateTimePlotDataItem(all_x, all_y,
                                                pen=feature_line_style.linePen,
                                                name=name,
@@ -839,12 +840,14 @@ class TemporalProfileVisualization(QObject):
                     new_plotitems.append(pdi)
 
         self.mPlotWidget.plotItem.clearPlots()
+        # self.mPlotWidget.mLegendItem1.clear()
         for item in new_plotitems:
             # item.scatter.sigHovered.connect(self.mPlotWidget.onPointsHovered)
             # item.scatter.sigClicked.connect(self.mPlotWidget.onPointsClicked)
             # item.sigClicked.connect(self.itemClicked)
             # item.sigPointsHovered.connect(self.pointsHovered)
             self.mPlotWidget.plotItem.addItem(item)
+            # self.mPlotWidget.mLegendItem1.addLegend(item)
 
         if len(errors) > 0:
             info = ['TemporalProfile plotting errors:']

@@ -421,6 +421,12 @@ class DateTimePlotWidget(pg.PlotWidget):
         self.mCrosshairLineV = pg.InfiniteLine(angle=90, movable=False)
         self.mCrosshairLineH = pg.InfiniteLine(angle=0, movable=False)
 
+        # self.plotItem.addLegend(offset=(30, 30))
+        # self.mLegendItem1 = self.plotItem.addLegend(offset=(30, 30))
+        # self.mLegendItem1 = pg.LegendItem(offset=(50, 30))
+        # self.mLegendItem1.setParentItem(self.plotItem.getViewBox())
+        # self.plotItem.legend = self.mLegendItem1
+
         self.mMapDateRangeItem = MapDateRangeItem()
         self.mMapDateRangeItem.sigMapDateRequest.connect(self.sigMapDateRequest.emit)
         viewBox.mActionShowMapViewRange.toggled.connect(self.mMapDateRangeItem.setVisible)

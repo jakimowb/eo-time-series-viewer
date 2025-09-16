@@ -604,9 +604,14 @@ class TPVisGroup(PropertyItemGroup):
         """
         context = QgsExpressionContext()
         context.appendScope(QgsExpressionContextUtils.globalScope())
-        context.appendScope(QgsExpressionContextUtils.projectScope(QgsProject.instance()))
+
         layer = self.layer()
+
         if isinstance(layer, QgsVectorLayer) and layer.isValid():
+            project = layer.project()
+            if not isinstance(project, QgsProject):
+                project = QgsProject.instance()
+            context.appendScope(QgsExpressionContextUtils.projectScope(project))
             context.appendScope(QgsExpressionContextUtils.layerScope(layer))
             for f in layer.getFeatures():
                 context.setFeature(f)
