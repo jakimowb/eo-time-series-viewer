@@ -6,6 +6,12 @@ from datetime import datetime
 from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
+from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QMimeData, QPointF, Qt
+from qgis.PyQt.QtGui import QAction, QClipboard, QColor
+from qgis.PyQt.QtGui import QPen
+from qgis.PyQt.QtWidgets import QDateTimeEdit, QFrame, QGraphicsItem, QGridLayout, QMenu, QRadioButton, QWidget, \
+    QWidgetAction
+from qgis.core import QgsApplication, QgsVectorLayer
 
 from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.derivedplotdataitems.dpdicontroller import DPDIControllerModel
@@ -19,12 +25,6 @@ from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.graphicsItems.
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
 from eotimeseriesviewer.temporalprofile.plotitems import MapDateRangeItem
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
-from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QMimeData, QPointF, Qt
-from qgis.PyQt.QtGui import QAction, QClipboard, QColor
-from qgis.PyQt.QtGui import QPen
-from qgis.PyQt.QtWidgets import QDateTimeEdit, QFrame, QGraphicsItem, QGridLayout, QMenu, QRadioButton, QWidget, \
-    QWidgetAction
-from qgis.core import QgsApplication, QgsVectorLayer
 
 
 class DateTimePlotDataItem(pg.PlotDataItem):
@@ -537,22 +537,21 @@ class DateTimePlotWidget(pg.PlotWidget):
         menu.setToolTipsVisible(True)
         selected_profiles = list(self.selectedPlotDataItems())
 
-        m: QMenu = menu.addMenu('Copy...')
+        m: QMenu = menu.addMenu('Copy Profile(s)')
         m.setToolTipsVisible(True)
         n = len(selected_profiles)
         m.setEnabled(n > 0)
         if n > 0:
-            s = 's' if n > 1 else ''
-            a = m.addAction(f'{n} Profile{s} (CSV)')
-            a.setToolTip('Copy the selected profile data in CSV format.')
+            a = m.addAction(f'CSV')
+            a.setToolTip(f'Copy the {n} selected profile(s) in CSV format.')
             a.triggered.connect(lambda *args, pdis=selected_profiles: copyProfiles(pdis, 'csv'))
 
-            a = m.addAction(f'{n} Profile{s} (JSON)')
-            a.setToolTip('Copy the selected profile data as JSON.')
+            a = m.addAction(f'JSON')
+            a.setToolTip(f'Copy the {n} selected profile(s) in JSON format.')
             a.triggered.connect(lambda *args, pdis=selected_profiles: copyProfiles(pdis, 'json'))
 
-            a = m.addAction(f'{n} Profile data (JSON)')
-            a.setToolTip('Copy the multi-sensor data related to all selected profiles.')
+            a = m.addAction(f'Profile data (JSON)')
+            a.setToolTip(f'Copy the multi-sensor data of all {n} selected profiles.')
             a.triggered.connect(lambda *args, pdis=selected_profiles: copyProfiles(pdis, 'tp_json'))
 
         hovered_layers = []
