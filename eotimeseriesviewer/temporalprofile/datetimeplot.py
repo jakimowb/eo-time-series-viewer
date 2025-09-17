@@ -543,9 +543,11 @@ class DateTimePlotWidget(pg.PlotWidget):
         menu.setToolTipsVisible(True)
         selected_profiles = list(self.selectedPlotDataItems())
 
+        n = len(selected_profiles)
+
         m: QMenu = menu.addMenu('Copy Profile(s)')
         m.setToolTipsVisible(True)
-        n = len(selected_profiles)
+        m.setToolTip('Copy the data of selected profiles.')
         m.setEnabled(n > 0)
         if n > 0:
             a = m.addAction('CSV')
