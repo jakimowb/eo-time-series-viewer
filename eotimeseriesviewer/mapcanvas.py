@@ -31,14 +31,15 @@ from typing import Dict, List, Optional, Union
 import qgis.utils
 from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QDir, QMimeData, QObject, QPoint, QPointF, QRect, QRectF, QSize, Qt, \
     QTime, QTimer
-from qgis.PyQt.QtGui import QColor, QFont, QIcon, QMouseEvent, QPainter
+from qgis.PyQt.QtGui import QColor, QFont, QIcon, QMouseEvent
 from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QMenu, QSizePolicy, QStyle, QStyleOptionProgressBar
-from qgis.core import Qgis, QgsApplication, QgsContrastEnhancement, QgsCoordinateReferenceSystem, QgsDateTimeRange, \
+from qgis.core import Qgis, QgsContrastEnhancement, QgsCoordinateReferenceSystem, QgsDateTimeRange, \
     QgsExpression, QgsLayerTreeGroup, QgsMapLayer, QgsMapLayerStore, QgsMapSettings, \
     QgsMapToPixel, QgsMimeDataUtils, QgsMultiBandColorRenderer, QgsPalettedRasterRenderer, QgsPointXY, QgsPolygon, \
     QgsProject, QgsRasterBandStats, QgsRasterDataProvider, QgsRasterLayer, QgsRasterLayerTemporalProperties, \
     QgsRasterRenderer, QgsRectangle, QgsRenderContext, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, \
     QgsTextFormat, QgsTextRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes
+from qgis.core import QgsApplication
 from qgis.gui import QgisInterface, QgsAdvancedDigitizingDockWidget, QgsFloatingWidget, QgsGeometryRubberBand, \
     QgsMapCanvas, QgsMapCanvasItem, QgsMapTool, QgsMapToolCapture, QgsMapToolPan, QgsMapToolZoom, QgsUserInputWidget
 
@@ -202,9 +203,9 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
 
         painter.setBrush(Qt.NoBrush)
         painter.setPen(Qt.NoPen)
-        painter.setRenderHint(QPainter.Antialiasing)
 
         context = QgsRenderContext()
+        context.setFlag(QgsRenderContext.Antialiasing, True)
 
         # taken from QGIS Repo src/core/qgspallabeling.cpp
         m2p = QgsMapToPixel(1, 0, 0, 0, 0, 0)
@@ -290,6 +291,9 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
             :param QWidget_widget:
             :return:
             """
+        # hints = painter.renderHints()
+        # painter.setRenderHints(
+        #    hints | QPainter.Antialiasing | QPainter.TextAntialiasing | QPainter.HighQualityAntialiasing)
         for alignment, text in self.mInfoText.items():
             if isinstance(text, str) and len(text) > 0:
                 self.paintText(painter, text, alignment)
