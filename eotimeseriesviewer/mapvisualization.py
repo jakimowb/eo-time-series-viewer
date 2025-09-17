@@ -28,11 +28,6 @@ from threading import Lock
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 import qgis.utils
-from eotimeseriesviewer import debugLog, DIR_UI
-from eotimeseriesviewer.timeseries.source import TimeSeriesDate
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries
-from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, index_window, layerStyleString, \
-    setFontButtonPreviewBackgroundColor, setLayerStyleString
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QDateTime, QMimeData, QModelIndex, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
 from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
@@ -44,6 +39,12 @@ from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsExpressio
     QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
 from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
     QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
+
+from eotimeseriesviewer import debugLog, DIR_UI
+from eotimeseriesviewer.timeseries.source import TimeSeriesDate
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
+from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, index_window, layerStyleString, \
+    setFontButtonPreviewBackgroundColor, setLayerStyleString
 from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem, STYLE_CATEGORIES
 from .maplayerproject import EOTimeSeriesViewerProject
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairMapCanvasItem, CrosshairStyle, getCrosshairStyle
@@ -1140,7 +1141,7 @@ class MapWidget(QFrame):
     sigCurrentLayerChanged = pyqtSignal(QgsMapLayer)
     # sigCurrentCanvasChanged = pyqtSignal(MapCanvas)
     # sigCurrentMapViewChanged = pyqtSignal(MapView)
-    sigDateRangeChanged = pyqtSignal(QDateTime, QDateTime)
+    sigDateRangeChanged = pyqtSignal(object, object)
     sigCurrentDateChanged = pyqtSignal(TimeSeriesDate)
     sigCurrentLocationChanged = pyqtSignal([QgsCoordinateReferenceSystem, QgsPointXY],
                                            [QgsCoordinateReferenceSystem, QgsPointXY, QgsMapCanvas])
@@ -2432,7 +2433,7 @@ QSlider::add-page {{
             self.sigVisibleDatesChanged.emit(visible2)
 
         dateRange2 = self.currentDateRange()
-        if dateRange2 != dateRangeBefore:
+        if dateRange2 and dateRange2 != dateRangeBefore:
             self.sigDateRangeChanged.emit(*dateRange2)
 
     def _freeUnusedMapLayers(self):
