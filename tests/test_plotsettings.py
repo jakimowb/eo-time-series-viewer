@@ -277,7 +277,7 @@ class PlotSettingsTests(EOTSVTestCase):
 
         self.showGui(w)
 
-    @unittest.skip("Needs to be rewritten / segfaults")
+    # @unittest.skip("Needs to be rewritten / segfaults")
     def test_TemporalProfileDock(self):
 
         if FORCE_CUBE and FORCE_CUBE.is_dir():
@@ -315,8 +315,6 @@ class PlotSettingsTests(EOTSVTestCase):
         QgsApplication.instance().processEvents()
         dock.mVis.mModel.removeAllVisualizations()
         project.removeAllMapLayers()
-
-        return
 
         dock.setMapDateRange(ts[0].dtg(), ts[5].dtg())
         panel = SensorDockUI()

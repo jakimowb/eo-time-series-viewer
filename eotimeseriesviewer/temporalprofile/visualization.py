@@ -24,6 +24,7 @@ from itertools import chain
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
+from PyQt5.QtCore import QMetaObject
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QItemSelectionModel, QModelIndex, QObject, \
     QPoint, Qt
 from qgis.PyQt.QtGui import QColor, QPen
@@ -42,7 +43,6 @@ from .temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
 from ..qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
 from ..qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
 from ..qgispluginsupport.qps.pyqtgraph.pyqtgraph import mkBrush, mkPen
-from ..qgispluginsupport.qps.signalproxy import SignalProxyUndecorated
 from ..qgispluginsupport.qps.utils import loadUi, SpatialPoint
 from ..qgispluginsupport.qps.vectorlayertools import VectorLayerTools
 from ..sensors import SensorInstrument
@@ -206,6 +206,10 @@ class TemporalProfileVisualization(QObject):
                 proxySignal.flush()
         s = ""
 
+    def removeAllLayerConnections(self):
+        for lid in list(self.mLayerConnectionSignalProxys.keys()):
+            self.removeLayerConnection(lid)
+
     def removeLayerConnection(self, lid: Union[QgsMapLayer, str]):
         if isinstance(lid, QgsMapLayer):
             lid = lid.id()
@@ -218,6 +222,8 @@ class TemporalProfileVisualization(QObject):
                 elif isinstance(proxy, Tuple):
                     s1, s2 = proxy
                     s1.disconnect(s2)
+                elif isinstance(proxy, QMetaObject.Connection):
+                    QObject.disconnect(proxy)
 
             self.mLayerConnectionSignalProxys.pop(lid)
 
@@ -236,16 +242,23 @@ class TemporalProfileVisualization(QObject):
             lid = lyr.id()
             if lid not in self.mLayerConnectionSignalProxys:
                 # register signals
-                lyr.willBeDeleted.connect(lambda *args, _lid=lid: self.removeLayerConnection(_lid))
                 rl = 60
+
                 proxies = [
-                    SignalProxyUndecorated(lyr.attributeValueChanged, rateLimit=rl, slot=lambda: self.updatePlot()),
-                    SignalProxyUndecorated(lyr.selectionChanged, rateLimit=rl,
-                                           slot=self.onLayerFeatureSelectionChanged),
-                    SignalProxyUndecorated(lyr.selectionChanged, rateLimit=rl, slot=lambda: self.updatePlot()),
-                    SignalProxyUndecorated(lyr.featureAdded, rateLimit=rl, slot=lambda: self.updatePlot()),
-                    SignalProxyUndecorated(lyr.featureDeleted, rateLimit=rl, slot=lambda: self.updatePlot()),
-                    SignalProxyUndecorated(lyr.rendererChanged, rateLimit=rl, slot=lambda: self.updatePlot()),
+                    lyr.willBeDeleted.connect(lambda *args, _lid=lid: self.removeLayerConnection(_lid)),
+                    lyr.attributeValueChanged.connect(lambda *args: self.updatePlot()),
+                    lyr.selectionChanged.connect(lambda *args: self.onLayerFeatureSelectionChanged()),
+                    lyr.selectionChanged.connect(lambda *args: self.updatePlot()),
+                    lyr.featureAdded.connect(lambda *args: self.updatePlot()),
+                    lyr.featureDeleted.connect(lambda *args: self.updatePlot()),
+                    lyr.rendererChanged.connect(lambda *args: self.updatePlot())
+                    # SignalProxy(lyr.attributeValueChanged, rateLimit=rl, slot=lambda *args: self.updatePlot()),
+                    # SignalProxyUndecorated(lyr.selectionChanged, rateLimit=rl,
+                    #                       slot=self.onLayerFeatureSelectionChanged),
+                    # SignalProxyUndecorated(lyr.selectionChanged, rateLimit=rl, slot=lambda: self.updatePlot()),
+                    # SignalProxyUndecorated(lyr.featureAdded, rateLimit=rl, slot=lambda: self.updatePlot()),
+                    # SignalProxyUndecorated(lyr.featureDeleted, rateLimit=rl, slot=lambda: self.updatePlot()),
+                    # SignalProxyUndecorated(lyr.rendererChanged, rateLimit=rl, slot=lambda: self.updatePlot()),
                 ]
 
                 self.mLayerConnectionSignalProxys[lid] = proxies
