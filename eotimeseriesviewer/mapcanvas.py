@@ -28,19 +28,21 @@ import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
+import qgis.utils
+from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QDir, QMimeData, QObject, QPoint, QPointF, QRect, QRectF, QSize, Qt, \
+    QTime, QTimer
+from qgis.PyQt.QtGui import QColor, QFont, QIcon, QMouseEvent
 from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QMenu, QSizePolicy, QStyle, QStyleOptionProgressBar
-from qgis.core import Qgis, QgsApplication, QgsContrastEnhancement, QgsCoordinateReferenceSystem, QgsDateTimeRange, \
+from qgis.core import Qgis, QgsContrastEnhancement, QgsCoordinateReferenceSystem, QgsDateTimeRange, \
     QgsExpression, QgsLayerTreeGroup, QgsMapLayer, QgsMapLayerStore, QgsMapSettings, \
     QgsMapToPixel, QgsMimeDataUtils, QgsMultiBandColorRenderer, QgsPalettedRasterRenderer, QgsPointXY, QgsPolygon, \
     QgsProject, QgsRasterBandStats, QgsRasterDataProvider, QgsRasterLayer, QgsRasterLayerTemporalProperties, \
     QgsRasterRenderer, QgsRectangle, QgsRenderContext, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, \
     QgsTextFormat, QgsTextRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes
-import qgis.utils
+from qgis.core import QgsApplication
 from qgis.gui import QgisInterface, QgsAdvancedDigitizingDockWidget, QgsFloatingWidget, QgsGeometryRubberBand, \
     QgsMapCanvas, QgsMapCanvasItem, QgsMapTool, QgsMapToolCapture, QgsMapToolPan, QgsMapToolZoom, QgsUserInputWidget
-from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QDir, QMimeData, QObject, QPoint, QPointF, QRect, QRectF, QSize, Qt, \
-    QTime, QTimer
-from qgis.PyQt.QtGui import QColor, QFont, QIcon, QMouseEvent, QPainter
+
 from .labeling.quicklabeling import addQuickLabelMenu
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairDialog, CrosshairMapCanvasItem, CrosshairStyle
 from .qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
@@ -48,8 +50,8 @@ from .qgispluginsupport.qps.maptools import CursorLocationMapTool, FullExtentMap
     PixelScaleExtentMapTool, QgsMapToolAddFeature, QgsMapToolSelect, QgsMapToolSelectionHandler
 from .qgispluginsupport.qps.qgisenums import QGIS_RASTERBANDSTATISTIC
 from .qgispluginsupport.qps.utils import filenameFromString, findParent, SpatialExtent, SpatialPoint
-from .settings.settings import EOTSVSettingsManager
 from .sensors import has_sensor_id, sensor_id, SensorMockupDataProvider
+from .settings.settings import EOTSVSettingsManager
 from .timeseries.source import TimeSeriesDate
 from .utils import copyMapLayerStyle, layerStyleString, setLayerStyleString
 
@@ -201,19 +203,15 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
 
         painter.setBrush(Qt.NoBrush)
         painter.setPen(Qt.NoPen)
-        painter.setRenderHint(QPainter.Antialiasing)
 
         context = QgsRenderContext()
+        context.setFlag(QgsRenderContext.Antialiasing, True)
 
         # taken from QGIS Repo src/core/qgspallabeling.cpp
         m2p = QgsMapToPixel(1, 0, 0, 0, 0, 0)
         context.setMapToPixel(m2p)
         context.setScaleFactor(QgsApplication.desktop().logicalDpiX() / 25.4)
-        context.setUseAdvancedEffects(True)
-        # context.setCustomRenderingFlag('Antialiasing', True)
         context.setPainter(painter)
-        # context.setExtent(self.mCanvas.extent())
-        # context.setExpressionContext(self.mCanvas.mapSettings().expressionContext())
 
         vp = QRectF(painter.viewport())
         # rect = self.mCanvas.extent().toRectF()
@@ -293,6 +291,9 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
             :param QWidget_widget:
             :return:
             """
+        # hints = painter.renderHints()
+        # painter.setRenderHints(
+        #    hints | QPainter.Antialiasing | QPainter.TextAntialiasing | QPainter.HighQualityAntialiasing)
         for alignment, text in self.mInfoText.items():
             if isinstance(text, str) and len(text) > 0:
                 self.paintText(painter, text, alignment)

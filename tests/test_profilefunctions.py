@@ -2,9 +2,9 @@ import json
 import unittest
 
 import numpy as np
-
 from qgis.PyQt.QtWidgets import QTableView
 from qgis.core import QgsFeature
+
 from eotimeseriesviewer.spectralindices import spectral_index_acronyms, SpectralIndexBandIdentifierModel, \
     SpectralIndexConstantModel
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
@@ -67,6 +67,8 @@ class ProfileFunctionTestCases(EOTSVTestCase):
             self.assertIn('nb', spec)
             self.assertIn('band_lookup', spec)
             self.assertIn('sid', spec)
+
+        ts.clear()
 
     def test_bandOrIndex(self):
 

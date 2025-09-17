@@ -11,17 +11,18 @@ from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsEx
     QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsGeometry, QgsProject, QgsProperty, \
     QgsPropertyDefinition, QgsVectorLayer
 from qgis.gui import QgsFieldExpressionWidget
+
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, \
     PlotStyleDialog, PlotStyleWidget
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibraryplotmodelitems import PlotStyleItem, \
-    PropertyItem, PropertyItemBase, PropertyItemGroup, PropertyLabel, QgsPropertyItem
+    PropertyItem, PropertyItemBase, PropertyItemGroup, PropertyLabel, QgsPropertyItem, QgsPropertyItemBool
 from eotimeseriesviewer.sensors import SensorInstrument
 from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
+from eotimeseriesviewer.spectralindices import spectral_indices
 from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
 from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
-from eotimeseriesviewer.spectralindices import spectral_indices
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileLayerFieldComboBox, TemporalProfileUtils
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 
@@ -148,17 +149,10 @@ class ActionItem(QStandardItem):
 
 
 class PythonCodeItem(PropertyItem):
-    class Signals(PropertyItem.Signals):
-        validationRequest = pyqtSignal(dict)
 
-        def __init__(self, *args, **kwds):
-            super().__init__(*args, **kwds)
+    def __init__(self, *args, **kwds):
 
-    def __init__(self, *args, signals=None, **kwds):
-        if signals is None:
-            signals = PythonCodeItem.Signals()
-
-        super().__init__(*args, signals=signals, **kwds)
+        super().__init__(*args, **kwds)
 
         self.setEditable(True)
         self.mPythonExpression = 'b(1)'
@@ -167,7 +161,7 @@ class PythonCodeItem(PropertyItem):
     def createEditor(self, parent):
         w = FieldPythonExpressionWidget(parent=parent)
         w.setExpression(self.mPythonExpression)
-        w.validationRequest.connect(self.signals().validationRequest)
+        # w.validationRequest.connect(self.signals().validationRequest)
         return w
 
     def data(self, role: int = ...) -> Any:
@@ -296,13 +290,17 @@ class TPVisSettings(PropertyItemGroup):
         if isinstance(settings.profileStyleCurrent, PlotStyle):
             self.mCandidateLineStyle.setPlotStyle(settings.profileStyleCurrent)
 
+        self.mAntialias = QgsPropertyItemBool('Antialias',
+                                              tooltip='Enable antialias. Can decrease rendering speed.',
+                                              value=True)
+
         self.mThreads = QgsPropertyItem('n_threads')
         self.mThreads.setDefinition(QgsPropertyDefinition(
             'Threads', 'Number of threads to use when loading profiles',
             QgsPropertyDefinition.StandardPropertyTemplate.IntegerPositiveGreaterZero))
         self.mThreads.setProperty(QgsProperty.fromValue(4))
 
-        for pItem in [self.mCandidateLineStyle, self.mThreads]:
+        for pItem in [self.mCandidateLineStyle, self.mAntialias, self.mThreads]:
             self.appendRow(pItem.propertyRow())
 
         self.setDropEnabled(False)
@@ -320,10 +318,13 @@ class TPVisSettings(PropertyItemGroup):
             context.appendScope(QgsExpressionContextUtils.globalScope())
             context.appendScope(QgsExpressionContextUtils.projectScope(QgsProject.instance()))
 
-        d['candidate_add'] = True
-        d['candidate_target'] = (None, None)
-        d['candidate_line_style'] = self.mCandidateLineStyle.plotStyle().map()
+        d['candidates'] = {'add': True,
+                           'target': (None, None),
+                           'line_style': self.mCandidateLineStyle.plotStyle().map()}
+
         d['n_threads'] = self.mThreads.value(context, 4)
+        d['antialias'] = self.mAntialias.value(context, False)
+
         return d
 
     def createProfileCandidatePixmap(self, size: QSize, hline: bool = True, bc: Optional[QColor] = None) -> QPixmap:
@@ -399,8 +400,6 @@ class TPVisGroup(PropertyItemGroup):
     """
     MIME_TYPE = 'application/eotsv/temporalprofiles/PropertyItems'
 
-    sensorNameChanged = pyqtSignal(str, str)
-
     class ContextGenerator(QgsExpressionContextGenerator):
 
         def __init__(self, vis_group):
@@ -429,6 +428,8 @@ class TPVisGroup(PropertyItemGroup):
         self.mFirstColumnSpanned = True
         self.setEditable(True)
         self.setSelectable(True)
+
+        # self.mLayerSignalProxies: List[SignalProxy] = []
 
         self.mPField = ProfileFieldItem('Field')
         self.mPField.setToolTip('Field that contains temporal profiles.')
@@ -463,14 +464,8 @@ class TPVisGroup(PropertyItemGroup):
         self.setDropEnabled(False)
         self.setDragEnabled(False)
 
-        # connect requestPlotUpdate signal
-        for propertyItem in self.propertyItems():
-            propertyItem: PropertyItem
-            propertyItem.signals().dataChanged.connect(self.signals().dataChanged.emit)
-        self.signals().dataChanged.connect(self.update)
         # self.initBasicSettings()
-
-        self.mLayer: QgsVectorLayer = None
+        self.mLayerID: str = ''
 
     def update(self):
 
@@ -565,21 +560,42 @@ class TPVisGroup(PropertyItemGroup):
     def setLayer(self, layer: QgsVectorLayer):
         assert isinstance(layer, QgsVectorLayer)
 
-        if isinstance(self.mLayer, QgsVectorLayer):
-            self.mLastLayerFields[self.mLayer.id()] = self.field()
-            self.mLayer.featuresDeleted.disconnect(self.update)
+        old_layer = self.layer()
+        # self.mLayer.featuresDeleted.disconnect(self.update)
 
-        self.mLayer = layer
-        self.mLayer.featuresDeleted.connect(self.update)
-        self.mLayer.selectionChanged.connect(self.update)
-        self.mLayer.featureAdded.connect(self.update)
-        self.mLayer.attributeAdded.connect(self.update)
+        changed = old_layer != layer
+        if not changed:
+            return
 
-        if not self.field() in layer.fields().names():
-            self.setField(self.mLastLayerFields.get(layer.id()))
+        if isinstance(old_layer, QgsVectorLayer):
+            self.mLastLayerFields[old_layer.id()] = self.field()
+
+        self.mLayerID = None
+
+        if isinstance(layer, QgsVectorLayer) and layer.isValid():
+
+            if layer.project() != self.project():
+                self.setProject(layer.project())
+
+            self.mLayerID = layer.id()
+            return
+            model = self.model()
+
+            if isinstance(model, PlotSettingsTreeModel):
+                # this will create / update signal connections
+                model.layersChanged.emit()
+                pass
+
+            if not self.field() in layer.fields().names():
+                self.setField(self.mLastLayerFields.get(layer.id()))
+
+    def onLayerUpdate(self, *args, **kwds):
+        model = self.model()
+        if isinstance(model, PlotSettingsTreeModel):
+            model.layersChanged.emit()
 
     def layer(self) -> Optional[QgsVectorLayer]:
-        return self.mLayer
+        return self.project().mapLayer(self.mLayerID)
 
     def createExpressionContext(self) -> QgsExpressionContext:
         """
@@ -588,10 +604,16 @@ class TPVisGroup(PropertyItemGroup):
         """
         context = QgsExpressionContext()
         context.appendScope(QgsExpressionContextUtils.globalScope())
-        context.appendScope(QgsExpressionContextUtils.projectScope(QgsProject.instance()))
-        if isinstance(self.mLayer, QgsVectorLayer):
-            context.appendScope(QgsExpressionContextUtils.layerScope(self.mLayer))
-            for f in self.mLayer.getFeatures():
+
+        layer = self.layer()
+
+        if isinstance(layer, QgsVectorLayer) and layer.isValid():
+            project = layer.project()
+            if not isinstance(project, QgsProject):
+                project = QgsProject.instance()
+            context.appendScope(QgsExpressionContextUtils.projectScope(project))
+            context.appendScope(QgsExpressionContextUtils.layerScope(layer))
+            for f in layer.getFeatures():
                 context.setFeature(f)
                 context.setGeometry(QgsGeometry(f.geometry()))
                 break
@@ -629,7 +651,7 @@ class TPVisGroup(PropertyItemGroup):
         return super().data(role)
 
     def field(self) -> str:
-        return self.mPField.field()
+        return str(self.mPField.field())
 
     def addSensors(self, sensors: Union[SensorInstrument, str, List[str], List[SensorInstrument]]):
 
@@ -658,10 +680,7 @@ class TPVisGroup(PropertyItemGroup):
 
                 items.append(item)
 
-        if len(items) > 0:
-            self.appendRows(items)
-            for item in items:
-                item.signals().dataChanged.connect(self.update)
+        self.appendRows(items)
 
     def settingsMap(self, context: QgsExpressionContext = None) -> dict:
 
@@ -734,7 +753,7 @@ class TPVisSensor(PropertyItemGroup):
         self.mPBand.setToolTip('Band or spectral index to display.')
         self.mPBand.setText('b(1)')
         self.mPBand.setEditable(True)
-        self.mPBand.signals().validationRequest.connect(self.validate_sensor_band)
+        # self.mPBand.signals().validationRequest.connect(self.validate_sensor_band)
         # self.mPBand.label().setText('Band')
 
         items = [self.mPSymbol, self.mPBand]
@@ -860,6 +879,8 @@ class PlotSettingsTreeModel(QStandardItemModel):
     cName = 0
     cValue = 1
 
+    layersChanged = pyqtSignal()
+
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
 
@@ -910,6 +931,14 @@ class PlotSettingsTreeModel(QStandardItemModel):
     def visualizations(self) -> List[TPVisGroup]:
         return [v for v in self.mVisualizations if isinstance(v, TPVisGroup)]
 
+    def layers(self) -> List[QgsVectorLayer]:
+        layers = []
+        for vis in self.visualizations():
+            lyr = vis.layer()
+            if isinstance(lyr, QgsVectorLayer) and lyr.isValid() and lyr not in layers:
+                layers.append(lyr)
+        return layers
+
     def addVisualizations(self, vis: Union[TPVisGroup, List[TPVisGroup]]):
 
         if isinstance(vis, TPVisGroup):
@@ -919,6 +948,12 @@ class PlotSettingsTreeModel(QStandardItemModel):
             self.mVisualizations.append(v)
             n = self.rowCount()
             self.insertRow(n, v)
+
+        if len(vis) > 0:
+            self.layersChanged.emit()
+
+    def removeAllVisualizations(self):
+        self.removeVisualizations(self.visualizations())
 
     def removeVisualizations(self, vis: Union[TPVisGroup, List[TPVisGroup]]):
         if isinstance(vis, TPVisGroup):
@@ -930,6 +965,7 @@ class PlotSettingsTreeModel(QStandardItemModel):
                 self.mVisualizations.remove(v)
             if idx.isValid():
                 self.removeRow(idx.row(), idx.parent())
+        self.layersChanged.emit()
 
     def setData(self, index, value, role=None) -> bool:
 
@@ -1012,7 +1048,7 @@ class PlotSettingsTreeModel(QStandardItemModel):
             context.appendScope(QgsExpressionContextUtils.projectScope(self.project()))
 
         d = dict()
-        d['candidates'] = self.mSettingsNode.settingsMap(context=context)
+        d['general'] = self.mSettingsNode.settingsMap(context=context)
         d['visualizations'] = [v.settingsMap(context=context) for v in self.mVisualizations]
         return d
 
@@ -1073,7 +1109,7 @@ class PlotSettingsTreeView(QTreeView):
                 tp_layers.append(parentItem.layer())
         results = []
         for lyr in tp_layers:
-            if lyr not in results:
+            if isinstance(lyr, QgsVectorLayer) and lyr.isValid() and lyr not in results:
                 results.append(lyr)
         return results
 

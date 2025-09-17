@@ -22,6 +22,7 @@ from qgis.PyQt.QtCore import QPoint
 from qgis.PyQt.QtWidgets import QMenu
 from qgis.core import QgsProject, QgsRasterLayer, QgsWkbTypes
 from qgis.gui import QgsFontButton, QgsMapCanvas
+
 from eotimeseriesviewer.mapcanvas import MapCanvas, MapCanvasInfoItem
 from eotimeseriesviewer.qgispluginsupport.qps.maptools import SpectralProfileMapTool
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
@@ -93,6 +94,7 @@ class TestMapCanvas(EOTSVTestCase):
         self.showGui(menu)
 
         QgsProject.instance().removeAllMapLayers()
+        ts.clear()
 
     def test_mapcanvasInfoItem(self):
 
