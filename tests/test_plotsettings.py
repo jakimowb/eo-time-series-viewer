@@ -5,9 +5,9 @@ import unittest
 from typing import List
 
 import numpy as np
-from PyQt5.QtWidgets import QApplication
 from qgis.PyQt.QtCore import QSize, Qt
 from qgis.PyQt.QtGui import QAction, QIcon, QPen, QStandardItemModel, QColor
+from qgis.PyQt.QtWidgets import QApplication
 from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QPushButton, QSplitter, QTreeView, QVBoxLayout, QWidget
 from qgis.core import QgsApplication, QgsProject, QgsVectorLayer
 from qgis.gui import QgsMapCanvas
