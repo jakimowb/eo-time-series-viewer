@@ -20,7 +20,6 @@ import os
 import unittest
 
 import numpy as np
-
 from qgis.PyQt.QtCore import QSize
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QApplication, QGridLayout, QLabel, QPushButton, QSpinBox, QWidget
@@ -29,8 +28,7 @@ from qgis.core import QgsFeatureRenderer, QgsHillshadeRenderer, QgsMultiBandColo
     QgsProject, QgsRasterLayer, QgsRasterRenderer, QgsRasterShader, QgsSingleBandColorDataRenderer, \
     QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsVectorLayer, QgsVirtualLayerDefinition
 from qgis.gui import QgsFontButton
-from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
-from eotimeseriesviewer.tests import EOTSVTestCase, example_raster_files, start_app, TestObjects
+
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import rendererFromXml, rendererToXml
@@ -38,6 +36,8 @@ from eotimeseriesviewer.qgispluginsupport.qps.maptools import MapTools
 from eotimeseriesviewer.qgispluginsupport.qps.utils import bandClosestToWavelength, file_search, parseWavelength, \
     SpatialExtent, UnitLookup
 from eotimeseriesviewer.sensors import SensorInstrument
+from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
+from eotimeseriesviewer.tests import EOTSVTestCase, example_raster_files, start_app, TestObjects
 from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
 
 start_app()
@@ -81,6 +81,7 @@ def compareXML(element1, element2):
         return True
 
 
+# @unittest.skip('Not working yet')
 class TestMapVisualization(EOTSVTestCase):
     """Test resources work."""
 
@@ -215,6 +216,7 @@ class TestMapVisualization(EOTSVTestCase):
         for c in w.mapCanvases():
             c.update()
         self.showGui()
+        TS.clear()
 
     def test_daterange(self):
         ts = TestObjects.createTimeSeries()
@@ -259,6 +261,8 @@ class TestMapVisualization(EOTSVTestCase):
         self.assertEqual(d1, tsd.dtg())
         self.assertEqual(sigRange, (d0, d1))
 
+        ts.clear()
+
     def test_mapview(self):
         TS = TestObjects.createTimeSeries()
         lyr = TestObjects.createVectorLayer()
@@ -301,6 +305,7 @@ class TestMapVisualization(EOTSVTestCase):
         self.showGui()
         MW.close()
         QgsProject.instance().removeAllMapLayers()
+        TS.clear()
 
     def test_mapViewDock(self):
 
@@ -322,6 +327,7 @@ class TestMapVisualization(EOTSVTestCase):
         mw.setCrs(tss.crs())
         mw.setSpatialExtent(tss.spatialExtent())
         self.showGui([dock, mw])
+        TS.clear()
 
     def test_mapcanvas(self):
         files = example_raster_files()

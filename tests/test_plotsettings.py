@@ -65,6 +65,7 @@ class PlotSettingsTests(EOTSVTestCase):
         w = QWidget()
         w.setLayout(v)
         self.showGui(w)
+        ts.clear()
 
     def assertIsJSONizable(self, value):
         text = json.dumps(value, ensure_ascii=False)
@@ -131,6 +132,8 @@ class PlotSettingsTests(EOTSVTestCase):
             self.assertIsInstance(data, dict)
             data = json.loads(json.dumps(data))
             self.assertEqual(data['sensor_id'], sensor.id())
+
+        ts.clear()
 
     def test_TemporalProfileDock_pan_zoom(self):
 
