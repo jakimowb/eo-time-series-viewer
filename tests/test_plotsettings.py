@@ -1,6 +1,6 @@
+import gc
 import json
 import random
-import re
 import unittest
 from typing import List
 
@@ -17,7 +17,7 @@ from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import PlotCurveItem
-from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint
+from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
 from eotimeseriesviewer.qgispluginsupport.qps.vectorlayertools import VectorLayerTools
 from eotimeseriesviewer.sensors import SensorInstrument
 from eotimeseriesviewer.sensorvisualization import SensorDockUI
@@ -26,8 +26,7 @@ from eotimeseriesviewer.temporalprofile.plotsettings import PlotSettingsTreeView
     TPVisSettings
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileEditorWidgetFactory, TemporalProfileUtils
 from eotimeseriesviewer.temporalprofile.visualization import TemporalProfileDock, TemporalProfileVisualization
-from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app, TestObjects
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 
 start_app()
 initResources()
@@ -206,6 +205,9 @@ class PlotSettingsTests(EOTSVTestCase):
         aZoom.trigger()
         self.assertEqual(cntZoom, 1)
 
+        ts.clear()
+        project.removeAllMapLayers()
+
     def test_copy_profiles(self):
 
         dates, ndvi_values = TestObjects.generate_seasonal_ndvi_dates()
@@ -280,14 +282,7 @@ class PlotSettingsTests(EOTSVTestCase):
     # @unittest.skip("Needs to be rewritten / segfaults")
     def test_TemporalProfileDock(self):
 
-        if FORCE_CUBE and FORCE_CUBE.is_dir():
-            files = file_search(FORCE_CUBE, re.compile('.*BOA.tif$'), recursive=True)
-            ts = TimeSeries()
-            files = list(files)[:25]
-            ts.addSources(files, runAsync=False)
-            s = ""
-        else:
-            ts = TestObjects.createTimeSeries()
+        ts = TestObjects.createTimeSeries()
 
         for i, sensor in enumerate(ts.sensors()):
             sensor: SensorInstrument
@@ -301,22 +296,21 @@ class PlotSettingsTests(EOTSVTestCase):
         l2 = TestObjects.createVectorLayer()
 
         project = QgsProject()
-        # project = QgsProject.instance()
         project.addMapLayers([layer, l2])
 
         dock = TemporalProfileDock()
         self.assertEqual(dock.project(), QgsProject.instance())
+
         dock.setTimeSeries(ts)
         dock.setProject(project)
+        self.assertEqual(dock.project(), project)
 
         dock.mVis.flushSignals()
+        gc.collect()
         QApplication.processEvents()
 
-        QgsApplication.instance().processEvents()
-        dock.mVis.mModel.removeAllVisualizations()
-        project.removeAllMapLayers()
-
         dock.setMapDateRange(ts[0].dtg(), ts[5].dtg())
+
         panel = SensorDockUI()
         panel.setTimeSeries(ts)
 
@@ -336,9 +330,9 @@ class PlotSettingsTests(EOTSVTestCase):
 
         dock.sigMoveToDate.connect(onMoveToDate)
         btn.clicked.connect(onAddRandomProfile)
+        dock.mVis.removeAllLayerConnections()
 
         # combine dock and panel with a splitter
-
         splitter = QSplitter(Qt.Horizontal)
         splitter.addWidget(dock)
         splitter.addWidget(panel)
@@ -354,12 +348,8 @@ class PlotSettingsTests(EOTSVTestCase):
 
         self.showGui(w)
 
-        dock.project().removeAllMapLayers()
-
-        if False:
-            for proxies in dock.mVis.mLayerConnectionSignalProxys.values():
-                for proxy in proxies:
-                    proxy.disconnect()
+        project.removeAllMapLayers()
+        ts.clear()
 
 
 if __name__ == "__main__":

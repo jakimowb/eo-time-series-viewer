@@ -9,5 +9,6 @@ export PYTHONPATH="${PYTHONPATH}"\
 
 cd $REPO_ROOT
 pwd
-echo "Run flake8 in $(pwd)"
+echo "Run flake8 in $(pwd) ..."
 python3 -m flake8 "$@"
+echo "Done"

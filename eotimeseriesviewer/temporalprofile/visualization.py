@@ -24,7 +24,7 @@ from itertools import chain
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from PyQt5.QtCore import QMetaObject
+from qgis.PyQt.QtCore import QMetaObject
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QItemSelectionModel, QModelIndex, QObject, \
     QPoint, Qt
 from qgis.PyQt.QtGui import QColor, QPen
@@ -42,7 +42,8 @@ from .plotsettings import PlotSettingsProxyModel, PlotSettingsTreeModel, PlotSet
 from .temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
 from ..qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
 from ..qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
-from ..qgispluginsupport.qps.pyqtgraph.pyqtgraph import mkBrush, mkPen
+from ..qgispluginsupport.qps.pyqtgraph.pyqtgraph import mkBrush, mkPen, SignalProxy
+from ..qgispluginsupport.qps.signalproxy import SignalProxyUndecorated
 from ..qgispluginsupport.qps.utils import loadUi, SpatialPoint
 from ..qgispluginsupport.qps.vectorlayertools import VectorLayerTools
 from ..sensors import SensorInstrument
@@ -203,7 +204,8 @@ class TemporalProfileVisualization(QObject):
         #    task.flushSignals()
         for proxySignals in self.mLayerConnectionSignalProxys.values():
             for proxySignal in proxySignals:
-                proxySignal.flush()
+                if isinstance(proxySignal, SignalProxy):
+                    proxySignal.flush()
         s = ""
 
     def removeAllLayerConnections(self):
@@ -215,6 +217,7 @@ class TemporalProfileVisualization(QObject):
             lid = lid.id()
 
         if lid in self.mLayerConnectionSignalProxys:
+            print(f'Remove {len(self.mLayerConnectionSignalProxys[lid])} connections to {lid}')
             for proxy in self.mLayerConnectionSignalProxys[lid]:
                 if isinstance(proxy, pg.SignalProxy):
                     proxy.disconnect()
@@ -245,20 +248,20 @@ class TemporalProfileVisualization(QObject):
                 rl = 60
 
                 proxies = [
-                    lyr.willBeDeleted.connect(lambda *args, _lid=lid: self.removeLayerConnection(_lid)),
-                    lyr.attributeValueChanged.connect(lambda *args: self.updatePlot()),
-                    lyr.selectionChanged.connect(lambda *args: self.onLayerFeatureSelectionChanged()),
-                    lyr.selectionChanged.connect(lambda *args: self.updatePlot()),
-                    lyr.featureAdded.connect(lambda *args: self.updatePlot()),
-                    lyr.featureDeleted.connect(lambda *args: self.updatePlot()),
-                    lyr.rendererChanged.connect(lambda *args: self.updatePlot())
-                    # SignalProxy(lyr.attributeValueChanged, rateLimit=rl, slot=lambda *args: self.updatePlot()),
-                    # SignalProxyUndecorated(lyr.selectionChanged, rateLimit=rl,
-                    #                       slot=self.onLayerFeatureSelectionChanged),
-                    # SignalProxyUndecorated(lyr.selectionChanged, rateLimit=rl, slot=lambda: self.updatePlot()),
-                    # SignalProxyUndecorated(lyr.featureAdded, rateLimit=rl, slot=lambda: self.updatePlot()),
-                    # SignalProxyUndecorated(lyr.featureDeleted, rateLimit=rl, slot=lambda: self.updatePlot()),
-                    # SignalProxyUndecorated(lyr.rendererChanged, rateLimit=rl, slot=lambda: self.updatePlot()),
+                    # lyr.willBeDeleted.connect(lambda *args, _lid=lid: self.removeLayerConnection(_lid)),
+                    # lyr.attributeValueChanged.connect(lambda *args: self.updatePlot()),
+                    # lyr.selectionChanged.connect(lambda *args: self.onLayerFeatureSelectionChanged()),
+                    # lyr.selectionChanged.connect(lambda *args: self.updatePlot()),
+                    # lyr.featureAdded.connect(lambda *args: self.updatePlot()),
+                    # lyr.featureDeleted.connect(lambda *args: self.updatePlot()),
+                    # lyr.rendererChanged.connect(lambda *args: self.updatePlot()),
+                    SignalProxy(lyr.attributeValueChanged, rateLimit=rl, slot=lambda *args: self.updatePlot()),
+                    SignalProxyUndecorated(lyr.selectionChanged, rateLimit=rl,
+                                           slot=self.onLayerFeatureSelectionChanged),
+                    SignalProxyUndecorated(lyr.selectionChanged, rateLimit=rl, slot=lambda: self.updatePlot()),
+                    SignalProxyUndecorated(lyr.featureAdded, rateLimit=rl, slot=lambda: self.updatePlot()),
+                    SignalProxyUndecorated(lyr.featureDeleted, rateLimit=rl, slot=lambda: self.updatePlot()),
+                    SignalProxyUndecorated(lyr.rendererChanged, rateLimit=rl, slot=lambda: self.updatePlot()),
                 ]
 
                 self.mLayerConnectionSignalProxys[lid] = proxies
@@ -474,7 +477,7 @@ class TemporalProfileVisualization(QObject):
         vis.addSensors(self.timeSeries().sensors())
 
         # is_initialized = TemporalProfileUtils.isProfileLayer(vis.layer())
-        # initialize from existing visualization
+        # initialize from the existing visualization
         for v in reversed(self.mModel.visualizations()):
             lyr = v.layer()
             field = v.field()
@@ -487,7 +490,7 @@ class TemporalProfileVisualization(QObject):
                 # other settings to copy?
                 return
 
-        # initialize with temporal profile layer that is not shown yet
+        # initialize with a temporal profile layer not shown yet
         for lyr in self.mModel.project().mapLayers().values():
             if TemporalProfileUtils.isProfileLayer(lyr):
                 field = TemporalProfileUtils.profileFields(lyr).field(0)
