@@ -20,22 +20,29 @@ import random
 import re
 import unittest
 
+from qgis.PyQt.QtCore import NULL, QEvent, QMetaType, QPoint, QPointF, Qt
+from qgis.PyQt.QtGui import QMouseEvent, QStandardItem, QStandardItemModel
+from qgis.PyQt.QtTest import QAbstractItemModelTester
+from qgis.PyQt.QtWidgets import QAction, QComboBox, QLabel, QListView, QMenu, QVBoxLayout, QWidget
 from qgis.core import edit, QgsEditorWidgetSetup, QgsExpression, QgsExpressionContext, QgsExpressionContextScope, \
     QgsFeature, QgsField, QgsFields, QgsGeometry, QgsMapLayer, QgsMarkerSymbol, QgsPointXY, QgsProject, QgsVectorLayer, \
     QgsWkbTypes
-from qgis.PyQt.QtCore import NULL, QEvent, QMetaType, QPoint, QPointF, Qt
-from qgis.PyQt.QtTest import QAbstractItemModelTester
-from qgis.PyQt.QtWidgets import QAction, QComboBox, QLabel, QListView, QMenu, QVBoxLayout, QWidget
 from qgis.gui import QgsDualView, QgsFieldComboBox, QgsMapCanvas, QgsMapLayerStyleManagerWidget
-from qgis.PyQt.QtGui import QMouseEvent, QStandardItem, QStandardItemModel
+
+from eotimeseriesviewer import initAll
+from eotimeseriesviewer.docks import LabelDockWidget
+from eotimeseriesviewer.labeling.attributetable import QuickLabelAttributeTableWidget
 from eotimeseriesviewer.labeling.editorconfig import createWidgetSetup, LabelConfigurationKey, \
     LabelShortcutEditorConfigWidget, LabelShortcutType, LabelShortcutTypeModel, \
     LabelShortcutWidgetFactory, shortcuts
 from eotimeseriesviewer.labeling.quicklabeling import addQuickLabelMenu, createQuickLabelField, isQuickLabelField, \
     isQuickLabelLayer, quickLabelClassSchemes, quickLabelExpression, quickLabelExpressionContextScope, quickLabelLayers, \
     setQuickClassInfo
-from eotimeseriesviewer.labeling.attributetable import QuickLabelAttributeTableWidget
-from eotimeseriesviewer import initAll
+from eotimeseriesviewer.main import EOTimeSeriesViewer
+from eotimeseriesviewer.mapcanvas import MapCanvas
+from eotimeseriesviewer.mapvisualization import MapView
+from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme, \
+    ClassInfo, classSchemeToConfig, EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
 from eotimeseriesviewer.qgispluginsupport.qps.fieldvalueconverter import GenericPropertyTransformer
 from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_DOUBLE, QMETATYPE_INT, \
     QMETATYPE_QDATE, \
@@ -44,12 +51,6 @@ from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_DOUBLE,
     QMETATYPE_QTIME
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate
-from eotimeseriesviewer.docks import LabelDockWidget
-from eotimeseriesviewer.main import EOTimeSeriesViewer
-from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.mapvisualization import MapView
-from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme, \
-    ClassInfo, classSchemeToConfig, EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
 
 start_app()
 initAll()
@@ -126,6 +127,7 @@ class TestLabeling(EOTSVTestCase):
             self.assertTrue(v != NULL, msg=f'{k} = NULL')
 
         self.showGui(menu)
+        ts.clear()
 
     def test_menu2(self):
         print('## test_menu')
@@ -160,6 +162,7 @@ class TestLabeling(EOTSVTestCase):
 
         self.showGui(menu)
 
+        ts.clear()
         QgsProject.instance().removeAllMapLayers()
 
     @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Blocking UI')
@@ -424,6 +427,7 @@ class TestLabeling(EOTSVTestCase):
 
         self.showGui([dv, parent])
         self.assertTrue(vl.commitChanges())
+        ts.clear()
         QgsProject.instance().removeAllMapLayers()
 
     def setupEditWidgets(self, vl):
@@ -484,6 +488,7 @@ class TestLabeling(EOTSVTestCase):
         event = QMouseEvent(QEvent.MouseButtonPress, pointCenter, Qt.RightButton, Qt.RightButton, Qt.NoModifier)
         canvas.mousePressEvent(event)
         self.showGui(canvas)
+        ts.clear()
         QgsProject.instance().removeAllMapLayers()
 
     def test_label_shortcut_type_model(self):
@@ -706,6 +711,7 @@ class TestLabeling(EOTSVTestCase):
                             print(f'fid: {feature.id()}: Set {field.name()} ({field.typeName()}) = {value2}')
                             assert vl.changeAttributeValue(feature.id(), fidx, value2)
                     s = ""
+        TS.clear()
 
 
 if __name__ == "__main__":

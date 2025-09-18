@@ -7,12 +7,12 @@ from pathlib import Path
 import numpy as np
 from PyQt5.QtCore import QDateTime, QMetaType, Qt
 from PyQt5.QtWidgets import QDockWidget, QListWidget
-from qgis.PyQt.QtCore import QSize
-from qgis.PyQt.QtWidgets import QApplication, QWidget
 from qgis._core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsField, QgsFields, \
     QgsMultiBandColorRenderer, QgsRasterLayer, QgsRectangle, QgsVectorLayer
-from qgis.core import edit
 
+from qgis.PyQt.QtCore import QSize
+from qgis.PyQt.QtWidgets import QApplication, QWidget
+from qgis.core import edit
 from eotimeseriesviewer import DIR_REPO, initAll
 from eotimeseriesviewer.forceinputs import FindFORCEProductsTask
 from eotimeseriesviewer.labeling.editorconfig import LabelShortcutType
@@ -139,6 +139,34 @@ class CreateScreenshots(EOTSVTestCase):
         stretchToExtent(mv)
 
         self.showGui(eotsv.ui)
+        eotsv.close()
+
+    def test_quick_labeling_tp(self):
+
+        DOI = QDateTime.fromString('2014-06-24', Qt.ISODate)
+        eotsv = EOTimeSeriesViewer()
+        eotsv.loadExampleTimeSeries(loadAsync=False)
+
+        eotsv.setMapsPerMapView(4, 1)
+        eotsv.setCurrentDate(DOI)
+        sidLS, sidRE = self.prepareExampleDataSensors(eotsv)
+
+        QgsApplication.processEvents()
+        self.taskManagerProcessEvents()
+
+        mv = eotsv.mapViews()[0]
+        mv.setName('NIR-SWIR-R')
+        mv.layers()
+
+        QgsApplication.processEvents()
+        self.taskManagerProcessEvents()
+
+        setBandCombination(mv, sidRE, 5, 4, 3)
+        setBandCombination(mv, sidLS, 4, 5, 3)
+        stretchToExtent(mv)
+
+        self.showGui(eotsv.ui)
+        eotsv.close()
 
     def test_quick_labeling_label_groups(self):
         DOI = QDateTime.fromString('2014-06-24', Qt.ISODate)
@@ -249,7 +277,7 @@ class CreateScreenshots(EOTSVTestCase):
     def test_others(self):
 
         # makePNG(TS.ui, 'mainGUI')
-
+        TSV = EOTimeSeriesViewer()
         TSV.ui.resize(QSize(1000, 600))
 
         QApplication.processEvents()

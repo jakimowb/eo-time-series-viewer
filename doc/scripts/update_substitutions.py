@@ -35,6 +35,9 @@ else:
     if QGIS_REPO.is_dir():
         ICON_DIRS.append(QGIS_REPO / 'images/themes/default')
 
+rx_subst_def = re.compile(r'^.. \|(?P<name>.*)\| .*')
+rx_link_def = re.compile(r'^.. _(?P<name>.*): .*')
+
 
 def inkscapeBin() -> Path:
     """
@@ -148,14 +151,21 @@ class SubstituteCollection(object):
             lines = f.readlines()
             lines = [l.split('#')[0] for l in lines]
             lines = ''.join(lines).strip()
-            parts = lines.split('.. |')
-            parts = [p.strip() for p in parts if len(p) > 0]
+            parts = re.split('(?m)^.. ', lines)
+            parts = ['.. ' + p.strip() for p in parts if len(p) > 0]
             for raw in parts:
-                name = re.search(r'^[^|]+', raw).group()
-                assert isinstance(name, str)
-                raw = '.. |' + raw.strip()
-                sub = Substitute(name, definition=raw, stype=SourceType.Raw)
-                self.addSubstitute(sub)
+
+                if match := rx_subst_def.match(raw):
+                    name = match.group('name')
+                    sub = Substitute(name, definition=raw, stype=SourceType.Raw)
+                    self.addSubstitute(sub)
+                elif match := rx_link_def.match(raw):
+                    name = match.group('name')
+                    sub = Substitute(f'{name}_', definition=raw, stype=SourceType.Raw)
+                    self.addSubstitute(sub)
+                else:
+                    s = ""
+
             s = ""
 
     def updateRST(self, path_rst: Union[str, Path], relative_paths: bool = False):
@@ -170,8 +180,8 @@ class SubstituteCollection(object):
             lines = lines.splitlines()
 
         new_lines = []
-        s_pattern = re.compile(r"(?<!\.\. )\|([\w\d-]+)\|")
-
+        s_pattern = re.compile(r'(?<!\.\. )\|([\w\d-]+)\|')
+        l_pattern = re.compile(r'[\w\d_-]+_(?=\s|[.:?!]|$)', re.I)
         requested = set()
 
         for line in lines:
@@ -184,12 +194,15 @@ class SubstituteCollection(object):
             for r in s_pattern.findall(line):
                 requested.add(r)
 
+            for r in l_pattern.findall(line):
+                requested.add(r)
+
         if len(requested) > 0:
             print(f'Update {path_rst}')
             new_lines += [f'\n\n{MSG_DO_NOT_EDIT}\n']
             for r in sorted(requested):
                 if r not in self:
-                    raise Exception(f'Missing definition for "{r}"')
+                    raise Exception(f'{path_rst}\nMissing definition for "{r}"')
                 sub = self[r]
                 rst_code = self.toRST(sub,
                                       copy_icon=True,
@@ -372,7 +385,7 @@ def find_by_ext(folder, extension) -> List[Path]:
     return found_files
 
 
-if __name__ == '__main__':
+def update_all():
     collection = SubstituteCollection(DIR_SOURCE)
 
     path_manual = Path(__file__).parent / 'substitutions.txt'
@@ -386,3 +399,7 @@ if __name__ == '__main__':
         collection.updateRST(file)
 
     # collection.print()
+
+
+if __name__ == '__main__':
+    update_all()

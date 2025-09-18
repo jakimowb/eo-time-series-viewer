@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>250</width>
-    <height>238</height>
+    <width>364</width>
+    <height>201</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -74,7 +74,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="eotsv_resources.qrc">
+        <iconset>
          <normaloff>:/eotimeseriesviewer/icons/crosshair.svg</normaloff>:/eotimeseriesviewer/icons/crosshair.svg</iconset>
        </property>
        <property name="checkable">
@@ -267,8 +267,8 @@
     <bool>false</bool>
    </property>
    <property name="icon">
-    <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/eotimeseriesviewer/icons/crosshair.svg</normaloff>:/eotimeseriesviewer/icons/crosshair.svg</iconset>
+    <iconset resource="../qgispluginsupport/qps/qpsresources.qrc">
+     <normaloff>:/qps/ui/icons/crosshair.svg</normaloff>:/qps/ui/icons/crosshair.svg</iconset>
    </property>
    <property name="text">
     <string>Show/hide Crosshair</string>
@@ -279,8 +279,8 @@
   </action>
   <action name="actionSetCrosshairStyle">
    <property name="icon">
-    <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/eotimeseriesviewer/icons/symbology.svg</normaloff>:/eotimeseriesviewer/icons/symbology.svg</iconset>
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/propertyicons/symbology.svg</normaloff>:/images/themes/default/propertyicons/symbology.svg</iconset>
    </property>
    <property name="text">
     <string>Set crosshair style</string>
@@ -374,6 +374,7 @@
  </customwidgets>
  <resources>
   <include location="eotsv_resources.qrc"/>
+  <include location="../qgispluginsupport/qps/qpsresources.qrc"/>
   <include location="../../../QGIS/images/images.qrc"/>
  </resources>
  <connections/>

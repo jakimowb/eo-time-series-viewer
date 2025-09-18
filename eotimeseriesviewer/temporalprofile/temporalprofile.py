@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import numpy as np
+
 from qgis.PyQt.QtCore import NULL, pyqtSignal, QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
@@ -19,7 +20,6 @@ from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoo
     QgsVectorLayer
 from qgis.gui import QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper, \
     QgsGui
-
 from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
 from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
@@ -380,10 +380,13 @@ class TemporalProfileUtils(object):
             # convert wavelengths to nanometers
             wl: List[float] = UnitLookup.convertLengthUnit(specs['wl'], specs['wlu'], 'nm')
 
-            for name, info in SI_ACRONYMS['band_identifier'].items():
-                center_wl = 0.5 * (info['wl_min'] + info['wl_max'])
+            s0, s1 = min(wl), max(wl)
 
-                if min(wl) <= center_wl <= max(wl):
+            for name, info in SI_ACRONYMS['band_identifier'].items():
+                wl0, wl1 = info['wl_min'], info['wl_max']
+
+                if max(s0, wl0) <= min(s1, wl1):
+                    center_wl = 0.5 * (info['wl_min'] + info['wl_max'])
                     band_lookup[name] = int(np.argmin(np.abs(np.asarray(wl) - center_wl)))
                 else:
                     band_lookup[name] = None

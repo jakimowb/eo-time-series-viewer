@@ -34,7 +34,7 @@ def update_md(source: Path, target: Path):
         f.write(data)
 
 
-if __name__ == '__main__':
+def update_all():
     to_update = [
         (REPO / 'ABOUT.md', DIR_RST / 'general'),
         (REPO / 'CHANGELOG.md', DIR_RST / 'general'),
@@ -43,3 +43,7 @@ if __name__ == '__main__':
 
     for (src, dst) in to_update:
         update_md(src, dst)
+
+
+if __name__ == '__main__':
+    update_all()

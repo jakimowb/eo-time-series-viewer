@@ -352,6 +352,13 @@ DATETIME_FORMATS = [
 rxDTGKey = re.compile(r'(acquisition|observation)[ _]*(time|date|datetime)', re.IGNORECASE)
 rxDTG = re.compile(r'((acquisition|observation)[ _]*(time|date|datetime)=(?P<dtg>[^<]+))', re.IGNORECASE)
 
+GDAL_DATETIME_ITEMS = [
+    # see https://gdal.org/en/stable/user/raster_data_model.html#imagery-domain-remote-sensing
+    (re.compile(r'acquisition[_\- ]?datetime', re.I), ['IMAGERY', '']),
+
+    (re.compile(r'acquisition[_\- ]?time', re.I), ['ENVI', '']),
+]
+
 
 class ImageDateUtils(object):
     PROPERTY_KEY = 'eotsv/dtg'
@@ -439,10 +446,22 @@ class ImageDateUtils(object):
     def dateTimeFromLayer(cls, layer: QgsRasterLayer) -> Optional[QDateTime]:
         assert isinstance(layer, QgsRasterLayer) and layer.isValid()
 
+    def dateTimeFromLayer(cls, layer: Union[Path, str, QgsRasterLayer, gdal.Dataset]) -> Optional[QDateTime]:
+        if isinstance(layer, Path):
+            layer = str(layer)
+        elif isinstance(layer, gdal.Dataset):
+            layer = layer.GetDescription()
+        loptions = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
+        if isinstance(layer, str):
+            return ImageDateUtils.dateTimeFromLayer(QgsRasterLayer(layer, options=loptions))
+        if not (isinstance(layer, QgsRasterLayer) and layer.isValid()):
+            return None
+
         if ImageDateUtils.PROPERTY_KEY in layer.customPropertyKeys():
             dateString = layer.customProperty(ImageDateUtils.PROPERTY_KEY)
             return ImageDateUtils.dateTimeFromString(dateString)
         else:
+            # try to find an observation date
             dtg = None
 
             # read from raster layer's temporal properties
@@ -540,6 +559,21 @@ class ImageDateUtils(object):
     def dateTimeFromDataProvider(cls, dp: QgsRasterDataProvider) -> Optional[QDateTime]:
         if not isinstance(dp, QgsRasterDataProvider) and dp.isValid():
             return None
+
+        if dp.name() == 'gdal':
+            ds: gdal.Dataset = gdal.Open(dp.dataSourceUri())
+            if isinstance(ds, gdal.Dataset):
+                for (rx, domains) in GDAL_DATETIME_ITEMS:
+                    for domain in domains:
+                        md = ds.GetMetadata_Dict(domain)
+                        if isinstance(md, dict):
+                            for k, v in md.items():
+                                if rx.match(k):
+                                    dtg = QDateTime.fromString(v, Qt.ISODate)
+                                    if dtg.isValid():
+                                        return dtg
+
+            s = ""
 
         tcap = dp.temporalCapabilities()
         if tcap.hasTemporalCapabilities():

@@ -22,10 +22,12 @@ import inspect
 import os
 import pathlib
 
-from qgis.core import Qgis, QgsApplication
 from qgis.PyQt.QtGui import QIcon
+from qgis.core import Qgis, QgsApplication
 
-__version__ = '2.0.1'
+from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import PlotDataItem
+
+__version__ = '2.2.0'
 
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'

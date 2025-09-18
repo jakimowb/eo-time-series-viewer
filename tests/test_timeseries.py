@@ -9,6 +9,17 @@ from osgeo import gdal
 import example
 import example.Images
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
+from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QDateTime, QMimeData, QPointF, \
+    QSortFilterProxyModel, Qt, QUrl
+from qgis.PyQt.QtGui import QDropEvent
+from qgis.PyQt.QtWidgets import QTableView, QTreeView
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsMimeDataUtils, \
+    QgsProject, QgsRasterLayer, QgsVector
+from qgis.gui import QgsTaskManagerWidget
+
+import example
+import example.Images
+from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
 from eotimeseriesviewer.sensors import registerDataProvider, sensorID, SensorInstrument, SensorMockupDataProvider
 from eotimeseriesviewer.tasks import EOTSVTask
@@ -86,6 +97,8 @@ class TestTimeSeries(EOTSVTestCase):
         for tss in ts.timeSeriesSources():
             self.assertTrue(tss.isVisible())
 
+        ts.clear()
+
     def test_TimeSeriesFindOverlapSubTask(self):
 
         ts = TestObjects.createTimeSeries()
@@ -99,6 +112,8 @@ class TestTimeSeries(EOTSVTestCase):
 
         for src in sources:
             self.assertTrue(src in task.intersections)
+
+        ts.clear()
 
     def test_TimeSeriesFindOverlapTask(self):
 
@@ -161,6 +176,8 @@ class TestTimeSeries(EOTSVTestCase):
             self.assertEqual(task.errors(), [], msg=f'Task returned errors: {task.errors()}')
 
         self.assertListEqual(overlapped, [True, False, False])
+
+        ts.clear()
 
     def test_find_overlap_memory_leak(self):
 
@@ -225,6 +242,8 @@ class TestTimeSeries(EOTSVTestCase):
             for tss in tsd:
                 tss: TimeSeriesSource
                 self.assertTrue(t_range.contains(tss.dtg()))
+
+        ts.clear()
 
     def test_TimeSeriesSource(self):
 
@@ -396,6 +415,8 @@ class TestTimeSeries(EOTSVTestCase):
         TS.removeTSDs(to_remove)
         for tsd in to_remove:
             self.assertTrue(tsd not in TS)
+
+        TS.clear()
 
     def test_timeseries(self):
 

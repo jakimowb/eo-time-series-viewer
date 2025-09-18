@@ -26,7 +26,7 @@ to its linked descriptions.
         </filter>
       </defs>
 
-        <image href="/_static/img/gui_overview.png" x="0" y="0"
+        <image href="../_static/img/gui_overview.png" x="0" y="0"
             width="1085" height="682" />
 
           <g class="svg-hover-group">
@@ -100,12 +100,14 @@ to its linked descriptions.
 
     You can activate/deactivate panels under :menuselection:`View --> Panels`
 
+.. _gui_menu_bar:
+
 Menu Bar
 ========
 
 The menu bar give access to methods for handling data and visualization settings.
 
-.. figure:: _static/img/gui_menubar.gif
+.. figure:: /_static/img/gui_menubar.gif
 
     Screencast of the menu bar
 
@@ -129,6 +131,7 @@ The `Tools` menu allows to start processing algorithms, e.g. to create a new tem
 
 
 
+.. _gui_toolbar:
 
 Tool Bar
 ========
@@ -138,7 +141,7 @@ In the tool bar you find tools to add and modify data and to adjust the data vis
 .. csv-table:: Toolbar buttons and what they trigger
    :header: "Button", "Function"
 
-   |mActionAddRasterLayer|, Add images to the time series
+   |mActionAddRasterLayer|, Add raster source to time series
    |mActionAddTS|, Add Time Series from CSV
    |mActionRemoveTS|, Remove all images from Time Series
    |mActionSaveTS|, Save Time Series as CSV file
@@ -151,8 +154,8 @@ In the tool bar you find tools to add and modify data and to adjust the data vis
    |mActionZoomOut|, Zoom out
    |mActionZoomActual|, Zoom to pixel scale
    |mActionZoomFullExtent|, Zoom to maximum extent of time series
-   |pan_center|, Center map on clicked locations
    |select_location|, Identify Pixels and Features
+   |pan_center|, Center map on clicked locations
    |mActionPropertiesWidget|, Identify cursor location values
    |profile|, Identify raster profiles to be shown in a Spectral Library
    |mIconTemporalProfile|, Identify pixel time series for specific coordinate
@@ -169,6 +172,7 @@ In the tool bar you find tools to add and modify data and to adjust the data vis
    in case of the latter variant clicking in the map has no direct effect (other than moving the crosshair, when activated)
 
 
+.. _gui_map_visualization:
 
 Map Visualization
 =================
@@ -190,6 +194,8 @@ A detailed overview on the map visualization options is described in :ref:`here 
 
     Screencast of map visualization
 
+.. _gui_sensor_panel:
+
 Sensors / Products Panel
 ========================
 
@@ -201,6 +207,16 @@ For better handling, the *sensor names* can be changed.
 .. figure:: /img/sensor_panel.gif
 
     The sensor panel show sensor details and allows to change their names
+
+
+* ``name`` is automatically generated from the resolution and number of bands (e.g. *6bands@30.m*). This field is adjustable,
+  i.e. you can change the name by double-clicking into the field. The here defined name will be also displayed in the Map View and the Time Series table.
+* ``n images``: number of images within the time series attributed to the according sensor
+* ``wl``: comma separated string of the (center) wavelength of every band and [unit]
+* ``id``: string identifying number of bands, geometric resolution and wavelengths (primary for internal use)
+
+
+.. _gui_cursor_location_panel:
 
 Cursor Location Panel
 =====================
@@ -229,6 +245,8 @@ location of interest.
     Screencast showing how to use *cursor location info* tool to show pixel and vector object values
 
 
+.. _gui_task_manager_panel:
+
 Task Manager Panel
 ==================
 
@@ -241,6 +259,7 @@ whether the source even contains valid raster pixels for the current displayed s
 
     The progress of the "update visibility" task is shown in the task manager panel (right).
 
+.. _gui_timeseries_panel:
 
 Time Series Panel
 =================
@@ -251,9 +270,11 @@ Sources with a yellow background are currently displayed in a map canvas.
 The panel can be used to add additional sources, save the current sources into a
 CSV file, or remove sources from the time series.
 
-.. figure:: /img/time_series_panel.gif
+.. figure:: /img/timeseries_panel.gif
 
     Showing and hiding of single observations sources in the time series panel.
+
+.. _gui_temporal_profile_view:
 
 Temporal Profile View
 =====================
@@ -271,6 +292,9 @@ A detailed description can be found in the :ref:`Temporal Profiles section <temp
 
     Collecting temporal profiles.
 
+
+.. _gui_spectral_profile_view:
+
 Spectral Profile View
 =====================
 
@@ -279,7 +303,7 @@ To load a spectral profile from a raster image, activate the *identify cursor lo
 |select_location| with option *collect spectral profiles* |profile| and click with the mouse
 on a location of interest.
 
-The spectral profile view panel is the same as used in the |EnMAP-Box| .
+The spectral profile view panel is the same as used in the EnMAP-Box_.
 For details, please visit the EnMAP-Box documentation for
 `using spectral libraries <https://enmap-box.readthedocs.io/en/latest/usr_section/usr_manual/gui.html#spectral-library-view>`_.
 
@@ -288,16 +312,25 @@ For details, please visit the EnMAP-Box documentation for
     Collecting spectral profiles
 
 
+.. _gui_attribute_table:
 
 Attribute Table
 ===============
 
-As known from QGIS, the attribute table allows to show and edit attributes of vector layer features.
-The EO Time Series Viewer offers a similar attribute table with additional shortcuts for navigation and labeling.
+The attribute table can be used to show and edit vector layer attributes.
+In addition to many tools that are already known from the QGIS attribute table,
+the EO Time Series Viewer adds some shortcuts for a faster navigation and
+:ref:`quick labeling <quick_labeling>`.
 
-For selected features, attribute values can be calculated based on short cuts accessible from
-the map canvas and the temporal profile view context menus. These shortcuts are described in detail
-in the :ref:`Quick Labeling <quick_labeling>` section.
+* use the |mActionArrowDown| or |mActionArrowUp| button to select the next or previous feature
+* activate the |mActionPanToSelected| option to automatically pan the maps to selected feature(s)
+* activate the |mapview| option to automatically update the
+  :ref:`source visibility <mapvis_source_visibility>` of the new map extent
+
+
+.. figure:: /img/attribute_table_nextfeatureoptions.png
+
+    Shortcut buttons to select the next or previous feature and options to updates the map visualization.
 
 .. figure:: /img/attribute_table.gif
 
@@ -307,7 +340,7 @@ in the :ref:`Quick Labeling <quick_labeling>` section.
 
 .. AUTOGENERATED SUBSTITUTIONS - DO NOT EDIT PAST THIS LINE
 
-.. |EnMAP-Box| replace:: `EnMAP-Box <https://enmap-box.readthedocs.io>`_
+.. _EnMAP-Box: https://enmap-box.readthedocs.io>
 .. |mActionAddMapView| image:: /icons/mActionAddMapView.png
    :width: 28px
 .. |mActionAddOgrLayer| image:: /icons/mActionAddOgrLayer.png
@@ -316,9 +349,15 @@ in the :ref:`Quick Labeling <quick_labeling>` section.
    :width: 28px
 .. |mActionAddTS| image:: /icons/mActionAddTS.png
    :width: 28px
+.. |mActionArrowDown| image:: /icons/mActionArrowDown.png
+   :width: 28px
+.. |mActionArrowUp| image:: /icons/mActionArrowUp.png
+   :width: 28px
 .. |mActionCapturePolygon| image:: /icons/mActionCapturePolygon.png
    :width: 28px
 .. |mActionPan| image:: /icons/mActionPan.png
+   :width: 28px
+.. |mActionPanToSelected| image:: /icons/mActionPanToSelected.png
    :width: 28px
 .. |mActionPropertiesWidget| image:: /icons/mActionPropertiesWidget.png
    :width: 28px
@@ -345,6 +384,8 @@ in the :ref:`Quick Labeling <quick_labeling>` section.
 .. |mActionZoomOut| image:: /icons/mActionZoomOut.png
    :width: 28px
 .. |mIconTemporalProfile| image:: /icons/mIconTemporalProfile.png
+   :width: 28px
+.. |mapview| image:: /icons/mapview.png
    :width: 28px
 .. |pan_center| image:: /icons/pan_center.png
    :width: 28px

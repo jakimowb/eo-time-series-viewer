@@ -1,11 +1,11 @@
 from eotimeseriesviewer.dateparser import DateTimePrecision
-from eotimeseriesviewer.tests import EOTSVTestCase, start_app
-from eotimeseriesviewer.sensors import has_sensor_id
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibraryplotitems import SpectralProfilePlotDataItem, \
     SpectralProfilePlotWidget
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
+from eotimeseriesviewer.sensors import has_sensor_id
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 from qgis.core import QgsProject, QgsVectorLayer
 
 start_app()
@@ -42,7 +42,7 @@ class TestSpectralProfiles(EOTSVTestCase):
             self.assertIsInstance(speclib, QgsVectorLayer)
             self.assertTrue(speclib.featureCount() == 1, msg=f'Got {speclib.featureCount()} profiles instead of 1')
             pw: SpectralProfilePlotWidget = slw.plotWidget()
-            pdis = [item for item in slw.plotControl().plotWidget().items()
+            pdis = [item for item in slw.plotModel().plotWidget().items()
                     if isinstance(item, SpectralProfilePlotDataItem)]
             self.assertEqual(len(pdis), 1)
         self.showGui(EOTSV.ui)

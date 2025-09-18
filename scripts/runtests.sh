@@ -18,7 +18,7 @@ rm -Rf test-reports
 echo "Run pytest in $(pwd)"
 # not working seeds:
 # python -X faulthandler -m pytest -p no:faulthandler --random-order-seed=397945 --no-cov-on-fail --cov-config=.coveragec "$@"
-pytest --no-cov-on-fail --cov-config=.coveragec "$@"
+python3 -m pytest --no-cov-on-fail --cov-config=.coveragec "$@"
 # gdb --args python -m pytest  --no-cov-on-fail --cov-config=.coveragec "$@"
 ## in gbd -> run
 #     run

@@ -3,6 +3,9 @@ import unittest
 
 from osgeo import gdal
 
+import numpy as np
+from osgeo import gdal, gdal_array
+
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from example import exampleLandsat8, exampleNoDataImage, exampleRapidEye
@@ -78,13 +81,67 @@ class TestDateParser(EOTSVTestCase):
         self.assertTrue(ImageDateUtils.doiFromDateTime(dt2), 366)
         s = ""
 
+    def test_gdal_domains(self):
+
+        # see https://gdal.org/en/stable/user/raster_data_model.html#imagery-domain-remote-sensing
+        path = '/vsimem/myimage.tif'
+        arr = np.ones((2, 2))
+
+        ds: gdal.Dataset = gdal_array.SaveArray(arr, path, format='GTiff')
+        ds.SetMetadataItem('ACQUISITIONDATETIME', '2024-03-02', 'IMAGERY')
+        ds.FlushCache()
+        del ds
+
+        dtg = ImageDateUtils.dateTimeFromLayer(path)
+        self.assertIsInstance(dtg, QDateTime)
+        self.assertEqual(dtg.date(), QDate(2024, 3, 2))
+
+        # see https://www.nv5geospatialsoftware.com/docs/ENVIHeaderFiles.html
+        path = '/vsimem/envi_image.bsq'
+        arr = np.ones((2, 2))
+
+        ds: gdal.Dataset = gdal_array.SaveArray(arr, path, format='ENVI')
+        ds.SetMetadataItem('acquisition time', '2025-01-02', 'ENVI')
+        ds.FlushCache()
+        del ds
+
+        dtg = ImageDateUtils.dateTimeFromLayer(path)
+        self.assertIsInstance(dtg, QDateTime)
+        self.assertEqual(dtg.date(), QDate(2025, 1, 2))
+
+    def test_filenames(self):
+
+        examples = [
+            '/foo2024-04-01bar/image.tif',
+            '/foo20240402bar/image.tif',
+            '/data/foo2024-04-03bar.tif',
+            '/data/foo20240404bar.tif',
+        ]
+
+        for path in examples:
+            print(f'{path} -> {ImageDateUtils.dateTimeFromString(path).toString(Qt.ISODate)}')
+
+        path = '/vsimem/myimage.tif'
+        arr = np.ones((2, 2))
+
+        ds: gdal.Dataset = gdal_array.SaveArray(arr, path, format='GTiff')
+        ds.SetMetadataItem('ACQUISITIONDATETIME', '2024-03-02', 'IMAGERY')
+        ds.FlushCache()
+        del ds
+
+        dtg = ImageDateUtils.dateTimeFromLayer(path)
+        assert isinstance(dtg, QDateTime)
+        print(dtg.toString(Qt.ISODate))
+
+        self.assertIsInstance(dtg, QDateTime)
+        print(dtg)
+
     def test_datetime(self):
 
         example = QDateTime(QDate(2023, 4, 3), QTime(0, 8, 15))
         inputs = [
             example,
             example.toString(Qt.ISODate),
-            example.toString(),
             example.toPyDateTime(),
             str(example.toPyDateTime()),
             example.toPyDateTime().timestamp(),

@@ -114,38 +114,40 @@
          </widget>
         </item>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout">
-          <property name="topMargin">
-           <number>0</number>
-          </property>
-          <item>
-           <widget class="QProgressBar" name="mProgressBar">
-            <property name="value">
-             <number>0</number>
-            </property>
-            <property name="textVisible">
-             <bool>true</bool>
-            </property>
-            <property name="format">
-             <string>%p%</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="btnCancelTask">
-            <property name="text">
-             <string>...</string>
-            </property>
-            <property name="icon">
-             <iconset resource="../../../QGIS/images/images.qrc">
-              <normaloff>:/images/themes/default/mTaskCancel.svg</normaloff>:/images/themes/default/mTaskCancel.svg</iconset>
-            </property>
-            <property name="autoRaise">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-         </layout>
+         <widget class="QWidget" name="progressWidget" native="true">
+          <layout class="QHBoxLayout" name="horizontalLayout">
+           <property name="topMargin">
+            <number>1</number>
+           </property>
+           <item>
+            <widget class="QProgressBar" name="mProgressBar">
+             <property name="value">
+              <number>0</number>
+             </property>
+             <property name="textVisible">
+              <bool>true</bool>
+             </property>
+             <property name="format">
+              <string>%p%</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QToolButton" name="btnCancelTask">
+             <property name="text">
+              <string>...</string>
+             </property>
+             <property name="icon">
+              <iconset resource="../../../QGIS/images/images.qrc">
+               <normaloff>:/images/themes/default/mTaskCancel.svg</normaloff>:/images/themes/default/mTaskCancel.svg</iconset>
+             </property>
+             <property name="autoRaise">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
         </item>
        </layout>
       </widget>
@@ -233,18 +235,6 @@
     <string>Select temporal profile from map.</string>
    </property>
   </action>
-  <action name="actionLoadTPFromOgr">
-   <property name="icon">
-    <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/eotimeseriesviewer/icons/mActionAddOgrLayer.svg</normaloff>:/eotimeseriesviewer/icons/mActionAddOgrLayer.svg</iconset>
-   </property>
-   <property name="text">
-    <string>Load Coordinates</string>
-   </property>
-   <property name="toolTip">
-    <string>Loads the coordinate from a vector file</string>
-   </property>
-  </action>
   <action name="actionLoadMissingValues">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
@@ -319,7 +309,7 @@
   </action>
   <action name="actionSettings">
    <property name="icon">
-    <iconset resource="eotsv_resources.qrc">
+    <iconset>
      <normaloff>:/eotimeseriesviewer/icons/settings.svg</normaloff>:/eotimeseriesviewer/icons/settings.svg</iconset>
    </property>
    <property name="text">

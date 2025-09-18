@@ -1,23 +1,106 @@
+import csv
+import io
+import json
 import re
-from typing import Dict, Iterable, List, Optional, Tuple
 from datetime import datetime
+from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
-from qgis.PyQt.QtWidgets import QDateTimeEdit, QFrame, QGridLayout, QMenu, QRadioButton, QWidget, QWidgetAction
-from qgis.core import QgsVectorLayer
-from qgis.PyQt.QtGui import QAction, QColor
-from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QPointF, Qt
+from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QMimeData, QPointF, Qt
+from qgis.PyQt.QtGui import QAction, QClipboard, QColor
+from qgis.PyQt.QtGui import QPen
+from qgis.PyQt.QtWidgets import QDateTimeEdit, QFrame, QGraphicsItem, QGridLayout, QMenu, QRadioButton, QWidget, \
+    QWidgetAction
+from qgis.core import QgsApplication, QgsVectorLayer
 
-from eotimeseriesviewer.labeling.quicklabeling import addQuickLabelMenu
-from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.graphicsItems.ViewBox.ViewBoxMenu import ViewBoxMenu
-from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
 from eotimeseriesviewer.dateparser import ImageDateUtils
+from eotimeseriesviewer.derivedplotdataitems.dpdicontroller import DPDIControllerModel
+from eotimeseriesviewer.labeling.quicklabeling import addQuickLabelMenu
+from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
-from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import PlotCurveItem, ScatterPlotItem, SpotItem
+from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import PlotDataItem, ScatterPlotItem, SpotItem
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.GraphicsScene.mouseEvents import HoverEvent, \
     MouseClickEvent
+from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.graphicsItems.ViewBox.ViewBoxMenu import ViewBoxMenu
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
-from eotimeseriesviewer.temporalprofile.plotitems import MapDateRangeItem, TemporalProfilePlotDataItem
+from eotimeseriesviewer.temporalprofile.plotitems import MapDateRangeItem
+from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
+
+
+class DateTimePlotDataItem(pg.PlotDataItem):
+
+    @staticmethod
+    def default_selection_style_function(pdi: PlotDataItem):
+        p = QPen(pdi.opts['pen'])
+        p.setColor(QColor('yellow'))
+        p.setWidth(p.width() + 3)
+        pdi.setPen(p)
+
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+        self.mFeatureID = None
+        self.mLayerId = None
+        self.mTemporalProfile: Optional[dict] = None
+        self.mObservationIndices: Optional[np.ndarray] = None
+        self.mSelectedPoints: List[SpotItem] = []
+        self.setFlag(QGraphicsItem.ItemIsSelectable, True)
+        self.mIsSelected: bool = False
+        self.mDefaultStyle = PlotStyle.fromPlotDataItem(self)
+        self.mSelectedStyle: Union[None, PlotStyle, Callable] = self.default_selection_style_function
+
+    def setSelectedStyle(self, style: Union[None, PlotStyle, Callable]):
+        assert isinstance(style, PlotStyle) or callable(style)
+        self.mSelectedStyle = style
+
+    def isSelected(self) -> bool:
+        return self.mIsSelected
+
+    def setSelected(self, selected: bool):
+        assert isinstance(selected, bool)
+        was_selected = self.isSelected()
+        self.mIsSelected = selected
+
+        if was_selected != selected:
+            if selected:
+                # let the plotDataItem look like being selected
+                if callable(self.mSelectedStyle):
+                    self.mSelectedStyle(self)
+                elif isinstance(self.mSelectedStyle, PlotStyle):
+                    self.mSelectedStyle.apply(self)
+                else:
+                    # do nothing
+                    pass
+                # apply selection style
+            else:
+                # restore default style
+                self.mDefaultStyle.apply(self)
+
+    def hasSelectedPoints(self) -> bool:
+        return len(self.mSelectedPoints) > 0
+
+    def addSelectedPoints(self, indices: Iterable[SpotItem]):
+        for p in indices:
+            if p not in self.mSelectedPoints:
+                self.mSelectedPoints.append(p)
+
+    def setSelectedPoints(self, indices: Iterable[SpotItem]):
+        self.mSelectedPoints.clear()
+        self.addSelectedPoints(indices)
+
+    def removeSelectedPoints(self, indices: Iterable[SpotItem]) -> List[SpotItem]:
+        removed = []
+        for p in indices:
+            if p in self.mSelectedPoints:
+                self.mSelectedPoints.remove(p)
+                removed.append(p)
+        return removed
+
+    def selectedPoints(self) -> List[SpotItem]:
+        return sorted(self.mSelectedPoints, key=lambda s: s.index())
+
+    def setTemporalProfile(self, d: dict, obs_indices: np.ndarray):
+        self.mTemporalProfile = d
+        self.mObservationIndices = obs_indices
 
 
 class DateTimePlotItem(pg.PlotItem):
@@ -28,13 +111,60 @@ class DateTimePlotItem(pg.PlotItem):
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
 
+        self.mPlotDataControllerModel: DPDIControllerModel = DPDIControllerModel()
+        self.mPlotDataControllerModel.modelUpdated.connect(self.updateDerivedItems)
+
+        self.mSelectionTolerance: int = 3
+        self.mDerivedItems = list()
+
     def addItem(self, item, *args, **kwds):
         super().addItem(item, *args, **kwds)
 
         if isinstance(item, DateTimePlotDataItem):
+            self.mPlotDataControllerModel.mExamplePDI = item
+            item.setCurveClickable(True, self.mSelectionTolerance)
             item.scatter.sigHovered.connect(self.pdiPointsHovered)
             item.scatter.sigClicked.connect(self.pdiPointsClicked)
             item.sigClicked.connect(self.pdiCurveClicked)
+
+    def addDerivedItem(self, item):
+        self.mDerivedItems.append(item)
+        super().addItem(item)
+
+    def dateTimePlotDataItems(self):
+        for item in self.items:
+            if isinstance(item, DateTimePlotDataItem) and item not in self.mDerivedItems:
+                yield item
+
+    def updateDerivedItems(self):
+
+        for item in self.mDerivedItems:
+            self.removeItem(item)
+        self.mDerivedItems.clear()
+
+        model: DPDIControllerModel = self.mPlotDataControllerModel
+
+        items = self.dateTimePlotDataItems()
+        if model.showSelectedOnly():
+            items = [item for item in items if item.isSelected()]
+
+        derived_items = model.createDerivedItems(items)
+        for item in derived_items:
+            self.addDerivedItem(item)
+
+    def removeItem(self, item):
+        super().removeItem(item)
+        for c in self.mPlotDataControllerModel.controllers():
+            for d in c.derivedPlotDataItems(item):
+                self.removeItem(d)
+
+    def setSelectionTolerance(self, margin: int):
+        assert isinstance(margin, int)
+        assert margin >= 0
+        self.mSelectionTolerance = margin
+        for item in self.items:
+            if item.curveClickable():
+                item.setCurveClickable(True, margin)
 
 
 class DateTimeViewBox(pg.ViewBox):
@@ -180,12 +310,89 @@ class DateTimeViewBox(pg.ViewBox):
         menu.exec_(ev.screenPos().toPoint())
 
 
+def copyProfiles(pdis: List[DateTimePlotDataItem], mode: str):
+    """
+    Copies profile data to clipboard
+    :param pdis:
+    :param mode:
+    :return:
+    """
+    assert mode in ['csv', 'json', 'tp_json']
+
+    text = None
+    if mode == 'tp_json':
+        profiles = [pdi.mTemporalProfile for pdi in pdis if isinstance(pdi.mTemporalProfile, dict)]
+        text = json.dumps(profiles, ensure_ascii=False)
+    elif mode == 'json':
+
+        data = []
+        for pdi in pdis:
+            d = dict()
+            d['name'] = pdi.name()
+            d['x'] = pdi.xData.tolist()
+            d['y'] = pdi.yData.tolist()
+            d['dates'] = [datetime.fromtimestamp(d).isoformat() for d in pdi.xData]
+            data.append(d)
+        text = json.dumps(data, ensure_ascii=False)
+
+    elif mode == 'csv':
+        cols = 1 + len(pdis)
+
+        all_dates = set()
+        obs_dicts = []
+        # each profile can have different dates.
+        # create a CSV table with one date column
+        # cells can be empty if no observation exists for the requested date
+        header = ['date']
+        for i, pdi in enumerate(pdis):
+            name = pdi.name()
+            if name is None:
+                if pdi.mFeatureID:
+                    name = f'Feature {pdi.mFeatureID}'
+                else:
+                    name = f'Profile {i + 1}'
+            header.append(name)
+            obs_dict = dict()
+            for d, v in zip(pdi.xData, pdi.yData):
+
+                if np.isfinite(v):
+                    date = datetime.fromtimestamp(d).isoformat()
+                    all_dates.add(date)
+                    obs_dict[date] = v
+            obs_dicts.append(obs_dict)
+
+        mem = io.StringIO()
+        writer = csv.writer(mem)
+        writer.writerow(header)
+
+        sorted_dates = sorted(all_dates)
+        for date in sorted_dates:
+            row = [date]
+            for obs_dict in obs_dicts:
+                row.append(obs_dict.get(date, ''))
+            writer.writerow(row)
+
+        text = mem.getvalue()
+        mem.close()
+
+        s = ""
+        pass
+    else:
+        raise NotImplementedError()
+
+    cb = QgsApplication.instance().clipboard()
+    if isinstance(text, str) and isinstance(cb, QClipboard):
+        md = QMimeData()
+        md.setText(text)
+        cb.setMimeData(md)
+
+
 class DateTimePlotWidget(pg.PlotWidget):
     """
     A widget to visualize temporal profiles
     """
     sigMapDateRequest = pyqtSignal(QDateTime, str)
-    preUpdateTask = pyqtSignal(str, dict)
+    sigSelectFeatures = pyqtSignal(object)
 
     def __init__(self, parent: QWidget = None):
         """
@@ -214,6 +421,12 @@ class DateTimePlotWidget(pg.PlotWidget):
         self.mCrosshairLineV = pg.InfiniteLine(angle=90, movable=False)
         self.mCrosshairLineH = pg.InfiniteLine(angle=0, movable=False)
 
+        # self.plotItem.addLegend(offset=(30, 30))
+        # self.mLegendItem1 = self.plotItem.addLegend(offset=(30, 30))
+        # self.mLegendItem1 = pg.LegendItem(offset=(50, 30))
+        # self.mLegendItem1.setParentItem(self.plotItem.getViewBox())
+        # self.plotItem.legend = self.mLegendItem1
+
         self.mMapDateRangeItem = MapDateRangeItem()
         self.mMapDateRangeItem.sigMapDateRequest.connect(self.sigMapDateRequest.emit)
         viewBox.mActionShowMapViewRange.toggled.connect(self.mMapDateRangeItem.setVisible)
@@ -238,21 +451,13 @@ class DateTimePlotWidget(pg.PlotWidget):
         self.mHoveredPositions: Dict[str, List[Tuple[DateTimePlotDataItem, SpotItem]]] = dict()
         self.mClickedPositions: Dict[Tuple, Tuple[DateTimePlotDataItem, int]] = dict()
 
+        self.mFeaturesToSelect = dict()
+
     def dateTimeViewBox(self) -> DateTimeViewBox:
-        return self.mDateTimeViewBox
+        return self.plotItem.vb
 
     def getPlotItem(self) -> DateTimePlotItem:
         return super().getPlotItem()
-
-    def closeEvent(self, *args, **kwds):
-        """
-        Stop the time to avoid calls on freed / deleted C++ object references
-        """
-        self.mUpdateTimer.stop()
-        super().closeEvent(*args, **kwds)
-
-    def temporalProfilePlotDataItems(self) -> List[TemporalProfilePlotDataItem]:
-        return [i for i in self.plotItem.items if isinstance(i, DateTimePlotDataItem)]
 
     def resetViewBox(self):
         self.plotItem.getViewBox().autoRange()
@@ -285,19 +490,32 @@ class DateTimePlotWidget(pg.PlotWidget):
         # print(self.mHoveredPositions)
         return True
 
-    def selectedPointItems(self):
+    def hoveredPointItems(self) -> Iterable[Tuple[DateTimePlotDataItem, SpotItem]]:
+        for values in self.mHoveredPositions.values():
+            for (pdi, spotItem) in values:
+                yield pdi, spotItem
+
+    def selectedPlotDataItems(self) -> Generator[DateTimePlotDataItem, Any, None]:
+        """
+        Returns the selected DateTimePlotDataItems
+        :return:
+        """
+        for item in self.plotItem.dateTimePlotDataItems():
+            if isinstance(item, DateTimePlotDataItem) and item.isSelected():
+                yield item
+
+    def selectedPointItems(self) -> Generator[DateTimePlotDataItem, Any, None]:
 
         for item in self.plotItem.items:
-            if isinstance(item, DateTimePlotDataItem):
-                if item.hasSelectedPoints():
-                    yield item
+            if isinstance(item, DateTimePlotDataItem) and item.hasSelectedPoints():
+                yield item
 
     def onPointsClicked(self, item: ScatterPlotItem, array: np.ndarray, event: MouseClickEvent):
 
         parent = item.parentItem()
         if isinstance(parent, DateTimePlotDataItem):
             parent: DateTimePlotDataItem
-            print(parent)
+            # print(parent)
             if bool(event.modifiers() & Qt.ControlModifier):
                 parent.addSelectedPoints(array)
             else:
@@ -322,61 +540,82 @@ class DateTimePlotWidget(pg.PlotWidget):
         self.mMapDateRangeItem.setMapDateRange(date0, date1)
 
     def onPopulateContextMenu(self, menu: QMenu):
+        menu.setToolTipsVisible(True)
+        selected_profiles = list(self.selectedPlotDataItems())
 
-        layers = []
-        src = None
-        for item in self.selectedPointItems():
-            item: DateTimePlotDataItem
-            if src is None:
-                for spotItem in item.selectedPoints():
-                    spotItem: SpotItem
-                    i = item.mObservationIndices[spotItem.index()]
-                    dtg = item.mTemporalProfile[TemporalProfileUtils.Date][i]
-                    src = ImageDateUtils.datetime(dtg)
-                    # get TSD / TSS
+        n = len(selected_profiles)
+
+        m: QMenu = menu.addMenu('Copy Profile(s)')
+        m.setToolTipsVisible(True)
+        m.setToolTip('Copy the data of selected profiles.')
+        m.setEnabled(n > 0)
+        if n > 0:
+            a = m.addAction('CSV')
+            a.setToolTip(f'Copy the {n} selected profile(s) in CSV format.')
+            a.triggered.connect(lambda *args, pdis=selected_profiles: copyProfiles(pdis, 'csv'))
+
+            a = m.addAction('JSON')
+            a.setToolTip(f'Copy the {n} selected profile(s) in JSON format.')
+            a.triggered.connect(lambda *args, pdis=selected_profiles: copyProfiles(pdis, 'json'))
+
+            a = m.addAction('Profile data (JSON)')
+            a.setToolTip(f'Copy the multi-sensor data of all {n} selected profiles.')
+            a.triggered.connect(lambda *args, pdis=selected_profiles: copyProfiles(pdis, 'tp_json'))
+
+        hovered_layers = []
+        dtg = None
+
+        for (item, spotItem) in self.hoveredPointItems():
+            if dtg is None:
+                i = item.mObservationIndices[spotItem.index()]
+                dtg = item.mTemporalProfile[TemporalProfileUtils.Date][i]
+                dtg = ImageDateUtils.datetime(dtg)
+
             lyr = item.mLayer()
-            if isinstance(lyr, QgsVectorLayer) and lyr not in layers:
-                layers.append(lyr)
+            if isinstance(lyr, QgsVectorLayer) and lyr not in hovered_layers:
+                hovered_layers.append(lyr)
+            s = ""
+        cmodel = self.plotItem.mPlotDataControllerModel
+        cmodel.populateContextMenu(menu)
 
-        addQuickLabelMenu(menu, layers, src)
+        addQuickLabelMenu(menu, hovered_layers, dtg)
+
+    def selectedFeatures(self) -> Dict[str, List[int]]:
+
+        SELECT_FEATURES = dict()
+        for pdi in self.selectedPlotDataItems():
+            lid = pdi.mLayerId
+            fid = pdi.mFeatureID
+
+            if isinstance(lid, str) and isinstance(fid, int):
+                fids = SELECT_FEATURES.get(lid, set())
+                fids.add(fid)
+                SELECT_FEATURES[lid] = fids
+
+        return {k: list(sorted(v)) for k, v in SELECT_FEATURES.items()}
 
     def onCurveClicked(self, item, event):
 
-        s = ""
-        # print(f'Clicked {item}')
+        selected0 = self.selectedFeatures()
+        selectedPDIs0 = list(self.selectedPlotDataItems())
 
-        pdi = None
-        if isinstance(item, DateTimePlotDataItem):
-            pdi = item
-        elif isinstance(item, PlotCurveItem) and isinstance(item.parentItem(), DateTimePlotDataItem):
-            pdi = item.parentItem()
+        parentItem = item.parentItem()
+        if isinstance(parentItem, DateTimePlotDataItem):
+            is_ctrl = bool(QgsApplication.instance().keyboardModifiers() & Qt.ControlModifier)
+            if is_ctrl:
+                parentItem.setSelected(not parentItem.isSelected())
+            else:
+                for item in list(self.selectedPlotDataItems()):
+                    item.setSelected(False)
+                parentItem.setSelected(True)
 
-        if isinstance(pdi, DateTimePlotDataItem):
-            s = ""
-            lyr = pdi.mLayer()
-            fid = pdi.mFeatureID
-            fids_new = None
+        selected1 = self.selectedFeatures()
+        selectedPDIs1 = list(self.selectedPlotDataItems())
+        if selectedPDIs0 != selectedPDIs1:
+            self.plotItem.updateDerivedItems()
 
-            if isinstance(lyr, QgsVectorLayer) and isinstance(fid, int):
-                fids_old: set = set(lyr.selectedFeatureIds())
-                if event.modifiers() & Qt.ControlModifier:
-                    if fid in fids_old:
-                        # remove from selection if already in
-                        fids_new = fids_old - {fid}
-                    else:
-                        # add to selection
-                        fids_new = fids_old | {fid}
-                else:
-                    fids_new = {fid}
-                lyr: QgsVectorLayer
-                if fids_old != fids_new:
-                    # lyr.selectByIds(list(fids_new))
-
-                    self.preUpdateTask.emit('select_features', {'layer': lyr, 'fids': list(fids_new)})
-
-                # lyr.selectByIds([fid])
-            # select feature in layer
-            event.accept()
+        if selected0 != selected1:
+            self.sigSelectFeatures.emit(selected1)
 
     def onMouseMoved2D(self, evt):
         pos = evt[0]  # using signal proxy turns original arguments into a tuple
@@ -496,41 +735,3 @@ class DateTimeAxis(pg.DateAxisItem):
             p.translate(-rect.center())  # revert coordinate system
             p.drawText(rect, flags, text)
             p.restore()  # restore the painter state
-
-
-class DateTimePlotDataItem(pg.PlotDataItem):
-
-    def __init__(self, *args, **kwds):
-        super().__init__(*args, **kwds)
-        self.mFeatureID = None
-        self.mLayerId = None
-        self.mTemporalProfile: Optional[dict] = None
-        self.mObservationIndices: Optional[np.ndarray] = None
-        self.mSelectedPoints: List[SpotItem] = []
-
-    def hasSelectedPoints(self) -> bool:
-        return len(self.mSelectedPoints) > 0
-
-    def addSelectedPoints(self, indices: Iterable[SpotItem]):
-        for p in indices:
-            if p not in self.mSelectedPoints:
-                self.mSelectedPoints.append(p)
-
-    def setSelectedPoints(self, indices: Iterable[SpotItem]):
-        self.mSelectedPoints.clear()
-        self.addSelectedPoints(indices)
-
-    def removeSelectedPoints(self, indices: Iterable[SpotItem]) -> List[SpotItem]:
-        removed = []
-        for p in indices:
-            if p in self.mSelectedPoints:
-                self.mSelectedPoints.remove(p)
-                removed.append(p)
-        return removed
-
-    def selectedPoints(self) -> List[SpotItem]:
-        return sorted(self.mSelectedPoints, key=lambda s: s.index())
-
-    def setTemporalProfile(self, d: dict, obs_indices: np.ndarray):
-        self.mTemporalProfile = d
-        self.mObservationIndices = obs_indices

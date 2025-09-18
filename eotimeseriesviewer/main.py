@@ -27,6 +27,12 @@ import webbrowser
 from pathlib import Path
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
+import qgis.utils
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
+from qgis.PyQt.QtGui import QCloseEvent, QIcon
+from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
+    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
+from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
 from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, \
     QgsExpressionContext, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, \
     QgsPointXY, QgsProcessingContext, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProcessingRegistry, \
@@ -34,29 +40,20 @@ from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, 
     QgsTask, QgsTaskManager, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
 from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsLayerTreeView, QgsMapCanvas, QgsMessageBar, \
     QgsMessageViewer, QgsStatusBar, QgsTaskManagerWidget
-import qgis.utils
-from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
-from qgis.PyQt.QtGui import QCloseEvent, QIcon
-from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
-    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
-from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
 
 import eotimeseriesviewer
-from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG
-from eotimeseriesviewer.processing.algorithmdialog import AlgorithmDialog
-from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
-from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
 import eotimeseriesviewer.labeling
-from eotimeseriesviewer.processing.processingalgorithms import CreateEmptyTemporalProfileLayer, EOTSVProcessingProvider, \
-    ReadTemporalProfiles
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries, \
-    TimeSeriesDate, TimeSeriesSource
-from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
+from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG
 from eotimeseriesviewer.about import AboutDialogUI
 from eotimeseriesviewer.dateparser import DateTimePrecision
+from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
 from eotimeseriesviewer.forceinputs import FindFORCEProductsTask, FORCEProductImportDialog
+from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.maplayerproject import EOTimeSeriesViewerProject
+from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
+from eotimeseriesviewer.processing.algorithmdialog import AlgorithmDialog
+from eotimeseriesviewer.processing.processingalgorithms import CreateEmptyTemporalProfileLayer, EOTSVProcessingProvider, \
+    ReadTemporalProfiles
 from eotimeseriesviewer.qgispluginsupport.qps.cursorlocationvalue import CursorLocationInfoDock
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
 from eotimeseriesviewer.qgispluginsupport.qps.maptools import MapTools
@@ -75,8 +72,11 @@ from eotimeseriesviewer.settings.widget import EOTSVSettingsWidgetFactory
 from eotimeseriesviewer.tasks import EOTSVTask
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
 from eotimeseriesviewer.temporalprofile.visualization import TemporalProfileDock
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries, \
+    TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.timeseries.widgets import TimeSeriesDock, TimeSeriesTreeView, TimeSeriesWidget
 from eotimeseriesviewer.utils import fixMenuButtons
+from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 
 DEBUG = False
 
@@ -1523,15 +1523,16 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                     new_features.append(feature)
                     currentStyles[(fid, pfield.name())] = style
 
-                w.setCurrentProfiles(new_features, make_permanent=False, currentProfileStyles=currentStyles)
+                w.plotModel().addProfileCandidates({sl.id(): new_features}, styles=currentStyles)
 
     @pyqtSlot(SpatialPoint)
     def loadCurrentTemporalProfile(self, spatialPoint: SpatialPoint):
 
         existing = self.profileDock.mVis.temporalProfileLayerFields()
         if len(existing) == 0:
-            lyr = self.initTemporalProfileLayer()
-            # self.profileDock.mVis.createVisualization()
+            # ensure that we have a temporal profile layer instance
+            self.initTemporalProfileLayer()
+            self.profileDock.mVis.createVisualization()
 
         layer = fieldname = None
         for (lyr, fn) in self.profileDock.mVis.temporalProfileLayerFields():
@@ -1546,12 +1547,12 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     def initTemporalProfileLayer(self) -> Optional[QgsVectorLayer]:
         """
-        Create a new temporal profile layer, just in case none exists.
+        Create a new temporal profile layer if none exists in the project..
+        Returns the 1st temporal profile layer found in the EOTSV project
         """
         has_tl_lyr = False
         for lid, lyr in self.mapLayerStore().mapLayers().items():
             if TemporalProfileUtils.isProfileLayer(lyr):
-                has_tl_lyr = True
                 self.mTemporalProfileLayerInitialized = True
                 return lyr
         if not has_tl_lyr:
@@ -1564,6 +1565,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 self.mTemporalProfileLayerInitialized = True
                 return lyr
         self.mTemporalProfileLayerInitialized = False
+        return None
 
     def onShowProfile(self, spatialPoint, mapCanvas, mapToolKey):
 

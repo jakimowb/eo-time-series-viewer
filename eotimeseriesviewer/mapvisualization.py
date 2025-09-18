@@ -700,6 +700,8 @@ class MapView(QFrame):
             sensor.sigNameChanged.connect(self.sigCanvasAppearanceChanged)
 
             masterLayer: QgsRasterLayer = sensor.proxyRasterLayer()
+            if not (isinstance(masterLayer, QgsRasterLayer) and masterLayer.isValid()):
+                s = ""
             assert isinstance(masterLayer, QgsRasterLayer) and masterLayer.isValid()
             assert isinstance(masterLayer.renderer(), QgsRasterRenderer)
 
@@ -1132,7 +1134,7 @@ class MapWidget(QFrame):
     sigCurrentLayerChanged = pyqtSignal(QgsMapLayer)
     # sigCurrentCanvasChanged = pyqtSignal(MapCanvas)
     # sigCurrentMapViewChanged = pyqtSignal(MapView)
-    sigDateRangeChanged = pyqtSignal(QDateTime, QDateTime)
+    sigDateRangeChanged = pyqtSignal(object, object)
     sigCurrentDateChanged = pyqtSignal(TimeSeriesDate)
     sigCurrentLocationChanged = pyqtSignal([QgsCoordinateReferenceSystem, QgsPointXY],
                                            [QgsCoordinateReferenceSystem, QgsPointXY, QgsMapCanvas])
@@ -2429,7 +2431,7 @@ QSlider::add-page {{
             self.sigVisibleDatesChanged.emit(visible2)
 
         dateRange2 = self.currentDateRange()
-        if dateRange2 != dateRangeBefore:
+        if dateRange2 and dateRange2 != dateRangeBefore:
             self.sigDateRangeChanged.emit(*dateRange2)
 
     def _freeUnusedMapLayers(self):

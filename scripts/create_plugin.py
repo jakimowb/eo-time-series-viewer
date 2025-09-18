@@ -178,8 +178,9 @@ def create_plugin(include_testdata: bool = False,
         shutil.copytree(qgisresources, PLUGIN_DIR / 'qgisresources')
 
     createHTMLDocuments(PLUGIN_DIR)
-    import scripts.update_docs
-    scripts.update_docs.update_documentation()
+    from doc.scripts import update_markdown, update_substitutions
+    update_markdown.update_all()
+    update_substitutions.update_all()
 
     # copy license
     shutil.copy(PLUGIN_DIR / 'LICENSE.md', PLUGIN_DIR / 'LICENSE')

@@ -74,7 +74,7 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.ifconfig',
               'sphinx.ext.viewcode',
               'sphinx_tabs.tabs',
-              'sphinx.ext.autosectionlabel',
+              # 'sphinx.ext.autosectionlabel',
               'myst_parser',
               ]
 
@@ -97,7 +97,7 @@ def setup(app):
 
 
 source_suffix = ['.rst', '.md']
-
+todo_include_todos = True
 master_doc = 'index'
 
 # General information about the project.
