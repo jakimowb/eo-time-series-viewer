@@ -2,6 +2,80 @@
     max-width: 1300px !important;
 }
 
+
+body {
+  font-family: "Lato","proxima-nova","Helvetica Neue",Arial,sans-serif;
+}
+
+/*
+footer {
+  font-family: 'Oswald', sans-serif;
+}
+*/
+
+h1 {
+  font-family: "Lato","proxima-nova","Helvetica Neue",Arial,sans-serif;
+  color: #000000;
+}
+
+h2 {
+  font-family: "Lato","proxima-nova","Helvetica Neue",Arial,sans-serif;
+  color: #1F497D;
+}
+
+h3 {
+  font-family: "Lato","proxima-nova","Helvetica Neue",Arial,sans-serif;
+  color: #05989F;
+}
+
+h4, h5, h6 {
+  font-family: "Lato","proxima-nova","Helvetica Neue",Arial,sans-serif;
+  color: #05989F;
+}
+
+/* Figure caption */
+.rst-content div.figure p.caption {
+  font-family: "Lato","proxima-nova","Helvetica Neue",Arial,sans-serif;
+  /*color: #1F497D;*/
+  /*letter-spacing: 4px; */
+}
+
+
+.rst-content .toctree-wrapper p.caption {
+  font-family: "Lato","proxima-nova","Helvetica Neue",Arial,sans-serif;
+}
+
+/*
+.wy-menu-vertical header {
+  color: #1F497D;
+}
+
+*/
+
+.wy-menu-vertical a {
+  font-family: "Lato","proxima-nova","Helvetica Neue",Arial,sans-serif;
+}
+
+/* TOC caption */
+.wy-menu-vertical header, .wy-menu-vertical p.caption {
+  font-family: "Lato","proxima-nova","Helvetica Neue",Arial,sans-serif;
+  /*color: #05989F;*/
+  color: #6D9353;
+}
+
+
+.wy-side-nav-search {
+  /*background-color: #d9e1dd;*/
+  background-color: #4e4a4a;
+  /*background-image: url("../img/logo_background.jpg");*/
+  background-size: cover;
+  background-opacity: 0.5
+}
+
+.wy-side-nav-search > div.version {
+  color: rgba(255,255,255,0.7); /*increase version number opacity*/
+}
+
 .menuselection {
   border:1px dashed #7fbbe366;
   background:#f1f9ff;
