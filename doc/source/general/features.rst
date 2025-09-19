@@ -1,8 +1,8 @@
-=======
-Gallery
-=======
+========
+Features
+========
 
-This section gives you a visual glimpse at the functionalities of the Time Series Viewer plugin
+This section gives you a visual glimpse at the functionalities of the EO Time Series Viewer.
 
 
 Multiple Map Views
