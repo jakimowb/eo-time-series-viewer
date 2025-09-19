@@ -1,8 +1,8 @@
 from pathlib import Path
-from typing import Union, Optional, Tuple, Dict, Type
+from typing import Union, Optional, Tuple, Type, List
 
-from PyQt5.QtCore import pyqtSignal
-from qgis._core import QgsRasterLayer, QgsMapLayer, QgsVectorTileLayer, QgsVectorLayer, Qgis, QgsRasterFileWriter, \
+from qgis.PyQt.QtCore import pyqtSignal
+from qgis.core import QgsRasterLayer, QgsMapLayer, QgsVectorTileLayer, QgsVectorLayer, Qgis, QgsRasterFileWriter, \
     QgsVectorFileWriter
 
 from eotimeseriesviewer.tasks import EOTSVTask
@@ -21,7 +21,22 @@ class LoadMapCanvasLayers(EOTSVTask):
 
     # a dictionary for supported map layer constructors
 
-    def __init__(self, sources: Dict[str, Union[None, str, dict]], *args, **kwds):
+    tasks: List[EOTSVTask] = []
+
+    @staticmethod
+    def addTask(task: EOTSVTask):
+        """
+        Keeps a global reference on tasks
+        """
+        assert isinstance(task, LoadMapCanvasLayers)
+        LoadMapCanvasLayers.tasks.append(task)
+
+    @staticmethod
+    def removeTask(task):
+        if task in LoadMapCanvasLayers.tasks:
+            LoadMapCanvasLayers.tasks.remove(task)
+
+    def __init__(self, sources: List[dict], *args, **kwds):
         """
         Loads QgsMapLayers in a thread
         :param sources: dictionary of type {source id string: source description}
@@ -29,18 +44,12 @@ class LoadMapCanvasLayers(EOTSVTask):
         :param kwds:
         """
         super().__init__()
-        if isinstance(sources, list):
-            sources = {s: None for s in sources}
-
-        assert isinstance(sources, dict)
-
-        for k, v in sources.items():
-            assert isinstance(k, str)
-            assert v is None or isinstance(v, (str, dict))
-
-        self.mSources: Dict[str, Union[None, str, dict]] = sources.copy()
-        self.mResults: Dict[str, QgsMapLayer] = dict()
-        self.mErrors: Dict[str, str] = dict()
+        assert isinstance(sources, List)
+        for s in sources:
+            assert isinstance(s, dict)
+        self.mSources: List[dict] = sources.copy()
+        self.mResults: List[dict] = list()
+        self.mErrors: List[str] = list()
 
     def canCancel(self):
         return False
@@ -62,74 +71,57 @@ class LoadMapCanvasLayers(EOTSVTask):
             lyrClass = QgsVectorLayer
         return lyrClass
 
-    def loadLayer(self, source) -> Tuple[Optional[QgsMapLayer], Optional[str]]:
-        uri = lyr = err = None
-        lyrClass = None
-
-        kwds = dict()
-        args = []
-        customProperties: dict = dict()
-
-        if isinstance(source, (Path, str)):
-            lyrClass = self.layerClass(source)
-            args = [str(source)]
-
-        elif isinstance(source, dict):
-            kwds = source.copy()
-            if 'type' in source:
-                t = kwds.pop('type')
-                if t not in LAYER_CLASSES:
-                    return None, f'Unknown layer type: {t}'
-                lyrClass = LAYER_CLASSES[t]
-            if 'customProperties' in kwds:
-                customProperties.update(kwds.pop('customProperties'))
-
-        if lyrClass is None:
-            return None, f'Unable to identify layer type for {source}'
+    def loadLayer(self, info: dict) -> Tuple[Optional[QgsMapLayer], Optional[str]]:
+        t = info.get('type', QgsRasterLayer)
+        lyrClass = LAYER_CLASSES.get(t)
+        customProperties = info.get('customProperties', {})
 
         # extract arguments that cannot be passed as keywords
-
+        err = None
         # get layer options
         options = lyrClass.LayerOptions()
-        if 'loadDefaultStyle' in kwds:
-            options.loadDefaultStyle = kwds.pop('loadDefaultStyle')
+        options.loadDefaultStyle = info.get('loadDefaultStyle', False)
+        uri = info['uri']
 
-        kwds['options'] = options
+        if lyrClass is None:
+            s = ""
 
         if lyrClass is QgsRasterLayer:
-            if 'uri' in kwds:
-                args.append(kwds.pop('uri'))
 
-        lyr = lyrClass(*args, **kwds)
+            lyr = QgsRasterLayer(uri, options=options)
+        else:
+            raise NotImplementedError(f'Unsupported layer type: {lyrClass}')
+
         if not isinstance(lyr, QgsMapLayer):
-            return None, f'Unable to load {source} as QgsMapLayer'
+            return None, f'Unable to load {uri} as QgsMapLayer'
         if not lyr.isValid():
-            return None, f'Unable to load {source} as QgsMapLayer: {lyr.error()}'
+            return None, f'Unable to load {uri} as QgsMapLayer: {lyr.error()}'
 
         for k, v in customProperties.items():
             lyr.setCustomProperty(k, v)
 
-        return lyr, err
+        return lyr, None
 
     def run(self):
 
-        for sourceId, source in self.mSources.items():
-            if source is None:
-                source = sourceId
-            try:
-                lyr, err = self.loadLayer(source)
-            except Exception as ex:
-                self.mErrors[sourceId] = f'Unable to load {sourceId} {ex}'.strip()
+        for info in self.mSources:
+            uri = info.get('uri')
+            if uri is None:
                 continue
 
-            if isinstance(lyr, QgsMapLayer):
-                if lyr.isValid():
-                    self.mResults[sourceId] = lyr
-                else:
-                    self.mErrors[sourceId] = f'Unable to load {sourceId} {lyr.error()}'.strip()
+            legend_layer_id = info.get('legend_layer')
 
-            if err:
-                self.mErrors[sourceId] = str(err)
+            try:
+                lyr, err = self.loadLayer(info)
+                if err:
+                    self.mErrors.append(err)
+                    continue
+            except Exception as ex:
+                self.mErrors.append(f'Unable to load {uri} {ex}'.strip())
+                continue
+
+            result = {'uri': uri, 'legend_layer': legend_layer_id, 'layer': lyr}
+            self.mResults.append(result)
 
         self.executed.emit(True, self)
 

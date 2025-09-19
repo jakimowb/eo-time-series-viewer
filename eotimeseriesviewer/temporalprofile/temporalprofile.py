@@ -10,7 +10,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import numpy as np
-
 from qgis.PyQt.QtCore import NULL, pyqtSignal, QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
@@ -20,12 +19,13 @@ from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoo
     QgsVectorLayer
 from qgis.gui import QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper, \
     QgsGui
+
 from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
 from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
 from eotimeseriesviewer.sensors import sensor_id
-from eotimeseriesviewer.tasks import EOTSVTask
 from eotimeseriesviewer.spectralindices import spectral_index_acronyms, spectral_indices
+from eotimeseriesviewer.tasks import EOTSVTask
 
 # TimeSeriesProfileData JSON Format
 # { sensors_ids = [sid 1 <str>, ..., sid n],
@@ -797,6 +797,7 @@ class LoadTemporalProfileSubTask(QgsTask):
                 trans = QgsCoordinateTransform()
                 trans.setSourceCrs(crs)
                 trans.setDestinationCrs(lyr.crs())
+                assert trans.isValid()
                 pts = [trans.transform(pt) for pt in points]
 
             results = {
@@ -813,7 +814,10 @@ class LoadTemporalProfileSubTask(QgsTask):
                     v = TemporalProfileUtils.profileValues(lyr, pt)
                     if any(v):
                         profile_values = v
+                    else:
+                        s = ""
                 results[TemporalProfileUtils.Values].append(profile_values)
+            del lyr
         except Exception as ex:
             results = None
             error = str(ex)
@@ -900,11 +904,11 @@ class LoadTemporalProfileTask(EOTSVTask):
         assert n_total == len(self.mSubTaskResults)
 
         errors = []
+        if self.isCanceled():
+            return False
+
         # add subtask results to temporal profiles
         for i, src_results in enumerate(self.mSubTaskResults):
-
-            if i % 50 and self.isCanceled():
-                return False
 
             error = src_results.get('error')
             data = src_results.get('data')

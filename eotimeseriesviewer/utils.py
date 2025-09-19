@@ -22,14 +22,15 @@ import enum
 import sys
 from typing import Any, List, Union
 
+import qgis.utils
 from qgis.PyQt.QtCore import QByteArray, QDateTime, QSettings, QSortFilterProxyModel, Qt, QTextStream
-from qgis.gui import QgisInterface, QgsAttributeTableView, QgsFontButton
 from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QAction, QMenu, QToolButton, QWidget
+from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import QgsFeature, QgsFeatureSink, QgsMapLayer, QgsMapLayerStyle, QgsVectorLayer
 from qgis.core.additions.edit import edit
-from qgis.PyQt.QtXml import QDomDocument
-from qgis.PyQt.QtWidgets import QAction, QMenu, QToolButton, QWidget
-import qgis.utils
+from qgis.gui import QgisInterface, QgsAttributeTableView, QgsFontButton
+
 from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
@@ -121,6 +122,7 @@ def setLayerStyleString(layer: QgsMapLayer,
 
     assert isinstance(doc, QDomDocument)
     success, err = layer.importNamedStyle(doc, categories)
+    layer.triggerRepaint()
     if not success:
         print(f'setLayerStyleString: {err}', file=sys.stderr)
     return success

@@ -20,6 +20,7 @@
 """
 import datetime
 import enum
+import logging
 import math
 import sys
 import time
@@ -53,6 +54,8 @@ from .qgispluginsupport.qps.maptools import MapTools
 from .qgispluginsupport.qps.utils import loadUi, SignalBlocker, SpatialExtent, SpatialPoint
 from .sensors import has_sensor_id, sensor_id, SensorInstrument, SensorMockupDataProvider
 from .settings.settings import EOTSVSettingsManager
+
+logger = logging.getLogger(__name__)
 
 KEY_LOCKED_LAYER = 'eotsv/locked'
 KEY_SENSOR_GROUP = 'eotsv/sensorgroup'
@@ -735,9 +738,9 @@ class MapView(QFrame):
             for lyr in self.sensorLayers(sid):
                 copyMapLayerStyle(styleXml, lyr)
 
-            for c in self.sensorCanvases(sid):
-                assert isinstance(c, MapCanvas)
-                c.addToRefreshPipeLine(MapCanvas.Command.RefreshRenderer)
+            # for c in self.sensorCanvases(sid):
+            #    assert isinstance(c, MapCanvas)
+            #    c.addToRefreshPipeLine(MapCanvas.Command.RefreshRenderer)
 
             # self.mLayerStyleInitialized[sid] = True
 
@@ -1859,7 +1862,9 @@ QSlider::add-page {{
     def _updateSliderDate(self, i=None):
         tsd = self.sliderDate(i)
         if isinstance(tsd, TimeSeriesDate):
-            self.tbSliderDate.setText('{}({:03})'.format(tsd.dtg().toString(Qt.ISODate), tsd.doy()))
+            dtgString = tsd.dtg().toString(Qt.ISODate)
+            dtgString = dtgString.replace('T00:00:00', '')
+            self.tbSliderDate.setText('{}({:03})'.format(dtgString, tsd.doy()))
             # self.tbSliderDate.setToolTip(''{}({:03})'.format(tsd.date(), tsd.doy())')
 
     def onSliderValueChanged(self):
@@ -2467,7 +2472,7 @@ QSlider::add-page {{
                 item.setCrosshairStyle(style)
                 # canvas.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
 
-    def _updateCanvasAppearance(self, mapView=None):
+    def _updateCanvasAppearance(self, mapView: Optional[MapView] = None):
 
         if isinstance(mapView, MapView):
             mapViews = [mapView]
@@ -2481,10 +2486,10 @@ QSlider::add-page {{
             tf = mapView.mapTextFormat()
 
             infoItemVisible: bool = mapView.optionShowInfoExpression.isChecked()
-            errorText = ''
+
             for canvas in self.mCanvases[mapView]:
                 assert isinstance(canvas, MapCanvas)
-
+                canvas.updateScope()
                 # set overall visibility
                 if canvas.isVisible() != v:
                     canvas.setVisible(v)
@@ -2494,7 +2499,9 @@ QSlider::add-page {{
                 infoItem.setVisible(infoItemVisible)
 
                 expr = QgsExpression(mapView.mapInfoExpression())
-                infoItem.setInfoText(None)
+
+                errorText = ''
+                infoText = None
                 if isinstance(expr, QgsExpression) and expr.expression() != '':
                     # context = QgsExpressionContext([QgsExpressionContextScope(canvas.expressionContextScope())])
                     context: QgsExpressionContext = QgsExpressionContext()
@@ -2503,22 +2510,22 @@ QSlider::add-page {{
 
                     if expr.isValid():
                         expr2 = QgsExpression(expr)
-
                         infoText = expr2.evaluate(context)
-                        if not expr2.hasEvalError():
-                            # print(infoText)
-                            infoItem.setInfoText(str(infoText))
-                        else:
-                            if errorText == '':
-                                errorText = expr2.evalErrorString()
+                        if expr2.hasEvalError():
+                            errorText += expr2.evalErrorString()
                     else:
-                        if errorText == '':
-                            errorText = expr.parserErrorString()
+                        errorText += expr.parserErrorString()
+
+                infoItem.setInfoText(infoText)
 
                 # canvas.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
                 if canvas.canvasColor() != bg:
                     canvas.setCanvasColor(bg)
                     # canvas.addToRefreshPipeLine(mapView.mapBackgroundColor())
+
+                canvas.refresh()
+                if errorText != '':
+                    logger.debug(errorText)
 
             mapView.setInfoExpressionError(errorText)
 

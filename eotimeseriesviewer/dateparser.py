@@ -7,7 +7,6 @@ from typing import Optional, Union
 
 from numpy import datetime64, int16, timedelta64
 from osgeo import gdal
-
 from qgis.PyQt.QtCore import QDate, QDateTime, Qt, QTime
 from qgis.core import Qgis, QgsDateTimeRange, QgsRasterDataProvider, QgsRasterLayer, QgsRasterLayerTemporalProperties
 
@@ -443,9 +442,6 @@ class ImageDateUtils(object):
         return None
 
     @classmethod
-    def dateTimeFromLayer(cls, layer: QgsRasterLayer) -> Optional[QDateTime]:
-        assert isinstance(layer, QgsRasterLayer) and layer.isValid()
-
     def dateTimeFromLayer(cls, layer: Union[Path, str, QgsRasterLayer, gdal.Dataset]) -> Optional[QDateTime]:
         if isinstance(layer, Path):
             layer = str(layer)

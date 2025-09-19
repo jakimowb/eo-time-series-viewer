@@ -1,16 +1,14 @@
 import datetime
 import unittest
 
-from osgeo import gdal
-
 import numpy as np
 from osgeo import gdal, gdal_array
+from qgis.PyQt.QtCore import QDate, QDateTime, Qt, QTime
+from qgis.core import QgsDateTimeRange, QgsRasterLayer
 
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from example import exampleLandsat8, exampleNoDataImage, exampleRapidEye
-from qgis.PyQt.QtCore import QDate, QDateTime, Qt, QTime
-from qgis.core import QgsDateTimeRange, QgsRasterLayer
 
 start_app()
 

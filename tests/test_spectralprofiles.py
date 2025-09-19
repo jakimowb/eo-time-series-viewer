@@ -1,3 +1,5 @@
+from qgis.core import QgsProject, QgsVectorLayer
+
 from eotimeseriesviewer.dateparser import DateTimePrecision
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapcanvas import MapCanvas
@@ -6,7 +8,6 @@ from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibraryplotite
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
 from eotimeseriesviewer.sensors import has_sensor_id
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
-from qgis.core import QgsProject, QgsVectorLayer
 
 start_app()
 
@@ -29,7 +30,7 @@ class TestSpectralProfiles(EOTSVTestCase):
         self.assertTrue(not pt.isEmpty())
         self.assertTrue(pt.crs().isValid())
         EOTSV.createSpectralLibrary()
-
+        self.showGui(EOTSV.ui)
         sensorLayers = [lyr for lyr in c1.layers() if has_sensor_id(lyr)]
         self.assertTrue(len(sensorLayers) > 0)
 

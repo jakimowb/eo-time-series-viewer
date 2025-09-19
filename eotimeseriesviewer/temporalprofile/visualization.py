@@ -18,12 +18,14 @@
  *                                                                         *
  ***************************************************************************/
 """
+import logging
 import os
 import sys
 from itertools import chain
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
+from osgeo import osr
 from qgis.PyQt.QtCore import QMetaObject
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QItemSelectionModel, QModelIndex, QObject, \
     QPoint, Qt
@@ -49,6 +51,7 @@ from ..qgispluginsupport.qps.vectorlayertools import VectorLayerTools
 from ..sensors import SensorInstrument
 from ..utils import addFeatures, doEdit
 
+logger = logging.getLogger(__name__)
 DEBUG = False
 OPENGL_AVAILABLE = False
 ENABLE_OPENGL = False
@@ -341,7 +344,10 @@ class TemporalProfileVisualization(QObject):
 
         trans = QgsCoordinateTransform(point.crs(), layer.crs(), QgsProject.instance())
         if not trans.isValid():
-            print(f'Unable to transform coordinates: {trans}', file=sys.stderr)
+            srs_src = osr.SpatialReference()
+            srs_dst = osr.SpatialReference()
+            srs_src.ImportFromWkt(point.crs().asWkt())
+            logger.error(f'Unable to get valid QgsCoordinateTransform: {trans}')
             return False
         point = point.toCrs(layer.crs())
         if not isinstance(point, SpatialPoint):

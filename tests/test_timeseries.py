@@ -5,16 +5,13 @@ import unittest
 
 import numpy as np
 from osgeo import gdal
-
-import example
-import example.Images
-from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QDateTime, QMimeData, QPointF, \
     QSortFilterProxyModel, Qt, QUrl
 from qgis.PyQt.QtGui import QDropEvent
 from qgis.PyQt.QtWidgets import QTableView, QTreeView
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsMimeDataUtils, \
     QgsProject, QgsRasterLayer, QgsVector
+from qgis.core import QgsGeometry, QgsFeature
 from qgis.gui import QgsTaskManagerWidget
 
 import example
@@ -29,14 +26,6 @@ from eotimeseriesviewer.timeseries.tasks import TimeSeriesFindOverlapSubTask, Ti
     TimeSeriesLoadingTask
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from eotimeseriesviewer.timeseries.widgets import TimeSeriesDock
-from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QDateTime, QMimeData, QPointF, \
-    QSortFilterProxyModel, Qt, QUrl
-from qgis.PyQt.QtGui import QDropEvent
-from qgis.PyQt.QtWidgets import QTableView, QTreeView
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsMimeDataUtils, \
-    QgsProject, QgsRasterLayer, QgsVector
-from qgis.core import QgsGeometry, QgsFeature
-from qgis.gui import QgsTaskManagerWidget
 
 start_app()
 
