@@ -927,9 +927,11 @@ class LoadTemporalProfileSubTask(QgsTask):
 
         for i, source in enumerate(self.sources):
             result, error = loader(source, self.points, self.crs)
-            assert len(result['values']) == len(self.points)
-            result = {'data': result,
+
+            result = {'source': source,
+                      'data': result,
                       'error': error}
+
             self.results.append(result)
 
             t1 = datetime.now()
@@ -1008,7 +1010,6 @@ class LoadTemporalProfileTask(EOTSVTask):
                 tp[TemporalProfileUtils.Source] = []
 
         n_total = len(self.mSources)
-        assert n_total == len(self.mSubTaskResults)
 
         errors = []
         if self.isCanceled():

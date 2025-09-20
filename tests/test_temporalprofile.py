@@ -66,15 +66,9 @@ class TestTemporalProfilesV2(EOTSVTestCase):
                   (10, 10)]
         points = [SpatialPoint.fromPixelPosition(lyr1, *px).toCrs(crs) for px in points]
 
-        nFiles = len(files)
         info = dict(id=1)
         task = LoadTemporalProfileTask(['does_not_exists.tif'] + files, points, crs=crs, info=info, save_sources=True)
-
-        tm: QgsTaskManager = QgsApplication.instance().taskManager()
-        tm.addTask(task)
-
-        while tm.count() > 0:
-            QgsApplication.processEvents()
+        task.run_task_manager()
 
         profiles = task.profiles()
 
