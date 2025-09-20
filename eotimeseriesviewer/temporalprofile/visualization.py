@@ -398,6 +398,11 @@ class TemporalProfileVisualization(QObject):
             task.taskTerminated.connect(self.onTaskFinished)
             task.progressChanged.connect(self.loadingProgress)
             task.interimResults.connect(self.onInterimResults)
+
+            # cancel older tasks if still running
+            for t in self.mTasks:
+                t.cancel()
+
             self.mTasks.append(task)
             if run_async:
                 tm: QgsTaskManager = QgsApplication.instance().taskManager()
