@@ -1,11 +1,10 @@
 from pathlib import Path
 from typing import Union, Optional, Tuple, Type, List
 
+from eotimeseriesviewer.tasks import EOTSVTask
 from qgis.PyQt.QtCore import pyqtSignal
 from qgis.core import QgsRasterLayer, QgsMapLayer, QgsVectorTileLayer, QgsVectorLayer, Qgis, QgsRasterFileWriter, \
     QgsVectorFileWriter
-
-from eotimeseriesviewer.tasks import EOTSVTask
 
 LAYER_CLASSES = dict()
 for l in [QgsRasterLayer, QgsVectorLayer, QgsVectorTileLayer]:
@@ -72,23 +71,26 @@ class LoadMapCanvasLayers(EOTSVTask):
         return lyrClass
 
     def loadLayer(self, info: dict) -> Tuple[Optional[QgsMapLayer], Optional[str]]:
-        t = info.get('type', QgsRasterLayer)
-        lyrClass = LAYER_CLASSES.get(t)
+        uri = str(info['uri'])
+        t = info.get('type', self.layerClass(uri))
+
+        lyrClass = LAYER_CLASSES.get(t, None)
+
         customProperties = info.get('customProperties', {})
 
         # extract arguments that cannot be passed as keywords
         err = None
         # get layer options
-        options = lyrClass.LayerOptions()
-        options.loadDefaultStyle = info.get('loadDefaultStyle', False)
-        uri = info['uri']
-
-        if lyrClass is None:
-            s = ""
+        lyr = None
 
         if lyrClass is QgsRasterLayer:
-
+            options = QgsRasterLayer.LayerOptions()
+            options.loadDefaultStyle = info.get('loadDefaultStyle', False)
             lyr = QgsRasterLayer(uri, options=options)
+        elif lyrClass is QgsVectorLayer:
+            options = QgsVectorLayer.LayerOptions()
+            options.loadDefaultStyle = info.get('loadDefaultStyle', True)
+            lyr = QgsVectorLayer(uri, options=options)
         else:
             raise NotImplementedError(f'Unsupported layer type: {lyrClass}')
 
@@ -96,6 +98,9 @@ class LoadMapCanvasLayers(EOTSVTask):
             return None, f'Unable to load {uri} as QgsMapLayer'
         if not lyr.isValid():
             return None, f'Unable to load {uri} as QgsMapLayer: {lyr.error()}'
+
+        if 'layer_name' in info:
+            lyr.setName(info['layer_name'])
 
         for k, v in customProperties.items():
             lyr.setCustomProperty(k, v)

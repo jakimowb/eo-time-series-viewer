@@ -21,15 +21,6 @@ import unittest
 from pathlib import Path
 
 import numpy as np
-from qgis.PyQt.QtCore import QSize
-from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import QApplication, QGridLayout, QLabel, QPushButton, QSpinBox, QWidget
-from qgis.PyQt.QtXml import QDomDocument, QDomNode
-from qgis.core import QgsFeatureRenderer, QgsHillshadeRenderer, QgsMultiBandColorRenderer, QgsPalettedRasterRenderer, \
-    QgsProject, QgsRasterLayer, QgsRasterRenderer, QgsRasterShader, QgsSingleBandColorDataRenderer, \
-    QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsVectorLayer, QgsVirtualLayerDefinition
-from qgis.core import QgsMapLayer, QgsCoordinateTransform, QgsCoordinateReferenceSystem
-from qgis.gui import QgsFontButton
 
 from eotimeseriesviewer.force import FORCEUtils
 from eotimeseriesviewer.forceinputs import FindFORCEProductsTask
@@ -45,6 +36,15 @@ from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
 from eotimeseriesviewer.tests import EOTSVTestCase, example_raster_files, start_app, TestObjects
 from eotimeseriesviewer.tests import FORCE_CUBE
 from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
+from qgis.PyQt.QtCore import QSize
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QApplication, QGridLayout, QLabel, QPushButton, QSpinBox, QWidget
+from qgis.PyQt.QtXml import QDomDocument, QDomNode
+from qgis.core import QgsFeatureRenderer, QgsHillshadeRenderer, QgsMultiBandColorRenderer, QgsPalettedRasterRenderer, \
+    QgsProject, QgsRasterLayer, QgsRasterRenderer, QgsRasterShader, QgsSingleBandColorDataRenderer, \
+    QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsVectorLayer, QgsVirtualLayerDefinition
+from qgis.core import QgsMapLayer, QgsCoordinateTransform, QgsCoordinateReferenceSystem
+from qgis.gui import QgsFontButton
 
 start_app()
 
@@ -195,7 +195,7 @@ class TestMapVisualization(EOTSVTestCase):
         self.assertTrue('does_not_exist' in str(task.mErrors))
 
         task = LoadMapCanvasLayers(other_sources)
-        task.run()
+        task.run_task_manager()
 
         results = task.mResults
         self.assertEqual(len(results), 2)

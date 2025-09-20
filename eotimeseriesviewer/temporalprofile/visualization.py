@@ -26,6 +26,9 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from osgeo import osr
+
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from qgis.PyQt.QtCore import QMetaObject
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QItemSelectionModel, QModelIndex, QObject, \
     QPoint, Qt
@@ -35,9 +38,6 @@ from qgis.core import QgsApplication, QgsCoordinateTransform, QgsExpression, Qgs
     QgsExpressionContextUtils, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsMapLayer, QgsPointXY, \
     QgsProject, QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
 from qgis.gui import QgsDockWidget, QgsFilterLineEdit
-
-from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from .datetimeplot import DateTimePlotDataItem, DateTimePlotWidget
 from .plotsettings import PlotSettingsProxyModel, PlotSettingsTreeModel, PlotSettingsTreeView, \
     PlotSettingsTreeViewDelegate, TPVisGroup
@@ -463,6 +463,9 @@ class TemporalProfileVisualization(QObject):
                                     any_change = True
             if any_change:
                 self.updatePlot()
+
+            logger.debug(f'Loaded temporal profile: {task.info()}')
+
         s = ""
 
     def setFilter(self, filter: str):

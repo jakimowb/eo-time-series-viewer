@@ -1,4 +1,5 @@
 import json
+import logging
 import math
 import os.path
 import re
@@ -10,6 +11,15 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import numpy as np
+from osgeo import gdal, osr
+from osgeo.ogr import OGRERR_NONE
+
+from eotimeseriesviewer.dateparser import ImageDateUtils
+from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
+from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
+from eotimeseriesviewer.sensors import sensor_id, create_sensor_id
+from eotimeseriesviewer.spectralindices import spectral_index_acronyms, spectral_indices
+from eotimeseriesviewer.tasks import EOTSVTask
 from qgis.PyQt.QtCore import NULL, pyqtSignal, QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
@@ -20,12 +30,7 @@ from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoo
 from qgis.gui import QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper, \
     QgsGui
 
-from eotimeseriesviewer.dateparser import ImageDateUtils
-from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
-from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
-from eotimeseriesviewer.sensors import sensor_id
-from eotimeseriesviewer.spectralindices import spectral_index_acronyms, spectral_indices
-from eotimeseriesviewer.tasks import EOTSVTask
+logger = logging.getLogger(__name__)
 
 # TimeSeriesProfileData JSON Format
 # { sensors_ids = [sid 1 <str>, ..., sid n],
@@ -748,21 +753,88 @@ class TemporalProfileUtils(object):
 class LoadTemporalProfileSubTask(QgsTask):
     executed = pyqtSignal(bool, list)
 
-    def __init__(self, sources, points, crs, *args, **kwds):
+    def __init__(self, sources, points, crs, *args, api: str = 'gdal', **kwds):
         super().__init__(*args, **kwds)
+
+        assert api in ['gdal', 'qgis']
 
         self.sources = [str(s) for s in sources]
         self.points = [QgsPointXY(p) for p in points]
         self.crs = QgsCoordinateReferenceSystem(crs)
+        self.duration = None
         self.results = []
+        self.api: str = api
 
     def canCancel(self):
         return True
 
-    def loadFromSource(self,
-                       source: str,
-                       points: List[QgsPointXY],
-                       crs: QgsCoordinateReferenceSystem) -> Tuple[Optional[dict], Optional[str]]:
+    def loadFromSourceGDAL(self,
+                           source: str,
+                           points: List[Tuple],
+                           srs: osr.SpatialReference) -> Tuple[Optional[dict], Optional[str]]:
+
+        error = None
+        try:
+            ds: gdal.Dataset = gdal.Open(source)
+            assert isinstance(ds, gdal.Dataset), f'Unable to open {source} as gdal.Dataset'
+
+            no_data_values = [ds.GetRasterBand(b + 1).GetNoDataValue() for b in range(ds.RasterCount)]
+            # sid, dtg = self.mdCache[src]
+            sid = create_sensor_id(ds)
+            if not sid:
+                return None, f'Unable to load sensor id from {source}'
+
+            dtg = ImageDateUtils.dateTimeFromGDALDataset(ds)
+            if not dtg:
+                return None, f'Unable to load date-time from {source}'
+            dtg = dtg.toString(Qt.ISODate)
+            # self.mdCache[lyr.source()] = (sid, dtg)
+
+            srs_raster = ds.GetSpatialRef()
+            if not srs.IsSame(srs_raster):
+                trans = osr.CoordinateTransformation(srs, srs_raster)
+                pts2 = trans.TransformPoints(points)
+            else:
+                pts2 = points
+
+            transformer = gdal.Transformer(ds, None, [])
+
+            s = ""
+
+            results = {
+                TemporalProfileUtils.Source: source,
+                TemporalProfileUtils.Date: dtg,
+                TemporalProfileUtils.Sensor: sid,
+                TemporalProfileUtils.Values: [],
+                # '_points_lyr_crs': pts,
+            }
+
+            pixel, successes = transformer.TransformPoints(True, pts2)
+            for px, success in zip(pixel, successes):
+                profile_values = None
+
+                if success:
+                    px_x, px_y = int(round(px[0], 0)), int(round(px[1], 0))
+                    if 0 <= px_x < ds.RasterXSize and 0 <= px_y < ds.RasterYSize:
+                        pv = ds.ReadAsArray(px_x, px_y, 1, 1).flatten().tolist()
+                        # set no-data values to None
+                        pv = [None if nd == pv else pv for nd, pv in zip(no_data_values, pv)]
+
+                        if any(pv):
+                            profile_values = pv
+
+                results[TemporalProfileUtils.Values].append(profile_values)
+            del ds
+        except Exception as ex:
+            results = None
+            error = str(ex)
+
+        return results, error
+
+    def loadFromSourceQgsMapLayer(self,
+                                  source: str,
+                                  points: List[QgsPointXY],
+                                  crs: QgsCoordinateReferenceSystem) -> Tuple[Optional[dict], Optional[str]]:
         """
         Returns the profiles + meta infos from a single source
         :param source: str
@@ -770,6 +842,7 @@ class LoadTemporalProfileSubTask(QgsTask):
         :param crs:
         :return: profiles (in order of points), sensor-id, list of errors
         """
+
         error = None
         try:
             options = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
@@ -825,18 +898,48 @@ class LoadTemporalProfileSubTask(QgsTask):
         return results, error
 
     def run(self) -> bool:
-        # print(f'SubTask {id(self)} started...', file=sys.stderr, flush=True)
+
+        if self.api == 'gdal':
+            # use GDAL only to open files and read profiles
+            # convert CRS to gdal.SpatialReference
+            # and QgsPointXY to coordinate tuples
+            crs = self.crs
+            wkt = crs.toWkt(Qgis.CrsWktVariant.PreferredGdal)
+            srs = osr.SpatialReference()
+            srs.ImportFromWkt(wkt)
+            assert srs.Validate() == OGRERR_NONE
+            if crs.axisOrdering()[0] == Qgis.CrsAxisDirection.North:
+                pts = [(p.y(), p.x()) for p in self.points]
+            else:
+                pts = [(p.x(), p.y()) for p in self.points]
+
+            loader = lambda src, *args, _points=pts, _srs=srs: (
+                self.loadFromSourceGDAL(src, _points, _srs))
+
+        elif self.api == 'qgis':
+
+            loader = self.loadFromSourceQgsMapLayer
+        else:
+            return False
+
+        t0 = datetime.now()
         n = len(self.sources)
+
         for i, source in enumerate(self.sources):
-            result, error = self.loadFromSource(source, self.points, self.crs)
+            result, error = loader(source, self.points, self.crs)
+            assert len(result['values']) == len(self.points)
             result = {'data': result,
                       'error': error}
             self.results.append(result)
-            self.setProgress((i + 1) / n * 100)
 
-            if i % 5 and self.isCanceled():
-                return False
+            t1 = datetime.now()
+            if (t1 - t0).total_seconds() > 2:
+                t0 = t1
+                self.setProgress((i + 1) / n * 100)
+                if self.isCanceled():
+                    return False
 
+        self.duration = datetime.now() - t0
         self.executed.emit(True, self.results.copy())
         return True
 
@@ -850,16 +953,19 @@ class LoadTemporalProfileTask(EOTSVTask):
                  points: List[QgsPointXY],
                  crs: QgsCoordinateReferenceSystem,
                  info: dict = None,
+                 loader: str = 'gdal',
                  save_sources: bool = False,
                  n_threads: int = 4,
                  *args, **kwds):
         super().__init__(*args, **kwds)
         assert n_threads >= 0
+        assert loader in ['gdal', 'qgis']
         self.mInfo = info.copy() if isinstance(info, dict) else None
         self.mSources: List[str] = [Path(s).as_posix() for s in sources]
         self.mPoints = [QgsPointXY(p) for p in points]
-
         self.nTotal = len(self.mSources)
+        self.mLoader = loader
+        self.nThreads = n_threads
         badge_size = math.ceil(self.nTotal / n_threads)
         self.mCrs = QgsCoordinateReferenceSystem(crs)
 
@@ -877,7 +983,8 @@ class LoadTemporalProfileTask(EOTSVTask):
         for i, src in enumerate(sources):
             badge.append(src)
             if len(badge) >= badge_size or i == self.nTotal - 1:
-                subTask = LoadTemporalProfileSubTask(badge, points, crs, description=self.description())
+                subTask = LoadTemporalProfileSubTask(badge, points, crs, api=self.mLoader,
+                                                     description=self.description())
                 subTask.executed.connect(self.subTaskExecuted)
                 self.addSubTask(subTask, subTaskDependency=QgsTask.SubTaskDependency.ParentDependsOnSubTask)
                 added.extend(badge)
@@ -959,6 +1066,7 @@ class LoadTemporalProfileTask(EOTSVTask):
         self.mErrors = errors
         self.executed.emit(True, temporal_profiles)
         self.setProgress(100)
+
         return True
 
     def profiles(self) -> List[Optional[Dict[str, Any]]]:

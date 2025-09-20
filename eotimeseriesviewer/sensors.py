@@ -33,7 +33,7 @@ def create_sensor_id(source: Union[QgsRasterLayer, gdal.Dataset]) -> Optional[st
     """
     Creates a unique sensor_id
     :param source:
-    :return:
+    :return: str
     """
     assert isinstance(source, (QgsRasterLayer, gdal.Dataset))
 
@@ -56,6 +56,7 @@ def create_sensor_id(source: Union[QgsRasterLayer, gdal.Dataset]) -> Optional[st
                 wlu = wlu[0]
 
     elif isinstance(source, gdal.Dataset):
+        """Get from GDAL Dataset. This may be faster"""
         nb = source.RasterCount
         gt = source.GetGeoTransform()
         px_size_x = math.hypot(gt[1], gt[2])  # √(pixelWidth² + rotX²)
@@ -441,8 +442,8 @@ rxSensorNameHtml = re.compile(r'<li>(SATELLITEID|(sensor|product)[ _]?(type|name
 
 def sensorName(layer: Union[QgsRasterLayer, gdal.Dataset]) -> Optional[str]:
     """
-    Reads the sensor/product name. Returns None if a proper name can not be extracted.
-    :param dataset: gdal.Dataset
+    Reads the sensor/product name. Returns None if a proper name cannot be extracted.
+    :param layer: gdal.Dataset or QgsRasterLayer
     :return: str
     """
     assert isinstance(layer, (QgsRasterLayer, gdal.Dataset))
