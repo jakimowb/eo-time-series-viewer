@@ -20,22 +20,6 @@ import os
 import re
 import sys
 
-if False:
-    MOCK_MODULES = ['qgis', 'qgis.core', 'qgis.gui', 'qgis.utils', 'numpy', 'scipy', 'osgeo', 'gdal',
-                    'vrtbuilder', 'vrtbuilder.virtualrasters',
-                    'qgis.PyQt',
-                    'qgis.PyQt.QtCore',
-                    'qgis.PyQt.QtGui',
-                    'qgis.Pyqt.QtSvg',
-                    'qgis.PyQt.QtWidgets', 'qgis.PyQt.QtXml',
-                    'processing', 'processing.core', 'processing.core.ProcessingConfig']
-
-    for mod_name in MOCK_MODULES:
-        sys.modules[mod_name] = mock.Mock()
-
-# from eotimeseriesviewer.tests import initQgisApplication
-# app = initQgisApplication()
-
 try:
     # enable readthedocs to load git-lfs files
     # see https://github.com/rtfd/readthedocs.org/issues/1846
@@ -163,7 +147,7 @@ html_theme_options = {
     'includehidden': True,
     'titles_only': False
 }
-html_logo = 'img/logo.png'
+html_logo = '../../eotimeseriesviewer/ui/icons/icon.svg'
 html_favicon = 'img/logo.png'
 
 # Theme options are theme-specific and customize the look and feel of a theme
