@@ -10,6 +10,7 @@ dependencies:
   - gitpython
   - scipy
   - markdown
+  - myst-parser
   - sphinx_rtd_theme > 1
   - sphinx-copybutton
   - sphinx-autobuild
