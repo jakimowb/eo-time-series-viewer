@@ -105,29 +105,47 @@ def read_wavelengths_default(ds: gdal.Dataset) -> Tuple[List[float], str]:
     """
     Returns the wavelengths per raster band and wavelength unit from a gdal raster dataset.
     """
+    s = ""
     pass
+    wlu = 'um'
+    wl = []
+    for b in range(ds.RasterCount):
+        band: gdal.Band = ds.GetRasterBand(b + 1)
+        wl.append(band.GetMetadataItem('wavelengths'))
+    return wl, wlu
 
 
-def dataset_info(ds: gdal.Dataset, f_wl=read_wavelengths_default, f_dtg=read_timestamp_default) -> Tuple[datetime, str]:
+def dataset_info(ds: gdal.Dataset,
+                 f_wl=read_wavelengths_default,
+                 f_dtg=read_timestamp_default) -> Optional[dict]:
     """
     Reads the sensor ID from a raster dataset:
     :param ds:
     :return:
     """
-
     timestamp = f_dtg(ds)
     wl, wlu = f_wl(ds)
+
+    assert isinstance(timestamp, datetime.datetime)
 
     nb = ds.RasterCount
     dt = ds.GetRasterBand(1)
     px_x = px_y = None
     sid: str = sensorID(nb, px_x, px_y, dt, wl, wlu)
-    return timestamp, sid
+
+    nodata = [ds.GetRasterBand(b + 1).GetNoDataValue() for b in range(nb)]
+
+    info = {'source': ds.GetDescription(),
+            'dtg': datetime,
+            'sid': sid,
+            'nodata': nodata}
+
+    return info
 
 
 def read_profiles_from_files(files, points: dict, srs_wkt: str):
     errors = []
-
+    results = []
     srs = osr.SpatialReference()
     srs.ImportFromWkt(srs_wkt)
     assert isinstance(srs, osr.SpatialReference)
@@ -141,7 +159,6 @@ def read_profiles_from_files(files, points: dict, srs_wkt: str):
             p = ogr.CreateGeometryFromWkb(p)
         if isinstance(p, ogr.Geometry):
             p = p.GetPoint()
-
         assert 2 <= len(p) <= 3, f'Invalid point: {p}'
         return p
 
@@ -150,34 +167,56 @@ def read_profiles_from_files(files, points: dict, srs_wkt: str):
     POINTS2SRS = dict()
     POINTS2SRS[srs_wkt] = points
 
+    results = list()
+
     for file in files:
 
         ds: gdal.Dataset = gdal.Open(file)
         assert isinstance(ds, gdal.Dataset), f'Unable to open raster {file}'
 
+        ds_info = dataset_info(ds)
+
+        profiles = dict()
+
         r_srs = ds.GetSpatialRef()
         r_wkt = r_srs.ExportToWkt()
+        revers_axes = r_srs.GetAxisMappingStrategy() != srs.GetDataAxisToSRSAxisMapping()
         if r_wkt not in POINTS2SRS:
             # transform points to raster SRS
             trans = osr.CoordinateTransformation(srs, r_srs)
             points_transformed = dict()
+
             for fid, point in points.items():
-                point_t = trans.TransformPoint(*point)
-                points_transformed[fid] = point_t
+
+                if revers_axes:
+                    pt = trans.TransformPoint(point[1], point[0])
+                else:
+                    pt = trans.TransformPoint(*point)
+                points_transformed[fid] = pt
+
             # keep transformed points in memory.
-            # we don't need to re-transform them for each raster file'
+            # we don't want to re-transform them for each raster file'
             POINTS2SRS[r_wkt] = points_transformed
 
         transformer = gdal.Transformer(ds, None, [])
+
         points_r = POINTS2SRS[r_wkt]
-        points_rt = {fid: (p[1], p[0]) for fid, p in points_r.items()}
-        px, succ = transformer.TransformPoints(True, list(points_r.values()))
-        px2, succ2 = transformer.TransformPoints(True, list(points_rt.values()))
+        pixel, success = transformer.TransformPoints(True, list(points_r.values()))
+        nodata = ds_info['nodata']
+        for (px_x, px_y), succ in zip(pixel, success):
+            px_x, px_y = int(px_x), int(px_y)
 
-        for px, success in transformer.TransformPoints(0, POINTS2SRS[r_wkt].values()):
-            s = ""
+            if 0 <= px_x < ds.RasterXSize and 0 <= px_y < ds.RasterYSize:
 
-    s = ""
+                profile = ds.ReadAsArray(px_x, px_y, 1, 1).flatten()
+                profile = [None if v == nd else v for nd, v in zip(nodata, profile)]
+                if any(profile):
+                    profiles[fid] = profile
+        if len(profiles) > 0:
+            ds_info['profiles'] = profiles
+            results.append(ds_info)
+
+    return results
 
 
 def read_profiles_from_geom(layer: ogr.Layer,
