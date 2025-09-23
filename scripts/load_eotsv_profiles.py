@@ -30,8 +30,6 @@ from osgeo import gdal, ogr, osr
 from osgeo.gdal import Dataset
 from osgeo.ogr import OGRERR_NONE
 
-from eotimeseriesviewer.qgispluginsupport.qps.qgsrasterlayerproperties import QgsRasterLayerSpectralProperties
-
 gdal.UseExceptions()
 ogr.UseExceptions()
 
@@ -44,101 +42,51 @@ for var in vars(gdal):
         GDAL_DATATYPES[match.group()] = number
 
 
-def sensorID(nb: int,  # number of bands
-             px_size_x: float,  # pixel size x
-             px_size_y: float,  # pixel size y
-             dt: int,  # the GDAL datatype
-             wl: Optional[list] = None,  # list of wavelengths
-             wlu: Optional[str] = None,  # wavelength unit
-             name: Optional[str] = None) -> str:  # sensor name
+class SourceInfoProvider(object):
     """
-    Creates a sensor ID str
-    :param name:
-    :param dt:
-    :param nb: number of bands
-    :param px_size_x: pixel size x
-    :param px_size_y: pixel size y
-    :param wl: list of wavelength
-    :param wlu: str, wavelength unit
-    :return: str
-    """
-    assert dt in GDAL_DATATYPES.values()
-    assert isinstance(dt, int)
-    assert isinstance(nb, int) and nb > 0
-    assert isinstance(px_size_x, (int, float)) and px_size_x > 0
-    assert isinstance(px_size_y, (int, float)) and px_size_y > 0
+    A SourceInfoProvider provides information on the temporal and spectral characteristics of a raster source.
+    Subclasses need to provide three methods:
 
-    if wl is not None:
-        assert isinstance(wl, list)
-        assert len(wl) == nb
+    .dataset(uri) -> gdal.Dataset: returns a gdal dataset for input URI.
+        Overwriting this method allows reading the dataset with customized parameters, e.g., using gdal.OpenEx()
+        instead of gdal.Open().
+        https://gdal.org/en/stable/api/python/raster_api.html#osgeo.gdal.OpenEx
 
-        if all([w is None for w in wl]):
-            wl = None
+        If it can be read GDAL, we can use the data source.
 
-    if wlu is not None:
-        assert isinstance(wlu, str)
+    .datetime(gdal.Dataset) -> datetime: returns the observation date-time for a gdal.Dataset.
+        If we get a timestamp (date-time-group = dtg), we can sort it into a EO timeseries.
 
-    if name is not None:
-        assert isinstance(name, str)
+    .wavelengths(gdal.Dataset) -> (list[float], str): returns a list of wavelength values, one for each raster band and,
+     the unit of wavelength values (e.g. 'nm').
 
-    jsonDict = {'nb': nb,
-                'px_size_x': px_size_x,
-                'px_size_y': px_size_y,
-                'dt': int(dt),
-                'wl': wl,
-                'wlu': wlu,
-                'name': name
-                }
-    return json.dumps(jsonDict, ensure_ascii=False)
+        If we know the band wavelengths, we can calculate the spectral indices and provide short-cuts to select band
+        combinations
 
-
-rxDTGKey = re.compile(r'(acquisition|observation)[ _]*(time|date|datetime)', re.IGNORECASE)
-
-# date-time formats supported to read
-# either as fmt = datetime.strptime format code, or
-# or (fmt, rx), with rx being the regular expression to extract the part to be parsed with fmt
-# regex needs to define a group called 'dtg' that can be extracted with match.group('dtg')
-DATETIME_FORMATS = [
-    # Landsat Scene ID
-    ('%Y%j', re.compile(r'L[COTEM][45789]\d{3}\d{3}(?P<dtg>\d{4}\d{3})[A-Z]{2}[A-Z1]\d{2}')),
-
-    # RapidEye
-    ('%Y%m%d', re.compile(r'(?P<dtg>\d{8})')),
-    ('%Y-%m-%d', re.compile(r'(?P<dtg>\d{4}-\d{2}-\d{2})')),
-    ('%Y/%m/%d', re.compile(r'(?P<dtg>\d{4}/\d{2}/\d{2})')),
-
-    # FORCE outputs
-    ('%Y%m%d', re.compile(r'(?P<dtg>\d{8})_LEVEL\d_.+_(BOA|QAI|DST|HOT|VZN)')),
-]
-
-
-def datetimeFromString(text: str) -> Optional[datetime]:
-    """
-    Reads a datetime from a string.
     """
 
-    # 1. try to parse ISO datetime
-    try:
-        return datetime.fromisoformat(text)
-    except (ValueError, AttributeError):
-        pass
+    rxDTGKey = re.compile(r'(acquisition|observation)[ _]*(time|date|datetime)', re.IGNORECASE)
 
-    # 2. try to parse other formats
-    for fmt in DATETIME_FORMATS:
-        try:
-            if isinstance(fmt, str):
-                return datetime.strptime(text, fmt)
+    # date-time formats supported to read
+    # either as fmt = datetime.strptime format code, or
+    # or (fmt, rx), with rx being the regular expression to extract the part to be parsed with fmt.
+    # The compiled regex 'rx' needs to define a group 'dtg' that defines the substring to parse
+    # the date-time information from, as in `datetime.strptime(match.group('dtg'), fmt)`
+    DATETIME_FORMATS = [
+        # Landsat Scene ID
+        ('%Y%j', re.compile(r'L[COTEM][45789]\d{3}\d{3}(?P<dtg>\d{4}\d{3})[A-Z]{2}[A-Z1]\d{2}')),
 
-            elif isinstance(fmt, tuple):
-                fmt, rx = fmt
-                if match := rx.search(text):
-                    return datetime.strptime(match.group('dtg'), fmt)
-        except (ValueError, AttributeError) as ex:
-            s = ""
-    return None
+        # RapidEye
+        ('%Y%m%d', re.compile(r'(?P<dtg>\d{8})')),
+        ('%Y-%m-%d', re.compile(r'(?P<dtg>\d{4}-\d{2}-\d{2})')),
+        ('%Y/%m/%d', re.compile(r'(?P<dtg>\d{4}/\d{2}/\d{2})')),
 
+        # FORCE outputs
+        ('%Y%m%d', re.compile(r'(?P<dtg>\d{8})_LEVEL\d_.+_(BOA|QAI|DST|HOT|VZN)')),
+    ]
 
-class SourceInfoCreator(object):
+    rx_wlu = re.compile(r'^(wlu|wavelength[ -_]??units?)$', re.I)
+    rx_wl = re.compile(r'^(wl|wavelengths?|center[_ ]?wavelengths?)$', re.I)
 
     @classmethod
     def dataset(cls, uri: Union[Path, str]) -> gdal.Dataset:
@@ -149,115 +97,256 @@ class SourceInfoCreator(object):
         return gdal.Open(uri)
 
     @classmethod
-    def wavelength_info(cls, ds: gdal.Dataset) -> Tuple[Optional[List[float]], Optional[str]]:
+    def sensorName(cls, ds: gdal.Dataset) -> Optional[str]:
         """
-        Returns the wavelengths for each raster band and the
-        corresponding wavelength unit.
+        Can return a specific sensor name, e.g. "Landsat 8" or "RapidEye".
         """
-        s = ""
+        metadata_positions = [
+            # see https://gdal.org/en/stable/user/raster_data_model.html#imagery-domain-remote-sensing
+            ('SATELLITEID', 'IMAGERY'),
+            # see https://www.nv5geospatialsoftware.com/docs/enviheaderfiles.html
+            ('SENSOR_TYPE', 'ENVI'),
+            # FORCE outputs https://force-eo.readthedocs.io/en/latest/index.html
+            ('FORCE', 'Sensor'),
+        ]
+        # check at Dataset level first
+        for (key, domain) in metadata_positions:
+            if value := ds.GetMetadataItem(key, domain):
+                return value
 
-        # 1. test of GDAL-style wavelength definition
-        wlu = 'um'
-        wl = []
-        
-        for b in range(ds.RasterCount):
-            band: gdal.Band = ds.GetRasterBand(b + 1)
-            wl.append(band.GetMetadataItem('CENTRAL_WAVELENGTH_UM', 'IMAGERY'))
-        if any(wl):
-            return wlu, wl
-
-        # 2. test ENVI header style definitions
-        wlu = ds.GetMetadataItem('wavelength_unit', 'ENVI')
-        wl = ds.GetMetadataItem('wavelengths', 'ENVI')
-
-        # 3. check per-band definitions, very generic
-        s = ""
-        p = QgsRasterLayerSpectralProperties.fromGDALDataset(ds)
-
-        s = ""
-        return None, None
+        # check 1st band metadata
+        if ds.RasterCount > 0:
+            band1: gdal.Band = ds.GetRasterBand(1)
+            for (key, domain) in metadata_positions:
+                if value := band1.GetMetadataItem(key, domain):
+                    return value
+        return None
 
     @classmethod
     def datetime(cls, ds: gdal.Dataset) -> Optional[datetime]:
-
+        """
+        Return the observation date-time for a gdal.Dataset.
+        """
         # 1. search in well-known metadata domains
         domain_keys = [
+            # see https://gdal.org/en/stable/user/raster_data_model.html#imagery-domain-remote-sensing
             ('IMAGE_STRUCTURE', 'ACQUISITIONDATETIME'),
             ('ENVI', 'ACQUISITIONDATETIME'),
-            ('FORCE', ''),
+            ('FORCE', 'Date'),
         ]
 
         for (domain, key) in domain_keys:
             value = ds.GetMetadataItem(key, domain)
             if isinstance(value, str):
-                dtg = datetimeFromString(value)
+                dtg = cls._datetime_from_string(value)
                 if isinstance(dtg, datetime):
                     return dtg
 
-        # 2. search in filenames
+        # 2. search in path
         filenames = ds.GetFileList()
         if len(filenames) > 0:
             path = Path(filenames[0])
 
-            if dtg := datetimeFromString(path.name):
+            # a) check the filenname
+            if dtg := cls._datetime_from_string(path.name):
                 return dtg
 
-            if dtg := datetimeFromString(path.parent.name):
+            # b) check the file's folder name
+            if dtg := cls._datetime_from_string(path.parent.name):
                 return dtg
+
         return None
 
+    @classmethod
+    def wavelengths(cls, ds: gdal.Dataset) -> Tuple[Optional[List[float]], Optional[str]]:
+        """
+        Returns (i) a list of wavelength values, one for each raster band and,
+        (ii) a string with the corresponding wavelength unit, e.g. "nm" for nanometers.
+        """
 
-def dataset_info(uri: str,
-                 info_creator=SourceInfoCreator) -> Optional[dict]:
-    """
-    Reads the sensor ID from a raster dataset:
-    :param ds:
-    :return:
-    """
+        def deduce_wlu(wl, float) -> Optional[str]:
+            """Try to deduce a wavelength unit from the wavelength value."""
+            if 100 <= wl:
+                return 'nm'
+            elif 0 < wl < 100:  # even TIR sensors are below 100 μm
+                return 'μm'
+            else:
+                return None
 
-    ds: gdal.Dataset = info_creator.dataset(uri)
-    if not isinstance(ds, gdal.Dataset):
+        def to_float_list(items: List[str]) -> Optional[List[Optional[float]]]:
+            """
+            Convert a list of strings into a list of floats or None values.
+            """
+            results = []
+            for s in items:
+                try:
+                    results.append(float(s))
+                except TypeError:
+                    results.append(None)
+            if any(results):
+                return results
+            else:
+                return None
+
+        # 1. check for GDAL 3.10+ wavelength definition
+        # see https://gdal.org/en/stable/user/raster_data_model.html#imagery-domain-remote-sensing for details
+
+        wl = []
+        for b in range(ds.RasterCount):
+            band: gdal.Band = ds.GetRasterBand(b + 1)
+            wl.append(band.GetMetadataItem('CENTRAL_WAVELENGTH_UM', 'IMAGERY'))
+        if any(wl):
+            wl = to_float_list(wl)
+            return wl, 'μm'
+
+        # 2. check for ENVI header style definitions
+        # see https://www.nv5geospatialsoftware.com/docs/enviheaderfiles.html
+        wlu = ds.GetMetadataItem('wavelength_units', 'ENVI')
+        wl = ds.GetMetadataItem('wavelengths', 'ENVI')
+
+        if wl:
+            wl = to_float_list(wl)
+            if wlu is None:
+                # try to deduce wavelength unit from the highest wavelength
+                wlu = deduce_wlu(max(wl), float)
+            if len(wl) == ds.RasterCount:
+                return wl, wlu
+
+        # 3. generic checking for wavelengths in dataset metadata
+        wl = wlu = None
+        for domain in sorted(ds.GetMetadataDomainList()):
+            for key, value in ds.GetMetadata_Dict(domain).items():
+                if wl is None and cls.rx_wl.search(key):
+                    # try to parse the wavelength
+                    wl = re.split(',', re.sub('[{} ]', '', value.strip()))
+                if wlu is None and cls.rx_wlu.search(key):
+                    wlu = value
+
+        if isinstance(wl, list) and len(wl) == ds.RasterCount:
+            wl = to_float_list(wl)
+            if wlu is None:
+                wlu = deduce_wlu(max(wl), float)
+            return wl, wlu
+
+        # 4. generic checking for wavelengths in band metadata
+        wl = []
+        wlu = []
+        for b in range(ds.RasterCount):
+            band: gdal.Band = ds.GetRasterBand(b + 1)
+            _wl = _wlu = None
+            for key, value in band.GetMetadata_Dict().items():
+                if _wl is None and cls.rx_wl.search(key):
+                    # try to parse the wavelength
+                    _wl = value
+                    continue
+                if _wlu is None and cls.rx_wlu.search(key):
+                    _wlu = value
+                    continue
+            wl.append(_wl)
+            wlu.append(_wlu)
+
+        wl = to_float_list(wl)
+        if any(wl):
+            wlu = wlu[0] if len(wlu) == 1 else None
+            if wlu is None:
+                wlu = deduce_wlu(max(wl), float)
+            return wl, wlu
+
+        return None, None
+
+    @classmethod
+    def _datetime_from_string(cls, text: str) -> Optional[datetime]:
+        """
+        Tries to parse a datetime from a string.
+        """
+
+        # 1. try to parse ISO datetime
+        try:
+            return datetime.fromisoformat(text)
+        except (ValueError, AttributeError):
+            pass
+
+        # 2. try to parse other formats
+        for fmt in cls.DATETIME_FORMATS:
+            try:
+                if isinstance(fmt, str):
+                    return datetime.strptime(text, fmt)
+
+                elif isinstance(fmt, tuple):
+                    fmt, rx = fmt
+                    if match := rx.search(text):
+                        return datetime.strptime(match.group('dtg'), fmt)
+            except (ValueError, AttributeError) as ex:
+                s = ""
         return None
 
-    timestamp = info_creator.datetime(ds)
-    if not isinstance(timestamp, datetime):
-        return None
+    @staticmethod
+    def sensorID(nb: int,  # number of bands
+                 px_size_x: float,  # pixel size x
+                 px_size_y: float,  # pixel size y
+                 dt: int,  # the GDAL datatype
+                 wl: Optional[list] = None,  # list of wavelengths
+                 wlu: Optional[str] = None,  # wavelength unit
+                 name: Optional[str] = None) -> str:  # sensor name
+        """
+        Creates a sensor ID str
+        :param name:
+        :param dt:
+        :param nb: number of bands
+        :param px_size_x: pixel size x
+        :param px_size_y: pixel size y
+        :param wl: list of wavelength
+        :param wlu: str, wavelength unit
+        :return: str
+        """
+        assert dt in GDAL_DATATYPES.values()
+        assert isinstance(dt, int)
+        assert isinstance(nb, int) and nb > 0
+        assert isinstance(px_size_x, (int, float)) and px_size_x > 0
+        assert isinstance(px_size_y, (int, float)) and px_size_y > 0
 
-    wl, wlu = info_creator.wavelength_info(ds)
+        if wl is not None:
+            assert isinstance(wl, list)
+            assert len(wl) == nb
 
-    nb = ds.RasterCount
-    dt = ds.GetRasterBand(1)
+            if all([w is None for w in wl]):
+                wl = None
 
-    trans = gdal.Transformer(ds, None, [])
-    x1, y1 = trans.TransformPoint(False, 0, 0)
-    x2, y2 = trans.TransformPoint(False, 1, 1)
-    px_x = abs(x2 - x1)
-    px_y = abs(y2 - y1)
+        if wlu is not None:
+            assert isinstance(wlu, str)
 
-    sid: str = sensorID(nb, px_x, px_y, dt, wl, wlu)
+        if name is not None:
+            assert isinstance(name, str)
 
-    nodata = [ds.GetRasterBand(b + 1).GetNoDataValue() for b in range(nb)]
+        jsonDict = {'nb': nb,
+                    'px_size_x': px_size_x,
+                    'px_size_y': px_size_y,
+                    'dt': int(dt),
+                    'wl': wl,
+                    'wlu': wlu,
+                    'name': name
+                    }
+        return json.dumps(jsonDict, ensure_ascii=False)
 
-    info = {'source': ds.GetDescription(),
-            'dtg': datetime,
-            'sid': sid,
-            'nodata': nodata}
 
-    return info
+def aggregate_profiles(results):
+    s = ""
 
 
-def read_profiles_from_files(files, points: dict, srs_wkt: str):
-    errors = []
-    results = []
+def read_profiles(files: List,
+                  points: dict,
+                  srs_wkt: str,
+                  provider: SourceInfoProvider = SourceInfoProvider) -> Tuple[List[dict], List[str]]:
     srs = osr.SpatialReference()
     srs.ImportFromWkt(srs_wkt)
+    r = srs.Validate()
     # get Lat Lon coordinates in Lon Lat / x y order
     srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
 
     assert isinstance(srs, osr.SpatialReference)
     assert srs.Validate() == OGRERR_NONE, f'Invalid SRS: {srs_wkt}'
 
-    # ensure that points are stored as tuple
+    # ensure that point coordinates are stored as tuple
     def point2tuple(p):
         if isinstance(p, str):
             p = ogr.CreateGeometryFromWkt(p)
@@ -273,112 +362,97 @@ def read_profiles_from_files(files, points: dict, srs_wkt: str):
     POINTS2SRS = dict()
     POINTS2SRS[srs_wkt] = points
 
-    results = list()
+    results: List[dict] = list()
 
+    errors = list()
     for file in files:
 
-        ds: gdal.Dataset = gdal.Open(file)
-        assert isinstance(ds, gdal.Dataset), f'Unable to open raster {file}'
+        ds: gdal.Dataset = provider.dataset(file)
+        if not isinstance(ds, gdal.Dataset):
+            errors.append(f'Unable to open raster {file}')
+            continue
 
-        ds_info = dataset_info(ds)
+        ds: gdal.Dataset = provider.dataset(file)
+        if not isinstance(ds, gdal.Dataset):
+            errors.append(f'Unable to open raster {file}')
+            continue
 
-        profiles = dict()
+        dtg = provider.datetime(ds)
+        if not isinstance(dtg, datetime):
+            errors.append(f'Unable to read datetime from {file}')
+            continue
+        # convert to ISO format string
+        dtg = dtg.isoformat()
+        # remove trailing zeros to keep the json short
+        dtg = re.sub(r'T00(:00)*$', '', dtg)
 
+        wl, wlu = provider.wavelengths(ds)
+        sname = provider.sensorName(ds)
+
+        nb = ds.RasterCount
+        dt = ds.GetRasterBand(1).DataType
+
+        # use the gdal.Transformer to get the pixel size of the center pixe
+        # this way we can use images with RPCs
+        trans2px = gdal.Transformer(ds, None, [])
+        cx, cy = int(0.5 * ds.RasterXSize), int(0.5 * ds.RasterYSize)
+        b1, xyz1 = trans2px.TransformPoint(False, cx, cy)
+        b2, xyz2 = trans2px.TransformPoint(False, cx + 1, cy + 1)
+        px_x = abs(xyz1[0] - xyz2[0])
+        px_y = abs(xyz1[1] - xyz2[1])
+
+        # create the sensor ID
+        sid: str = SourceInfoProvider.sensorID(nb, px_x, px_y, dt, wl, wlu, name=sname)
+
+        nodata = [ds.GetRasterBand(b + 1).GetNoDataValue() for b in range(nb)]
+
+        r_info = {'source': ds.GetDescription(),
+                  'dtg': dtg,
+                  'sid': sid,
+                  'nodata': nodata}
+
+        # raster SRS
         r_srs = ds.GetSpatialRef()
         r_wkt = r_srs.ExportToWkt()
 
+        # do we need to transform point coordinates to raster SRS?
         if r_wkt not in POINTS2SRS:
             # transform points to raster SRS
-            trans = osr.CoordinateTransformation(srs, r_srs)
+            trans2r = osr.CoordinateTransformation(srs, r_srs)
             points_transformed = dict()
 
             for fid, point in points.items():
-                points_transformed[fid] = trans.TransformPoint(*point)
+                points_transformed[fid] = trans2r.TransformPoint(*point)
 
             # keep transformed points in memory.
             # we don't want to re-transform them for each raster file'
             POINTS2SRS[r_wkt] = points_transformed
 
-        transformer = gdal.Transformer(ds, None, [])
+        # points in raster SRS
+        R_POINTS = POINTS2SRS[r_wkt]
 
-        points_r = POINTS2SRS[r_wkt]
-        pixel, success = transformer.TransformPoints(True, list(points_r.values()))
-        nodata = ds_info['nodata']
-        for (px_x, px_y), succ in zip(pixel, success):
-            px_x, px_y = int(px_x), int(px_y)
+        # convert SRS coordinate into raster pixel coordinates
 
-            if 0 <= px_x < ds.RasterXSize and 0 <= px_y < ds.RasterYSize:
+        pixel, success = trans2px.TransformPoints(True, list(R_POINTS.values()))
 
-                profile = ds.ReadAsArray(px_x, px_y, 1, 1).flatten()
-                profile = [None if v == nd else v for nd, v in zip(nodata, profile)]
-                if any(profile):
-                    profiles[fid] = profile
+        # read profiles for pixel coordinates within the image
+        profiles = dict()
+        for fid, xyz, success in zip(R_POINTS.keys(), pixel, success):
+            if success:
+                px_x, px_y = int(xyz[0]), int(xyz[1])
+
+                if 0 <= px_x < ds.RasterXSize and 0 <= px_y < ds.RasterYSize:
+
+                    profile = ds.ReadAsArray(px_x, px_y, 1, 1).flatten().tolist()
+                    profile = [None if v == nd else v for nd, v in zip(nodata, profile)]
+                    if any(profile):
+                        profiles[fid] = profile
+
         if len(profiles) > 0:
-            ds_info['profiles'] = profiles
-            results.append(ds_info)
+            r_info['profiles'] = profiles
+            results.append(r_info)
 
-    return results
-
-
-def read_profiles_from_geom(layer: ogr.Layer,
-                            raster: gdal.Dataset,
-                            can_overlap: bool = False):
-    assert layer.GetSpatialRef().IsSame(raster.GetSpatialRef())
-
-    n_features = layer.GetFeatureCount()
-
-    nl, ns = raster.RasterYSize, raster.RasterXSize
-
-    drvMEM = gdal.GetDriverByName('MEM')
-    mask_ds: gdal.Dataset = drvMEM.Create('', nl, ns, 1, gdal.GDT_UInt32)
-    mask_ds.SetGeoTransform(raster.GetGeoTransform())
-    mask_ds.SetProjection(raster.GetProjection())
-
-    r = gdal.RasterizeLayer(mask_ds, [1], layer, burn_values=[1])
-    assert r == gdal.CE_None
-
-    mask = mask_ds.ReadAsArray()
-
-
-def process_batch_files(batch_files: List[str], vector: ogr.DataSource, field_name: str = 'profiles'):
-    """
-    Process a batch of raster files in a single thread
-
-    Args:
-        batch_files: List of raster file paths to process
-        vector: Vector data source containing the features
-        field_name: Name of the field to store the profiles
-
-    Returns:
-        Dictionary of processed results
-    """
-    results = {}
-    for file_path in batch_files:
-        try:
-            # Open the raster dataset
-            ds = gdal.Open(file_path)
-            if ds is None:
-                print(f"Warning: Could not open raster {file_path}")
-                continue
-
-            # Process the raster (implementation would go here)
-            # This is a placeholder for the actual processing logic
-            print(f"Processing {file_path} in thread {concurrent.futures.thread.get_ident()}")
-
-            # Store results
-            results[file_path] = {
-                'status': 'processed',
-                'file': file_path
-            }
-
-        except Exception as e:
-            print(f"Error processing {file_path}: {str(e)}")
-            results[file_path] = {
-                'status': 'error',
-                'message': str(e)
-            }
-
-    return results
+    return results, errors
 
 
 def find_raster_files(raster, pattern='*.tif', recursive=False, regex: bool = False):
@@ -405,88 +479,155 @@ def find_raster_files(raster, pattern='*.tif', recursive=False, regex: bool = Fa
 import fnmatch
 
 
-def main(rasters, vector, output_field: str = 'profiles',
+def callback(progress, msg, data):
+    print(f'Progress: {progress}')
+
+
+def main(rasters, vector,
          pattern='*.tif', threads=4,
          layer_name: Optional[Union[int, str]] = None,
-         output_vector=None, recursive=False):
+         output_vector=None,
+         output_field: str = 'profiles',
+         output_format: str = 'GPKG',
+         recursive=False) -> Tuple[gdal.Dataset, dict[int, dict]]:
     if isinstance(rasters, (str, Path)):
         rasters = Path(rasters)
 
-    if isinstance(vector, (str, Path)):
-        vector = ogr.Open(str(vector))
-    assert isinstance(vector, Dataset)
+    in_place = output_vector is None
+
+    ds_dst = None
+    assert isinstance(vector, (str, Path))
+    if in_place:
+        ds_src = ds_dst = ogr.Open(str(vector), update=gdal.OF_UPDATE)
+    else:
+        ds_src = ogr.Open(str(vector))
+        # create output vector dataset
+        ds_dst = gdal.VectorTranslate(str(output_vector), ds_src, callback=callback)
+
+    assert isinstance(ds_src, Dataset)
+    assert isinstance(ds_dst, Dataset), "Could not open output vector"
 
     if isinstance(layer_name, str):
-        layer = vector.GetLayerByName(layer_name)
+        lyr_src = ds_src.GetLayerByName(layer_name)
     elif isinstance(layer_name, int):
-        layer = vector.GetLayer(layer_name)
+        lyr_src = ds_src.GetLayer(layer_name)
     else:
-        layer = vector.GetLayer()
+        lyr_src = ds_src.GetLayer()
 
-    assert isinstance(layer, ogr.Layer), "Could not find layer"
+    assert isinstance(lyr_src, ogr.Layer), "Could not find layer"
+
+    if in_place:
+        layer_dst = lyr_src
+    else:
+
+        layer_dst: ogr.Layer = ds_dst.GetLayerByName(lyr_src.GetName())
+        assert isinstance(layer_dst, ogr.Layer)
+
+    assert isinstance(output_field, str)
+    field_names = [field.GetName() for field in layer_dst.schema]
+    if output_field not in field_names:
+        assert ogr.OGRERR_NONE == layer_dst.CreateField(
+            ogr.FieldDefn(output_field, ogr.OFSTJSON))
 
     print('Search time series sources...')
     files = find_raster_files(rasters, pattern=pattern, recursive=recursive)
 
-    assert len(files) > 0, 'No raster files found'
+    n_total = len(files)
+    assert n_total > 0, 'No raster files found'
 
-    points, srs_wkt = points_info(layer)
+    points, srs_wkt = points_info(lyr_src)
 
-    # Calculate batch size
-    n_files = len(files)
-    batch_size = max(1, n_files // threads)
-    batches = [files[i:i + batch_size] for i in range(0, n_files, batch_size)]
+    badges = []
+    badge = []
+    for file in files:
+        badge.append(file)
+        if len(badge) == 10:
+            badges.append(badge.copy())
+            badge.clear()
 
-    # Process batches in parallel
-    results = {}
+    errors = []
+    POINT2RESULTS = dict()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
+        # Start the load operations and mark each future with its URL
+        future_to_url = {executor.submit(read_profiles, badge, points.copy(), srs_wkt): badge for badge in
+                         badges}
+        for future in concurrent.futures.as_completed(future_to_url):
+            files = future_to_url[future]
+            try:
+                b_results, b_errors = future.result()
+                for result in b_results:
+                    for fid, profile in result['profiles'].items():
+                        POINT2RESULTS.setdefault(fid, []).append(result)
+                errors.extend(b_errors)
+            except Exception as exc:
+                print('%r generated an exception: %s' % (files, exc))
 
-    def collect_results(results: dict):
+    # convert results into multi-sensor profiles for each point
 
-        for point, profiles in results.items():
-            collection = results.get(point, [])
-            collection.extend(profiles)
-            results[point] = collection
+    TEMPORAL_PROFILES = create_temporal_profiles(POINT2RESULTS)
 
-    # create for each point the temporal profile
+    # write results
+    for f_dst in layer_dst:
+        f_dst: ogr.Feature
+        fid = f_dst.GetFID()
+        if fid in TEMPORAL_PROFILES:
+            data = TEMPORAL_PROFILES[fid]
+            dump = json.dumps(data, ensure_ascii=False)
+            f_dst.SetField(output_field, dump)
+            layer_dst.SetFeature(f_dst)
+    layer_dst.SyncToDisk()
+    return ds_dst, TEMPORAL_PROFILES
 
-    s = ""
 
-    if False:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
-            # Submit each batch to the executor
-            future_to_batch = {
-                executor.submit(process_batch_files, batch, vector, field_name): i
-                for i, batch in enumerate(batches)
-            }
+def create_temporal_profiles(POINT2RESULTS: dict[int, dict]) -> dict[int, dict]:
+    """
+    Creates a compact representation of the temporal profiles for each point.
+    """
+    TEMPORAL_PROFILES: dict[int, dict] = {}
 
-            # Process results as they complete
-            for future in concurrent.futures.as_completed(future_to_batch):
-                batch_index = future_to_batch[future]
-                try:
-                    batch_results = future.result()
-                    results.update(batch_results)
-                    print(f"Completed batch {batch_index + 1}/{len(batches)}")
-                except Exception as e:
-                    print(f"Batch {batch_index} generated an exception: {str(e)}")
-    else:
-        for batch in batches:
-            collect_results(read_profiles_from_files(batch, points, srs_wkt))
+    for fid, point_results in POINT2RESULTS.items():
+        point_dates = []
+        point_profiles = []
+        point_sids = []
 
-    # Process files using multithreading
-    print(f"Processing {len(files)} files using {threads} threads")
-    results = load_eotsv_profiles(
-        vector=vector,
-        raster=files,  # Pass the list of files directly
-        field_name=output_field,
-        recursive=recursive,
-        threads=threads  # Fixed typo: theads -> threads
-    )
+        for result in point_results:
+            point_dates.append(result['dtg'])
+            point_profiles.append(result['profiles'][fid])
+            point_sids.append(result['sid'])
 
-    print(f"Completed processing {len(results) if results else 0} files")
-    return results
+        # order temporal profiles by observation time
+        i_sorted = sorted(range(len(point_dates)), key=lambda i: point_dates[i])
+
+        sorted_dates = []
+        sorted_profiles = []
+        sorted_sensor_idx = []
+
+        SID2IDX = dict()
+
+        for i in i_sorted:
+            sorted_dates.append(point_dates[i])
+            sorted_profiles.append(point_profiles[i])
+            sid = point_sids[i]
+            if sid not in SID2IDX:
+                SID2IDX[sid] = len(SID2IDX)
+            sorted_sensor_idx.append(SID2IDX[sid])
+
+        temporal_profile = {
+            # 'source'  # optional
+            'date': sorted_dates,
+            'sensor_ids': list(SID2IDX.keys()),
+            'sensor': sorted_sensor_idx,
+            'values': sorted_profiles,
+        }
+
+        TEMPORAL_PROFILES[fid] = temporal_profile
+    return TEMPORAL_PROFILES
 
 
 def points_info(layer: ogr.Layer) -> Tuple[dict, str]:
+    """
+    Returns a dictionary of point geometries and their corresponding SRS as WKT string.
+    """
     assert isinstance(layer, ogr.Layer)
     points = dict()
     for feature in layer:
@@ -494,9 +635,9 @@ def points_info(layer: ogr.Layer) -> Tuple[dict, str]:
         g = feature.GetGeometryRef()
         points[feature.GetFID()] = g.ExportToWkt()
 
-    wkt_points = layer.GetSpatialRef().ExportToWkt()
+    srs_wkt = layer.GetSpatialRef().ExportToWkt()
 
-    return points, wkt_points
+    return points, srs_wkt
 
 
 if __name__ == "__main__":
