@@ -13,6 +13,9 @@ class EOTSVTask(QgsTask):
         self.mInfo = info.copy() if info else None
         self.mInitTime = datetime.datetime.now()
 
+    def setCallback(self, callback):
+        self.mCallback = callback
+
     def info(self) -> Optional[dict]:
 
         return self.mInfo

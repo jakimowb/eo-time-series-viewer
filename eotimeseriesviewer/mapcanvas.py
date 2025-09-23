@@ -26,6 +26,7 @@ import sys
 import time
 import warnings
 from pathlib import Path
+from threading import Lock
 from typing import Dict, List, Optional, Union
 
 import qgis.utils
@@ -53,7 +54,7 @@ from .qgispluginsupport.qps.qgisenums import QGIS_RASTERBANDSTATISTIC
 from .qgispluginsupport.qps.utils import filenameFromString, findParent, SpatialExtent, SpatialPoint
 from .sensors import has_sensor_id, sensor_id, SensorMockupDataProvider
 from .settings.settings import EOTSVSettingsManager
-from .timeseries.source import TimeSeriesDate
+from .timeseries.source import TimeSeriesDate, TimeSeriesSource
 from .utils import copyMapLayerStyle, layerStyleString, setLayerStyleString
 
 KEY_LAST_CLICKED = 'LAST_CLICKED'
@@ -368,6 +369,7 @@ class MapCanvasMapTools(QObject):
 
 
 KEY_SOURCE_ID = 'eotsv/sourceid'
+KEY_LEGEND_LAYER_ID = 'eotsv/legendlayerid'
 
 
 def source_id(layer: QgsMapLayer) -> str:
@@ -417,6 +419,7 @@ class MapCanvas(QgsMapCanvas):
         self.mMapTools: MapCanvasMapTools = None
         self.initMapTools()
 
+        # self.mLayerRefs = []
         self.mTasks = []
 
         # self.mExpectedSources: List[str] = []
@@ -630,8 +633,9 @@ class MapCanvas(QgsMapCanvas):
         :param mapLayers:
         """
         for l in mapLayers:
-            if isinstance(l.dataProvider(), SensorMockupDataProvider):
-                s = ""
+            assert not isinstance(l.dataProvider(), SensorMockupDataProvider)
+
+        # self.mLayerRefs = mapLayers
         self.mMapLayerStore.addMapLayers(mapLayers)
         super(MapCanvas, self).setLayers(mapLayers)
 
@@ -668,28 +672,41 @@ class MapCanvas(QgsMapCanvas):
             else:
                 print('Unsupported argument: {} {}'.format(type(a), str(a)), file=sys.stderr)
 
-    def onSourceLayerLoaded(self, success: bool, task: LoadMapCanvasLayers):
+    # def onSourceLayerLoaded(self, success: bool, task: LoadMapCanvasLayers):
+    def onSourceLayerLoaded(self, success, task):
 
         if success:
-            layers_old = {l.id(): l for l in self.layers()}
-            results = dict()
+            legend_layers_old = {}
+            for lyr in self.layers():
+                if llid := lyr.customProperty(KEY_LEGEND_LAYER_ID, defaultValue=None):
+                    legend_layers_old[llid].setdefault(llid, []).append(lyr)
+
+            legend_layers_new = {}
             for r in task.mResults:
                 llid = r['legend_layer']
                 llyr = r['layer']
-                lyr_list = results.get(llid, [])
+                lyr_list = legend_layers_new.get(llid, [])
                 lyr_list.append(llyr)
-                results[llid] = lyr_list
+                legend_layers_new[llid] = lyr_list
 
             layers_new = []
-            for llyr in self.legendLayers():
-                if llyr.id() in results:
-                    for l in results[llyr.id()]:
-                        l.styleChanged.connect(self.onSetMasterLayerStyle)
-                        layers_new.append(l)
-                elif llyr.id() in layers_old:
-                    layers_new.append(layers_old[llyr.id()])
+            for lyr in self.legendLayers():
+                llid = lyr.id()
+                # add new-loaded layers
+                for l in legend_layers_new.get(llid, []):
+                    l: QgsMapLayer
+                    l.styleChanged.connect(self.onSetMasterLayerStyle)
+                    l.setCustomProperty(KEY_SOURCE_ID, source_id(l))
+                    l.setCustomProperty(KEY_LEGEND_LAYER_ID, llid)
+                    layers_new.append(l)
 
-            self.setLayers(layers_new)
+                # add already loaded layers relating to this legend layer
+                layers_new.extend(legend_layers_old.get(llid, []))
+
+            for l in self.layers():
+                if l not in layers_new:
+                    s = ""
+            self.setLayers(layers_new + self.layers())
         LoadMapCanvasLayers.removeTask(task)
         # if task in self.mTasks:
         #    del self.mTasks[self.mTasks.index(task)]
@@ -712,89 +729,98 @@ class MapCanvas(QgsMapCanvas):
         This method is used to process the tasks in the refresh pipeline and to update the layer tree, based on the
         time series date and map view this canvas is connected with.
         """
-
-        # with MapWidgetTimedRefreshBlocker(self) as blocker:
-
-        canvas_layers_by_id: Dict[str, QgsMapLayer] = {lyr.id(): lyr for lyr in self.layers()}
-        canvas_layers_by_source: Dict[str, QgsMapLayer] = {source_id(lyr): lyr for lyr in self.layers()}
-
-        canvas_layer_new: List[QgsMapLayer] = []
-        source_requests: List[dict] = []
-
-        from .mapvisualization import MapView
-        from .sensors import SensorInstrument
-
-        mapView: MapView = self.mapView()
-
-        if mapView is None or self.tsd() is None:
-            self.setLayers([])
-            self.mInfoItem.clearInfoText()
-            # self.update()
+        if self.mMapRefreshBlock:
             return False
 
-        sensor: SensorInstrument = self.tsd().sensor()
+        with Lock() as lock:
+            self.mMapRefreshBlock = True
+            # with MapWidgetTimedRefreshBlocker(self) as blocker:
 
-        # update list of sources that should be shown
+            canvas_layers_by_id: Dict[str, QgsMapLayer] = {lyr.id(): lyr for lyr in self.layers()}
+            canvas_layers_by_source: Dict[str, QgsMapLayer] = {source_id(lyr): lyr for lyr in self.layers()}
 
-        for legend_lyr in self.legendLayers():
-            assert isinstance(legend_lyr, QgsMapLayer)
+            canvas_layer_new: List[QgsMapLayer] = []
+            source_requests: List[dict] = []
 
-            if lyr := canvas_layers_by_id.get(legend_lyr.id(), None):
-                canvas_layer_new.append(lyr)
-            elif lyr := canvas_layers_by_source.get(source_id(legend_lyr), None):
-                canvas_layer_new.append(lyr)
-            else:
-                # Layer does not exist in MapCanvas. Load it.
-                dp = legend_lyr.dataProvider()
-                # handle time series raster layer
-                if isinstance(dp, SensorMockupDataProvider):
-                    if sensor == dp.sensor():
-                        # add time series sources related to the canvas TSD and as raster layers
-                        # do this asynchronous, as it might take some time to initialize the source layers
-                        to_load = []
+            from .mapvisualization import MapView
+            from .sensors import SensorInstrument
 
-                        for tss in [s for s in self.tsd() if s.isVisible()]:
-                            # do we already have this layer?
-                            sourceID = tss.source()
-                            if lyr := canvas_layers_by_source.get(sourceID, None):
-                                canvas_layer_new.append(lyr)
-                            else:
-                                # load asynchronously, because layer instantiation may take from time,
-                                # e.g., from network drives
-                                sid = self.tsd().sensor().id()
-                                use_as_masterstyle = not legend_lyr.customProperty(
-                                    SensorInstrument.PROPERTY_KEY_STYLE_INITIALIZED,
-                                    False)
+            mapView: MapView = self.mapView()
 
-                                request = {'type': QgsRasterLayer,
-                                           'uri': tss.source(),
-                                           'legend_layer': legend_lyr.id(),
-                                           'loadDefaultStyle': use_as_masterstyle,
-                                           'providerType': tss.provider(),
-                                           'customProperties': {
-                                               SensorInstrument.PROPERTY_KEY: sid
-                                           }}
-                                source_requests.append(request)
+            if mapView is None or self.tsd() is None:
+                self.setLayers([])
+                self.mInfoItem.clearInfoText()
+                # self.update()
+                return False
+
+            sensor: SensorInstrument = self.tsd().sensor()
+
+            # update list of sources that should be shown
+            for legend_lyr in self.legendLayers():
+                assert isinstance(legend_lyr, QgsMapLayer)
+
+                if lyr := canvas_layers_by_id.get(legend_lyr.id(), None):
+                    canvas_layer_new.append(lyr)
+                elif lyr := canvas_layers_by_source.get(source_id(legend_lyr), None):
+                    canvas_layer_new.append(lyr)
                 else:
-                    # a layer that is shared with all maps.
-                    canvas_layer_new.append(legend_lyr)
+                    # Layer does not exist in MapCanvas. Load it.
+                    dp = legend_lyr.dataProvider()
+                    # handle time series raster layer
+                    if isinstance(dp, SensorMockupDataProvider):
+                        if sensor == dp.sensor():
+                            # add time series sources related to the canvas TSD and as raster layers
+                            # do this asynchronous, as it might take some time to initialize the source layers
+                            to_load = []
 
-        # set layers that are already available
-        self.setLayers(canvas_layer_new)
+                            for tss in self.tsd():
+                                tss: TimeSeriesSource
+                                sourceID = tss.source()
+                                if tss.isVisible():
+                                    # do we already have this layer?
+                                    if lyr := canvas_layers_by_source.get(sourceID, None):
+                                        canvas_layer_new.append(lyr)
+                                    else:
+                                        # load asynchronously, because layer instantiation takes time
+                                        # e.g., from network drives
+                                        sid = self.tsd().sensor().id()
+                                        use_as_masterstyle = not legend_lyr.customProperty(
+                                            SensorInstrument.PROPERTY_KEY_STYLE_INITIALIZED,
+                                            False)
 
-        # load missing source layers in another thread
-        if len(source_requests) > 0:
-            task = LoadMapCanvasLayers(source_requests)
-            task.setDescription(f'Load {self.tsd().dtgString()}')
-            task.executed.connect(self.onSourceLayerLoaded)
-            LoadMapCanvasLayers.addTask(task)
-            if False:
-                task.run_serial()
-            else:
-                QgsApplication.taskManager().addTask(task)
-            s = ""
+                                        request = {'type': QgsRasterLayer,
+                                                   'uri': tss.source(),
+                                                   'legend_layer': legend_lyr.id(),
+                                                   'loadDefaultStyle': use_as_masterstyle,
+                                                   'providerType': tss.provider(),
+                                                   'customProperties': {
+                                                       SensorInstrument.PROPERTY_KEY: sid
+                                                   }}
+                                        source_requests.append(request)
+                    else:
+                        # a layer that is shared with all maps.
+                        canvas_layer_new.append(legend_lyr)
 
-        return
+            # set layers that are already available
+            if self.layers() != canvas_layer_new:
+                self.setLayers(canvas_layer_new)
+
+            # load missing source layers in another thread
+            if len(source_requests) > 0:
+                task = LoadMapCanvasLayers(source_requests)
+                task.setCallback(self.onSourceLayerLoaded)
+                # task.mCallback = self.onSourceLayerLoaded
+                task.setDescription(f'Load {self.tsd().dtgString()}')
+                # task.taskCompleted.connect(self.onSourceLayerLoaded)
+
+                if True:
+                    task.run_serial()
+                else:
+                    LoadMapCanvasLayers.addTask(task)
+                    QgsApplication.taskManager().addTask(task)
+                s = ""
+        self.mMapRefreshBlock = False
+        return True
 
         if False:
             for lyr in mapView.visibleLayers():

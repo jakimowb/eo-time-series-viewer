@@ -1,10 +1,10 @@
 from pathlib import Path
 from typing import Union, Optional, Tuple, Type, List
 
-from eotimeseriesviewer.tasks import EOTSVTask
-from qgis.PyQt.QtCore import pyqtSignal
 from qgis.core import QgsRasterLayer, QgsMapLayer, QgsVectorTileLayer, QgsVectorLayer, Qgis, QgsRasterFileWriter, \
     QgsVectorFileWriter
+
+from eotimeseriesviewer.tasks import EOTSVTask
 
 LAYER_CLASSES = dict()
 for l in [QgsRasterLayer, QgsVectorLayer, QgsVectorTileLayer]:
@@ -16,7 +16,7 @@ LAYER_CLASSES[Qgis.LayerType.VectorTile] = QgsVectorTileLayer
 
 
 class LoadMapCanvasLayers(EOTSVTask):
-    executed = pyqtSignal(bool, object)
+    # executed = pyqtSignal(bool, object)
 
     # a dictionary for supported map layer constructors
 
@@ -115,7 +115,7 @@ class LoadMapCanvasLayers(EOTSVTask):
                 continue
 
             legend_layer_id = info.get('legend_layer')
-
+            lyr = None
             try:
                 lyr, err = self.loadLayer(info)
                 if err:
@@ -124,10 +124,10 @@ class LoadMapCanvasLayers(EOTSVTask):
             except Exception as ex:
                 self.mErrors.append(f'Unable to load {uri} {ex}'.strip())
                 continue
+            if isinstance(lyr, QgsMapLayer):
+                result = {'uri': uri, 'legend_layer': legend_layer_id, 'layer': lyr}
+                self.mResults.append(result)
 
-            result = {'uri': uri, 'legend_layer': legend_layer_id, 'layer': lyr}
-            self.mResults.append(result)
-
-        self.executed.emit(True, self)
+        # self.executed.emit(True, self)
 
         return True
