@@ -20,6 +20,7 @@
 """
 import bisect
 import datetime
+import logging
 import pathlib
 import re
 from pathlib import Path
@@ -27,15 +28,6 @@ from typing import Any, Iterator, List, Optional, Set, Union
 
 import numpy as np
 from osgeo import gdal
-
-from eotimeseriesviewer import messageLog
-from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
-from eotimeseriesviewer.qgispluginsupport.qps.utils import relativePath, SpatialExtent
-from eotimeseriesviewer.sensors import sensorIDtoProperties, SensorInstrument, SensorMatching
-from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
-from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
-from eotimeseriesviewer.timeseries.tasks import TimeSeriesFindOverlapTask, TimeSeriesLoadingTask
-from eotimeseriesviewer.utils import findNearestDateIndex
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QModelIndex, Qt
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QTreeView
@@ -45,6 +37,16 @@ from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoo
     QgsTaskManager
 from qgis.core import QgsSpatialIndex
 
+from eotimeseriesviewer import messageLog
+from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
+from eotimeseriesviewer.qgispluginsupport.qps.utils import relativePath, SpatialExtent
+from eotimeseriesviewer.sensors import sensorIDtoProperties, SensorInstrument, SensorMatching
+from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
+from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
+from eotimeseriesviewer.timeseries.tasks import TimeSeriesFindOverlapTask, TimeSeriesLoadingTask
+from eotimeseriesviewer.utils import findNearestDateIndex
+
+logger = logging.getLogger(__name__)
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
 
 DEFAULT_CRS = 'EPSG:4326'
@@ -644,7 +646,8 @@ class TimeSeries(QAbstractItemModel):
             t2 = datetime.datetime.now()
             dt1 = (t1 - t0).total_seconds()
             dt2 = (t2 - t1).total_seconds()
-            print(f'# added {n}: t_avg: {dt1 / n: 0.3f}s t_total: {dt1} s, signale: {dt2: 0.3f}s')
+
+            logger.debug(f'# added {n} sources: t_avg: {dt1 / n: 0.3f}s t_total: {dt1} s, signals: {dt2: 0.3f}s')
 
     def addSources(self,
                    sources: list,

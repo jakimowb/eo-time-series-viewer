@@ -31,6 +31,7 @@ from typing import Dict, Iterator, List, Optional, Tuple, Union
 import qgis.utils
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QDateTime, QMimeData, QModelIndex, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
+from qgis.PyQt.QtWidgets import QAction
 from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
     QWidget
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsExpression, QgsExpressionContext, \
@@ -38,6 +39,7 @@ from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsExpressio
     QgsLayerTreeGroup, QgsLayerTreeLayer, QgsLayerTreeModel, QgsMapLayer, QgsMapLayerProxyModel, \
     QgsMultiBandColorRenderer, QgsPointXY, QgsProcessingFeedback, QgsProject, QgsRasterLayer, QgsRasterRenderer, \
     QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
+from qgis.core import QgsLayerTreeNode
 from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
     QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
 
@@ -77,6 +79,68 @@ class MapViewLayerTreeModel(QgsLayerTreeModel):
 
     def __init__(self, rootNode, parent=None):
         super(MapViewLayerTreeModel, self).__init__(rootNode, parent=parent)
+
+    def flags(self, index: QModelIndex):
+        # return super().flags(index)
+        flags = super().flags(index)
+        node = self.index2node(index)
+        if isinstance(node, QgsLayerTreeNode) and node.customProperty(KEY_LOCKED_LAYER):
+            flags &= ~Qt.ItemIsDropEnabled
+            flags &= ~Qt.ItemIsDragEnabled
+
+        return flags
+
+    # def supportedDragActions(self):
+    #     return super().supportedDragActions()
+    #     """
+    #     """
+    #     return Qt.CopyAction | Qt.MoveAction
+    #
+    # def supportedDropActions(self) -> Qt.DropActions:
+    #     return super().supportedDropActions()
+    #     """
+    #     """
+    #     return Qt.CopyAction | Qt.MoveAction
+    #
+    # def mimeTypes(self):
+    #
+    #     mt = super().mimeTypes()
+    #     mt.append('text/uri-list')
+    #     return mt
+    #
+    # def mimeData(self, index, parent):
+    #     return super().mimeData(index, parent)
+    #
+    # def canDropMimeData(self, data: QMimeData, action, row: int, column: int, parent: QModelIndex):
+    #
+    #     parentNode = self.index2node(parent)
+    #     if isinstance(parentNode, QgsLayerTreeGroup) and parentNode.customProperty(KEY_LOCKED_LAYER,
+    #                                                                                defaultValue=False):
+    #         return False
+    #
+    #     if data.hasUrls():
+    #         return True
+    #     if 'application/x-vnd.qgis.qgis.uri' in data.formats():
+    #         return True
+    #     else:
+    #         return super().canDropMimeData(data, action, row, column, parent)
+    #
+    def dropMimeData(self, mimeData: QMimeData, action, row: int, column: int, parentIndex: QModelIndex):
+
+        parentNode = self.index2node(parentIndex)
+        if isinstance(parentNode, QgsLayerTreeGroup) and parentNode.customProperty(KEY_LOCKED_LAYER,
+                                                                                   defaultValue=False):
+            return False
+
+        assert isinstance(mimeData, QMimeData)
+
+        if not parentIndex.isValid():
+            return False
+
+        if mimeData.hasUrls():
+            s = ""
+
+        return super().dropMimeData(mimeData, action, row, column, parentIndex)
 
 
 class MapViewExpressionContextGenerator(QgsExpressionContextGenerator):
@@ -957,8 +1021,11 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
             # ------
             menu.addSeparator()
             # Styles...
-            menu.addAction(eotsv.actionPasteLayerStyle())
-            menu.addAction(eotsv.actionCopyLayerStyle())
+            a: QAction = eotsv.actionPasteLayerStyle()
+
+            menu.addAction(a)
+            a: QAction = eotsv.actionCopyLayerStyle()
+            menu.addAction(a)
 
             # Properties
             menu.addSeparator()
@@ -1477,7 +1544,7 @@ class MapWidget(QFrame):
                                     c.stretchToCurrentExtent(layer=lyr)
 
                                     dt = datetime.datetime.now() - t0
-                                    print(f'# stretch time:{dt.total_seconds(): 0.2f}s')
+                                    # print(f'# stretch time:{dt.total_seconds(): 0.2f}s')
 
                                     proxyLayer.setCustomProperty(SensorInstrument.PROPERTY_KEY_STYLE_INITIALIZED, True)
             self.mMapRefreshBlock = False
