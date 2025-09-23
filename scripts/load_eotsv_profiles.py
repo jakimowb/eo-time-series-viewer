@@ -19,16 +19,18 @@ Example:
 """
 import argparse
 import concurrent.futures
-import datetime
 import json
 import os
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import List, Union, Tuple, Optional
 
 from osgeo import gdal, ogr, osr
 from osgeo.gdal import Dataset
 from osgeo.ogr import OGRERR_NONE
+
+from eotimeseriesviewer.qgispluginsupport.qps.qgsrasterlayerproperties import QgsRasterLayerSpectralProperties
 
 gdal.UseExceptions()
 ogr.UseExceptions()
@@ -90,47 +92,148 @@ def sensorID(nb: int,  # number of bands
     return json.dumps(jsonDict, ensure_ascii=False)
 
 
-def read_timestamp_default(ds: gdal.Dataset) -> datetime.datetime:
-    """
-    Reads the observation time stamp from a gdal raster dataset.
-    If not defined in the metadata, it tries to extract it from the filename or parent
-    folder name, if available.
-    :param ds:
-    :return: datetime.datetime
-    """
-    pass
+rxDTGKey = re.compile(r'(acquisition|observation)[ _]*(time|date|datetime)', re.IGNORECASE)
+
+# date-time formats supported to read
+# either as fmt = datetime.strptime format code, or
+# or (fmt, rx), with rx being the regular expression to extract the part to be parsed with fmt
+# regex needs to define a group called 'dtg' that can be extracted with match.group('dtg')
+DATETIME_FORMATS = [
+    # Landsat Scene ID
+    ('%Y%j', re.compile(r'L[COTEM][45789]\d{3}\d{3}(?P<dtg>\d{4}\d{3})[A-Z]{2}[A-Z1]\d{2}')),
+
+    # RapidEye
+    ('%Y%m%d', re.compile(r'(?P<dtg>\d{8})')),
+    ('%Y-%m-%d', re.compile(r'(?P<dtg>\d{4}-\d{2}-\d{2})')),
+    ('%Y/%m/%d', re.compile(r'(?P<dtg>\d{4}/\d{2}/\d{2})')),
+
+    # FORCE outputs
+    ('%Y%m%d', re.compile(r'(?P<dtg>\d{8})_LEVEL\d_.+_(BOA|QAI|DST|HOT|VZN)')),
+]
 
 
-def read_wavelengths_default(ds: gdal.Dataset) -> Tuple[List[float], str]:
+def datetimeFromString(text: str) -> Optional[datetime]:
     """
-    Returns the wavelengths per raster band and wavelength unit from a gdal raster dataset.
+    Reads a datetime from a string.
     """
-    s = ""
-    pass
-    wlu = 'um'
-    wl = []
-    for b in range(ds.RasterCount):
-        band: gdal.Band = ds.GetRasterBand(b + 1)
-        wl.append(band.GetMetadataItem('wavelengths'))
-    return wl, wlu
+
+    # 1. try to parse ISO datetime
+    try:
+        return datetime.fromisoformat(text)
+    except (ValueError, AttributeError):
+        pass
+
+    # 2. try to parse other formats
+    for fmt in DATETIME_FORMATS:
+        try:
+            if isinstance(fmt, str):
+                return datetime.strptime(text, fmt)
+
+            elif isinstance(fmt, tuple):
+                fmt, rx = fmt
+                if match := rx.search(text):
+                    return datetime.strptime(match.group('dtg'), fmt)
+        except (ValueError, AttributeError) as ex:
+            s = ""
+    return None
 
 
-def dataset_info(ds: gdal.Dataset,
-                 f_wl=read_wavelengths_default,
-                 f_dtg=read_timestamp_default) -> Optional[dict]:
+class SourceInfoCreator(object):
+
+    @classmethod
+    def dataset(cls, uri: Union[Path, str]) -> gdal.Dataset:
+        """
+        Returns a gdal dataset from a URI.
+        """
+        uri = str(uri)
+        return gdal.Open(uri)
+
+    @classmethod
+    def wavelength_info(cls, ds: gdal.Dataset) -> Tuple[Optional[List[float]], Optional[str]]:
+        """
+        Returns the wavelengths for each raster band and the
+        corresponding wavelength unit.
+        """
+        s = ""
+
+        # 1. test of GDAL-style wavelength definition
+        wlu = 'um'
+        wl = []
+        
+        for b in range(ds.RasterCount):
+            band: gdal.Band = ds.GetRasterBand(b + 1)
+            wl.append(band.GetMetadataItem('CENTRAL_WAVELENGTH_UM', 'IMAGERY'))
+        if any(wl):
+            return wlu, wl
+
+        # 2. test ENVI header style definitions
+        wlu = ds.GetMetadataItem('wavelength_unit', 'ENVI')
+        wl = ds.GetMetadataItem('wavelengths', 'ENVI')
+
+        # 3. check per-band definitions, very generic
+        s = ""
+        p = QgsRasterLayerSpectralProperties.fromGDALDataset(ds)
+
+        s = ""
+        return None, None
+
+    @classmethod
+    def datetime(cls, ds: gdal.Dataset) -> Optional[datetime]:
+
+        # 1. search in well-known metadata domains
+        domain_keys = [
+            ('IMAGE_STRUCTURE', 'ACQUISITIONDATETIME'),
+            ('ENVI', 'ACQUISITIONDATETIME'),
+            ('FORCE', ''),
+        ]
+
+        for (domain, key) in domain_keys:
+            value = ds.GetMetadataItem(key, domain)
+            if isinstance(value, str):
+                dtg = datetimeFromString(value)
+                if isinstance(dtg, datetime):
+                    return dtg
+
+        # 2. search in filenames
+        filenames = ds.GetFileList()
+        if len(filenames) > 0:
+            path = Path(filenames[0])
+
+            if dtg := datetimeFromString(path.name):
+                return dtg
+
+            if dtg := datetimeFromString(path.parent.name):
+                return dtg
+        return None
+
+
+def dataset_info(uri: str,
+                 info_creator=SourceInfoCreator) -> Optional[dict]:
     """
     Reads the sensor ID from a raster dataset:
     :param ds:
     :return:
     """
-    timestamp = f_dtg(ds)
-    wl, wlu = f_wl(ds)
 
-    assert isinstance(timestamp, datetime.datetime)
+    ds: gdal.Dataset = info_creator.dataset(uri)
+    if not isinstance(ds, gdal.Dataset):
+        return None
+
+    timestamp = info_creator.datetime(ds)
+    if not isinstance(timestamp, datetime):
+        return None
+
+    wl, wlu = info_creator.wavelength_info(ds)
 
     nb = ds.RasterCount
     dt = ds.GetRasterBand(1)
-    px_x = px_y = None
+
+    trans = gdal.Transformer(ds, None, [])
+    x1, y1 = trans.TransformPoint(False, 0, 0)
+    x2, y2 = trans.TransformPoint(False, 1, 1)
+    px_x = abs(x2 - x1)
+    px_y = abs(y2 - y1)
+
     sid: str = sensorID(nb, px_x, px_y, dt, wl, wlu)
 
     nodata = [ds.GetRasterBand(b + 1).GetNoDataValue() for b in range(nb)]
@@ -148,6 +251,9 @@ def read_profiles_from_files(files, points: dict, srs_wkt: str):
     results = []
     srs = osr.SpatialReference()
     srs.ImportFromWkt(srs_wkt)
+    # get Lat Lon coordinates in Lon Lat / x y order
+    srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+
     assert isinstance(srs, osr.SpatialReference)
     assert srs.Validate() == OGRERR_NONE, f'Invalid SRS: {srs_wkt}'
 
@@ -180,19 +286,14 @@ def read_profiles_from_files(files, points: dict, srs_wkt: str):
 
         r_srs = ds.GetSpatialRef()
         r_wkt = r_srs.ExportToWkt()
-        revers_axes = r_srs.GetAxisMappingStrategy() != srs.GetDataAxisToSRSAxisMapping()
+
         if r_wkt not in POINTS2SRS:
             # transform points to raster SRS
             trans = osr.CoordinateTransformation(srs, r_srs)
             points_transformed = dict()
 
             for fid, point in points.items():
-
-                if revers_axes:
-                    pt = trans.TransformPoint(point[1], point[0])
-                else:
-                    pt = trans.TransformPoint(*point)
-                points_transformed[fid] = pt
+                points_transformed[fid] = trans.TransformPoint(*point)
 
             # keep transformed points in memory.
             # we don't want to re-transform them for each raster file'

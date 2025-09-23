@@ -1,9 +1,10 @@
+import datetime
 from unittest import TestCase
 
-from osgeo import ogr
+from osgeo import ogr, gdal
 
 import example
-from scripts.load_eotsv_profiles import main, read_profiles_from_files, points_info
+from scripts.load_eotsv_profiles import main, read_profiles_from_files, points_info, SourceInfoCreator
 
 
 class TestGDALProfileLoading(TestCase):
@@ -31,3 +32,23 @@ class TestGDALProfileLoading(TestCase):
         results = read_profiles_from_files(files, pts, srs_wkt)
 
         self.assertIsInstance(results, dict)
+
+    def test_read_sensorinfo(self):
+        creator = SourceInfoCreator
+
+        ds = creator.dataset(example.exampleLandsat8)
+        self.assertIsInstance(ds, gdal.Dataset)
+
+        wl, wlu = creator.wavelength_info(ds)
+
+        self.assertIsInstance(wl, list)
+        self.assertIsInstance(wlu, str)
+
+        dtg = creator.datetime(ds)
+
+        self.assertIsInstance(dtg, datetime.datetime)
+
+    def test_datetimeFromString(self):
+        examples = []
+
+        s = ""
