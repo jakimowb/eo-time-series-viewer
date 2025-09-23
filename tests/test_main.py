@@ -80,7 +80,7 @@ class TestMain(EOTSVTestCase):
         self.taskManagerProcessEvents()
         TSV = EOTimeSeriesViewer()
 
-        # TSV.loadExampleTimeSeries(loadAsync=True)
+        TSV.loadExampleTimeSeries(loadAsync=True)
         self.taskManagerProcessEvents()
 
         self.showGui(TSV.ui)
