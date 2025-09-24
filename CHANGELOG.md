@@ -1,8 +1,21 @@
 # Changelog
 
+## EOTSV 2.2 (2025-09-25)
+
+* faster and asynchronous loading of time series sources
+  [issue #27](https://github.com/jakimowb/eo-time-series-viewer/issues/27)
+* faster and asynchronous loading of time series raster images
+  [issue #31](https://github.com/jakimowb/eo-time-series-viewer/issues/31)
+* faster and asynchronous loading of temporal profiles
+* initial raster stretch is taken from 1st sensor raster
+* added `scripts/load_eotsv_profiles.py` to load temporal profiles
+  without having QGIS API install
+* refactoring context menu entries
+* preview for python-code band index expressions
+
 ## EOTSV 2.1 (2025-06-05)
 
-* added map region window to temporal profile plot
+* added a map region window to the temporal profile plot
 * revised quick labeling tools
 * revised documentation, added more animated gifs
 * temporal profile plot: fixed band matching, added quick label shortcuts
@@ -21,9 +34,9 @@
       from https://github.com/awesome-spectral-indices/awesome-spectral-indices
 
 * revised of EO Time Series Viewer Settings
-    * settings are now stored in QGIS settings dialog
-    * allows to define number of parallel reading threads
-    * allows to define shortcuts to visualize spectral indices in TP tool
+    * settings are now stored in the QGIS settings dialog
+    * allows defining number of parallel reading threads
+    * allows defining shortcuts to visualize spectral indices in the Temporal Profile tool
 
 * revised of Quick Labeling
     * added customized quick label values that allow to define new values using a QGIS expression
