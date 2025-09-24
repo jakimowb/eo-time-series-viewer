@@ -18,7 +18,6 @@
  *                                                                         *
  ***************************************************************************/
 """
-import datetime
 import enum
 import logging
 import math
@@ -1509,45 +1508,36 @@ class MapWidget(QFrame):
 
         return self.crs()
 
-    def timedRefresh(self) -> bool:
+    def timedRefresh(self, load_async: Optional[bool] = None) -> bool:
         """
         Calls the timedRefresh() routine for all MapCanvases
         """
         if self.mMapRefreshBlock:
             return False
+            pass
 
-        with Lock() as lock:
-            # print('# TIMED REFRESH')
-            self.mMapRefreshBlock = True
-            # with MapWidgetTimedRefreshBlocker(self):
+        if load_async is None:
+            load_async = EOTSVSettingsManager.settings().qgsTaskAsync is True
 
-            if self.mSyncQGISMapCanvasCenter:
-                self.syncQGISCanvasCenter()
+        self.mMapRefreshBlock = True
+        try:
+            with Lock() as lock:
 
-            canvases = self.mapCanvases()
+                # print('# TIMED REFRESH')
 
-            for c in canvases:
-                c.timedRefresh()
+                # with MapWidgetTimedRefreshBlocker(self):
 
-            for mapView in self.mapViews():
-                # test for initial raster stretches
-                for proxyLayer in mapView.sensorProxyLayers():
-                    if proxyLayer.customProperty(SensorInstrument.PROPERTY_KEY_STYLE_INITIALIZED, defaultValue=False):
-                        continue
+                if self.mSyncQGISMapCanvasCenter:
+                    self.syncQGISCanvasCenter()
 
-                    sid = proxyLayer.customProperty(SensorInstrument.PROPERTY_KEY)
-                    for c in mapView.mapCanvases():
-                        if isinstance(c.tsd(), TimeSeriesDate) and c.tsd().sensor().id() == sid:
-                            for lyr in c.layers():
-                                if sensor_id(lyr) == sid:
-                                    t0 = datetime.datetime.now()
-                                    c.stretchToCurrentExtent(layer=lyr)
+                canvases = self.mapCanvases()
 
-                                    dt = datetime.datetime.now() - t0
-                                    # print(f'# stretch time:{dt.total_seconds(): 0.2f}s')
+                for c in canvases:
+                    c.timedRefresh(load_async=load_async)
 
-                                    proxyLayer.setCustomProperty(SensorInstrument.PROPERTY_KEY_STYLE_INITIALIZED, True)
-            self.mMapRefreshBlock = False
+        except Exception as ex:
+            logger.exception(str(ex))
+        self.mMapRefreshBlock = False
         return True
 
     def layers(self) -> List[QgsMapLayer]:

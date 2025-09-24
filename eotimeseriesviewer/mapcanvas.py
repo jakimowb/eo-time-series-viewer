@@ -52,7 +52,7 @@ from .qgispluginsupport.qps.maptools import CursorLocationMapTool, FullExtentMap
     PixelScaleExtentMapTool, QgsMapToolAddFeature, QgsMapToolSelect, QgsMapToolSelectionHandler
 from .qgispluginsupport.qps.qgisenums import QGIS_RASTERBANDSTATISTIC
 from .qgispluginsupport.qps.utils import filenameFromString, findParent, SpatialExtent, SpatialPoint
-from .sensors import has_sensor_id, sensor_id, SensorMockupDataProvider
+from .sensors import has_sensor_id, sensor_id, SensorMockupDataProvider, SensorInstrument
 from .settings.settings import EOTSVSettingsManager
 from .timeseries.source import TimeSeriesDate, TimeSeriesSource
 from .utils import copyMapLayerStyle, layerStyleString, setLayerStyleString
@@ -676,10 +676,11 @@ class MapCanvas(QgsMapCanvas):
     def onSourceLayerLoaded(self, success, task):
 
         if success:
+            layers_old = self.layers()
             legend_layers_old = {}
-            for lyr in self.layers():
-                if llid := lyr.customProperty(KEY_LEGEND_LAYER_ID, defaultValue=None):
-                    legend_layers_old[llid].setdefault(llid, []).append(lyr)
+            for legend_lyr in layers_old:
+                if llid := legend_lyr.customProperty(KEY_LEGEND_LAYER_ID, defaultValue=None):
+                    legend_layers_old.setdefault(llid, []).append(legend_lyr)
 
             legend_layers_new = {}
             for r in task.mResults:
@@ -690,14 +691,34 @@ class MapCanvas(QgsMapCanvas):
                 legend_layers_new[llid] = lyr_list
 
             layers_new = []
-            for lyr in self.legendLayers():
-                llid = lyr.id()
+            for legend_lyr in self.legendLayers():
+                llid = legend_lyr.id()
+
+                # stretch initialized?
+                style = None
+                if legend_lyr.customProperty(SensorInstrument.PROPERTY_KEY_STYLE_INITIALIZED, defaultValue=False):
+                    style = layerStyleString(legend_lyr)
+
                 # add new-loaded layers
                 for l in legend_layers_new.get(llid, []):
                     l: QgsMapLayer
+
+                    # initialize layer style
+                    if isinstance(l, QgsRasterLayer) and style is None:
+                        # optimize layer style
+                        self.stretchToExtent(layer=l)
+                        style = layerStyleString(l)
+                        setLayerStyleString(legend_lyr, style)
+                        legend_lyr.setCustomProperty(SensorInstrument.PROPERTY_KEY_STYLE_INITIALIZED, True)
+                    if style:
+                        setLayerStyleString(l, style)
+
                     l.styleChanged.connect(self.onSetMasterLayerStyle)
                     l.setCustomProperty(KEY_SOURCE_ID, source_id(l))
                     l.setCustomProperty(KEY_LEGEND_LAYER_ID, llid)
+
+                    # add the legen layer style
+
                     layers_new.append(l)
 
                 # add already loaded layers relating to this legend layer
@@ -706,7 +727,8 @@ class MapCanvas(QgsMapCanvas):
             for l in self.layers():
                 if l not in layers_new:
                     s = ""
-            self.setLayers(layers_new + self.layers())
+            if layers_old != layers_new:
+                self.setLayers(layers_new)
         LoadMapCanvasLayers.removeTask(task)
         # if task in self.mTasks:
         #    del self.mTasks[self.mTasks.index(task)]
@@ -723,15 +745,16 @@ class MapCanvas(QgsMapCanvas):
         else:
             return mapView.visibleLayers()
 
-    def timedRefresh(self) -> bool:
+    def timedRefresh(self, load_async: bool = True) -> bool:
         """
         Called to refresh the map canvas with all things needed to be done.
         This method is used to process the tasks in the refresh pipeline and to update the layer tree, based on the
         time series date and map view this canvas is connected with.
         """
-        if self.mMapRefreshBlock:
-            return False
+        # if self.mMapRefreshBlock:
+        #    return False
 
+        self.mIsRefreshing = True
         with Lock() as lock:
             self.mMapRefreshBlock = True
             # with MapWidgetTimedRefreshBlocker(self) as blocker:
@@ -751,6 +774,7 @@ class MapCanvas(QgsMapCanvas):
                 self.setLayers([])
                 self.mInfoItem.clearInfoText()
                 # self.update()
+                self.mMapRefreshBlock = False
                 return False
 
             sensor: SensorInstrument = self.tsd().sensor()
@@ -802,9 +826,11 @@ class MapCanvas(QgsMapCanvas):
                         canvas_layer_new.append(legend_lyr)
 
             # set layers that are already available
-            if self.layers() != canvas_layer_new:
-                self.setLayers(canvas_layer_new)
-
+            try:
+                if self.layers() != canvas_layer_new:
+                    self.setLayers(canvas_layer_new)
+            except Exception as e:
+                s = ""
             # load missing source layers in another thread
             if len(source_requests) > 0:
                 task = LoadMapCanvasLayers(source_requests)
@@ -813,12 +839,12 @@ class MapCanvas(QgsMapCanvas):
                 task.setDescription(f'Load {self.tsd().dtgString()}')
                 # task.taskCompleted.connect(self.onSourceLayerLoaded)
 
-                if True:
-                    task.run_serial()
-                else:
+                if load_async:
                     LoadMapCanvasLayers.addTask(task)
                     QgsApplication.taskManager().addTask(task)
-                s = ""
+                else:
+                    task.run_serial()
+
         self.mMapRefreshBlock = False
         return True
 
