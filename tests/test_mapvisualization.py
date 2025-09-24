@@ -16,6 +16,7 @@
 *                                                                         *
 ***************************************************************************
 """
+import logging
 import os
 import unittest
 from datetime import datetime
@@ -46,6 +47,8 @@ from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
 from eotimeseriesviewer.tests import EOTSVTestCase, example_raster_files, start_app, TestObjects
 from eotimeseriesviewer.tests import FORCE_CUBE
 from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
+
+logger = logging.getLogger(__name__)
 
 start_app()
 
@@ -186,7 +189,7 @@ class TestMapVisualization(EOTSVTestCase):
         ]
 
         task = LoadMapCanvasLayers(raster_sources)
-        task.executed.connect(onExecuted)
+        task.setCallback(onExecuted)
         task.run_task_manager()
 
         for result in task.mResults:

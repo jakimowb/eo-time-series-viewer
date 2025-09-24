@@ -2,6 +2,7 @@ import itertools
 import json
 from typing import Any, Dict, List, Optional, Union
 
+from qgis.PyQt.QtCore import QObject
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
 from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, \
     QPixmap, QStandardItem, QStandardItemModel
@@ -149,6 +150,12 @@ class ActionItem(QStandardItem):
 
 
 class PythonCodeItem(PropertyItem):
+    class Signals(QObject):
+
+        validationRequest = pyqtSignal(dict)
+
+        def __init__(self, *args, **kwds):
+            super().__init__(*args, **kwds)
 
     def __init__(self, *args, **kwds):
 
@@ -157,11 +164,12 @@ class PythonCodeItem(PropertyItem):
         self.setEditable(True)
         self.mPythonExpression = 'b(1)'
         self.mIsValid: bool = True
+        self.signals = PythonCodeItem.Signals()
 
     def createEditor(self, parent):
         w = FieldPythonExpressionWidget(parent=parent)
         w.setExpression(self.mPythonExpression)
-        # w.validationRequest.connect(self.signals().validationRequest)
+        w.validationRequest.connect(self.signals.validationRequest.emit)
         return w
 
     def data(self, role: int = ...) -> Any:
@@ -750,6 +758,7 @@ class TPVisSensor(PropertyItemGroup):
         self.mPSymbol.label().setIcon(QIcon(':/images/themes/default/propertyicons/stylepreset.svg'))
 
         self.mPBand = PythonCodeItem('Band')
+        self.mPBand.signals.validationRequest.connect(self.validate_sensor_band)
         self.mPBand.setToolTip('Band or spectral index to display.')
         self.mPBand.setText('b(1)')
         self.mPBand.setEditable(True)

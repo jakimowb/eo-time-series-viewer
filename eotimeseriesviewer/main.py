@@ -1399,28 +1399,31 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         assert isinstance(spatialPoint, SpatialPoint)
 
-        bCLV = self.ui.optionIdentifyCursorLocation.isChecked()
-        bSP = self.ui.optionIdentifySpectralProfile.isChecked()
-        bTP = self.ui.optionIdentifyTemporalProfile.isChecked()
-        bCenter = self.ui.optionMoveCenter.isChecked()
+        try:
+            bCLV = self.ui.optionIdentifyCursorLocation.isChecked()
+            bSP = self.ui.optionIdentifySpectralProfile.isChecked()
+            bTP = self.ui.optionIdentifyTemporalProfile.isChecked()
+            bCenter = self.ui.optionMoveCenter.isChecked()
 
-        self.mCurrentMapLocation = spatialPoint
+            self.mCurrentMapLocation = spatialPoint
 
-        if isinstance(mapCanvas, QgsMapCanvas):
-            self.sigCurrentLocationChanged[QgsCoordinateReferenceSystem, QgsPointXY, QgsMapCanvas].emit(
-                self.mCurrentMapLocation.crs(), self.mCurrentMapLocation, mapCanvas)
+            if isinstance(mapCanvas, QgsMapCanvas):
+                self.sigCurrentLocationChanged[QgsCoordinateReferenceSystem, QgsPointXY, QgsMapCanvas].emit(
+                    self.mCurrentMapLocation.crs(), self.mCurrentMapLocation, mapCanvas)
 
-            if bCLV:
-                self.loadCursorLocationValueInfo(spatialPoint, mapCanvas)
+                if bCLV:
+                    self.loadCursorLocationValueInfo(spatialPoint, mapCanvas)
 
-            if bCenter:
-                mapCanvas.setCenter(spatialPoint.toCrs(mapCanvas.mapSettings().destinationCrs()))
+                if bCenter:
+                    mapCanvas.setCenter(spatialPoint.toCrs(mapCanvas.mapSettings().destinationCrs()))
 
-            if bSP:
-                self.loadCurrentSpectralProfile(spatialPoint, mapCanvas)
+                if bSP:
+                    self.loadCurrentSpectralProfile(spatialPoint, mapCanvas)
 
-        if bTP:
-            self.loadCurrentTemporalProfile(spatialPoint)
+            if bTP:
+                self.loadCurrentTemporalProfile(spatialPoint)
+        except Exception as e:
+            print(e)
 
         self.sigCurrentLocationChanged[QgsCoordinateReferenceSystem, QgsPointXY].emit(
             self.mCurrentMapLocation.crs(),

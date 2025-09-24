@@ -383,6 +383,7 @@ def read_profiles(files: List,
             continue
         # convert to ISO format string
         dtg = dtg.isoformat()
+
         # remove trailing zeros to keep the json short
         dtg = re.sub(r'T00(:00)*$', '', dtg)
 

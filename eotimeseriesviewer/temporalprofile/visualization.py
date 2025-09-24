@@ -26,9 +26,6 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from osgeo import osr
-
-from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from qgis.PyQt.QtCore import QMetaObject
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QItemSelectionModel, QModelIndex, QObject, \
     QPoint, Qt
@@ -38,6 +35,9 @@ from qgis.core import QgsApplication, QgsCoordinateTransform, QgsExpression, Qgs
     QgsExpressionContextUtils, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsMapLayer, QgsPointXY, \
     QgsProject, QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
 from qgis.gui import QgsDockWidget, QgsFilterLineEdit
+
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from .datetimeplot import DateTimePlotDataItem, DateTimePlotWidget
 from .plotsettings import PlotSettingsProxyModel, PlotSettingsTreeModel, PlotSettingsTreeView, \
     PlotSettingsTreeViewDelegate, TPVisGroup
@@ -444,32 +444,36 @@ class TemporalProfileVisualization(QObject):
 
         if not isinstance(task, LoadTemporalProfileTask):
             return
+
         if success:
-            # where should we add the profiles to?
-            taskInfo = task.info()
-            lid = taskInfo.get('lid')
-            field = taskInfo.get('field')
-            fids = taskInfo.get('fids')
+            try:
+                # where should we add the profiles to?
+                taskInfo = task.info()
+                lid = taskInfo.get('lid')
+                field = taskInfo.get('field')
+                fids = taskInfo.get('fids')
 
-            any_change = False
-            lyr = self.project().mapLayer(lid)
-            if isinstance(lyr, QgsVectorLayer):
-                with doEdit(lyr):
-                    i_field = lyr.fields().lookupField(field)
-                    if i_field >= 0:
-                        all_fids = lyr.allFeatureIds()
-                        for fid, profile in zip(fids, task.profiles()):
-                            if fid in all_fids:
-                                changed = lyr.changeAttributeValue(fid, i_field, profile)
-                                if not changed:
-                                    print(lyr.error())
-                                    break
-                                else:
-                                    any_change = True
-            if any_change:
-                self.updatePlot()
+                any_change = False
+                lyr = self.project().mapLayer(lid)
+                if isinstance(lyr, QgsVectorLayer):
+                    with doEdit(lyr):
+                        i_field = lyr.fields().lookupField(field)
+                        if i_field >= 0:
+                            all_fids = lyr.allFeatureIds()
+                            for fid, profile in zip(fids, task.profiles()):
+                                if fid in all_fids:
+                                    changed = lyr.changeAttributeValue(fid, i_field, profile)
+                                    if not changed:
+                                        print(lyr.error())
+                                        break
+                                    else:
+                                        any_change = True
+                if any_change:
+                    self.updatePlot()
 
-            logger.debug(f'Loaded temporal profile: {task.info()}')
+                logger.debug(f'Loaded temporal profile: {task.info()}')
+            except Exception as ex:
+                logger.warning(f'Failed to load temporal profile: {ex}\n{task.info()}')
 
         s = ""
 

@@ -13,13 +13,6 @@ from uuid import uuid4
 import numpy as np
 from osgeo import gdal, osr
 from osgeo.ogr import OGRERR_NONE
-
-from eotimeseriesviewer.dateparser import ImageDateUtils
-from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
-from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
-from eotimeseriesviewer.sensors import sensor_id, create_sensor_id
-from eotimeseriesviewer.spectralindices import spectral_index_acronyms, spectral_indices
-from eotimeseriesviewer.tasks import EOTSVTask
 from qgis.PyQt.QtCore import NULL, pyqtSignal, QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
@@ -29,6 +22,13 @@ from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoo
     QgsVectorLayer
 from qgis.gui import QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper, \
     QgsGui
+
+from eotimeseriesviewer.dateparser import ImageDateUtils
+from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
+from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
+from eotimeseriesviewer.sensors import sensor_id, create_sensor_id
+from eotimeseriesviewer.spectralindices import spectral_index_acronyms, spectral_indices
+from eotimeseriesviewer.tasks import EOTSVTask
 
 logger = logging.getLogger(__name__)
 
@@ -788,6 +788,10 @@ class LoadTemporalProfileSubTask(QgsTask):
             if not dtg:
                 return None, f'Unable to load date-time from {source}'
             dtg = dtg.toString(Qt.ISODate)
+
+            # remove trailing zeros to keep the json short
+            dtg = re.sub(r'T00(:00)*$', '', dtg)
+
             # self.mdCache[lyr.source()] = (sid, dtg)
 
             srs_raster = ds.GetSpatialRef()

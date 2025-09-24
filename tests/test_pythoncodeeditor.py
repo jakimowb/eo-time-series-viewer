@@ -17,11 +17,11 @@ class PythonCodeEditorTestCases(EOTSVTestCase):
 
         # w.setCode('b(1)')
         # w.setHelpText('<h1>This is a help text</h1>')
-        txt = '<b><span style="color:red">code changed</span></b>'
+        txt = '<b><span style="color:red">code changed:</span></b>'
         tt = 'More info on code status'
 
         def onCodeChanged(d: dict):
-            d['preview_text'] = txt
+            d['preview_text'] = txt + d['expression']
             d['preview_tooltip'] = tt
 
         w.validationRequest.connect(onCodeChanged)
