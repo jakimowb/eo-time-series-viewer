@@ -26,6 +26,9 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from osgeo import osr
+
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from qgis.PyQt.QtCore import QMetaObject
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QItemSelectionModel, QModelIndex, QObject, \
     QPoint, Qt
@@ -35,9 +38,6 @@ from qgis.core import QgsApplication, QgsCoordinateTransform, QgsExpression, Qgs
     QgsExpressionContextUtils, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsMapLayer, QgsPointXY, \
     QgsProject, QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
 from qgis.gui import QgsDockWidget, QgsFilterLineEdit
-
-from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from .datetimeplot import DateTimePlotDataItem, DateTimePlotWidget
 from .plotsettings import PlotSettingsProxyModel, PlotSettingsTreeModel, PlotSettingsTreeView, \
     PlotSettingsTreeViewDelegate, TPVisGroup
@@ -342,12 +342,21 @@ class TemporalProfileVisualization(QObject):
                 and TemporalProfileUtils.isProfileField(layer.fields()[field])):
             return False
 
-        trans = QgsCoordinateTransform(point.crs(), layer.crs(), QgsProject.instance())
+        crs_pt = point.crs()
+        crs_lyr = layer.crs()
+
+        trans = QgsCoordinateTransform(crs_pt, crs_lyr, QgsProject.instance())
         if not trans.isValid():
+            logger.error(f'Unable to get valid QgsCoordinateTransform: {trans}')
+            # try with GDAL
             srs_src = osr.SpatialReference()
             srs_dst = osr.SpatialReference()
-            srs_src.ImportFromWkt(point.crs().asWkt())
-            logger.error(f'Unable to get valid QgsCoordinateTransform: {trans}')
+
+            srs_src.ImportFromWkt(crs_pt.toWkt())
+            srs_dst.ImportFromWkt(crs_lyr.toWkt())
+
+            s = ""
+
             return False
         point = point.toCrs(layer.crs())
         if not isinstance(point, SpatialPoint):

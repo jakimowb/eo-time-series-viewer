@@ -7,11 +7,13 @@
 * faster and asynchronous loading of time series raster images
   [issue #31](https://github.com/jakimowb/eo-time-series-viewer/issues/31)
 * faster and asynchronous loading of temporal profiles
-* initial raster stretch is taken from 1st sensor raster
+* the initial raster stretch is taken from the 1st sensor raster
 * added `scripts/load_eotsv_profiles.py` to load temporal profiles
   without having QGIS API install
 * refactoring context menu entries
 * preview for python-code band index expressions
+* (experimental) user functions allow creating additional profiles
+  that are derived temporal profiles
 
 ## EOTSV 2.1 (2025-06-05)
 
