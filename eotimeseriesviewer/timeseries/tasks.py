@@ -194,7 +194,8 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
         """
         if description is None:
             if isinstance(date_of_interest, QDateTime):
-                description = f'Find image overlap ({date_of_interest.toString('yyyy-MM-dd')})'
+                s = date_of_interest.toString('yyyy-MM-dd')
+                description = f'Find image overlap ({s})'
             else:
                 description = 'Find image overlap'
 

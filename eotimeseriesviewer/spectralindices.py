@@ -1,8 +1,8 @@
 import json
 from typing import List, Set
 
-from qgis.PyQt.QtCore import QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Qt
 from eotimeseriesviewer import DIR_REPO
+from qgis.PyQt.QtCore import QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Qt
 
 INDICES = dict()
 CONSTANTS = dict()
@@ -493,11 +493,11 @@ class SpectralIndexModel(QAbstractTableModel):
         if role == Qt.ToolTipRole:
             uri = sidx.get('reference')
             tt = [
-                f'<b>{sidx.get('short_name')}</b>',
-                f'<i>{sidx.get('long_name')}</i>',
-                f'Formula: {sidx.get('formula')}',
-                f'Domain: {sidx.get('domain')}',
-                f'Platforms: {",".join(sidx.get('platforms'))}',
+                f'<b>{sidx.get("short_name")}</b>',
+                f'<i>{sidx.get("long_name")}</i>',
+                f'Formula: {sidx.get("formula")}',
+                f'Domain: {sidx.get("domain")}',
+                f'Platforms: {",".join(sidx.get("platforms"))}',
                 f'Reference: <a href="{uri}">{uri}</a>',
             ]
             return '<br>'.join(tt)

@@ -308,7 +308,7 @@ class TestTemporalProfilesV2(EOTSVTestCase):
                 profiles = p
             else:
                 self.assertEqual(profiles, p)
-            print(f'{result['loader']} {result['n_threads']} {result['duration']}')
+            print(f"{result['loader']} {result['n_threads']} {result['duration']}")
 
     @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Live testing only')
     def test_temp_profile_loading(self):
