@@ -2,17 +2,6 @@ import itertools
 import json
 from typing import Any, Dict, List, Optional, Union
 
-from qgis.PyQt.QtCore import QObject
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
-from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, \
-    QPixmap, QStandardItem, QStandardItemModel
-from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QHeaderView, QMenu, QStyle, QStyledItemDelegate, \
-    QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
-from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
-    QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsGeometry, QgsProject, QgsProperty, \
-    QgsPropertyDefinition, QgsVectorLayer
-from qgis.gui import QgsFieldExpressionWidget
-
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, \
     PlotStyleDialog, PlotStyleWidget
@@ -26,6 +15,16 @@ from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
 from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileLayerFieldComboBox, TemporalProfileUtils
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
+from qgis.PyQt.QtCore import QObject
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
+from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, \
+    QPixmap, QStandardItem, QStandardItemModel
+from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QHeaderView, QMenu, QStyle, QStyledItemDelegate, \
+    QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
+from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
+    QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsGeometry, QgsProject, QgsProperty, \
+    QgsPropertyDefinition, QgsVectorLayer
+from qgis.gui import QgsFieldExpressionWidget
 
 
 class StyleItem(PlotStyleItem):
@@ -1190,6 +1189,15 @@ class PlotSettingsTreeView(QTreeView):
         for i in code_items:
             assert isinstance(i, PythonCodeItem)
 
+        def batched(iterable, n: int):
+            """Batch data into tuples of length n. The last batch may be shorter."""
+            it = iter(iterable)
+            while True:
+                batch = tuple(itertools.islice(it, n))
+                if not batch:
+                    break
+                yield batch
+
         m: QMenu = menu.addMenu('Spectral Index')
         indices = spectral_indices()
         DOMAINS = dict()
@@ -1212,8 +1220,8 @@ class PlotSettingsTreeView(QTreeView):
             mDomain: QMenu = m.addMenu(d.title())
             mDomain.setToolTipsVisible(True)
             indices = DOMAINS[d]
-            for batch in itertools.batched(indices, 10):
-                mBatch: QMenu = mDomain.addMenu(f'{batch[0]['short_name']} - {batch[-1]['short_name']}')
+            for batch in batched(indices, 10):
+                mBatch: QMenu = mDomain.addMenu(f'{batch[0]["short_name"]} - {batch[-1]["short_name"]}')
                 mBatch.setToolTipsVisible(True)
                 for idx in batch:
                     self.addSpectralIndexAction(mBatch, idx, code_items)
@@ -1225,7 +1233,7 @@ class PlotSettingsTreeView(QTreeView):
         ln = spectral_index['long_name']
         sn = spectral_index['short_name']
         link = spectral_index.get('reference')
-        tt = f'{spectral_index['long_name']}<br>{spectral_index['formula']}<br><a href="{link}">{link}</a>'
+        tt = f'{spectral_index["long_name"]}<br>{spectral_index["formula"]}<br><a href="{link}">{link}</a>'
         a.setText(f'{sn} - {ln}')
         a.setToolTip(tt)
         a.setData(spectral_index['formula'])
