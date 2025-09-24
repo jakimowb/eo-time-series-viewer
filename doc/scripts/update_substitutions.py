@@ -202,7 +202,7 @@ class SubstituteCollection(object):
             new_lines += [f'\n\n{MSG_DO_NOT_EDIT}\n']
             for r in sorted(requested):
                 if r not in self:
-                    raise Exception(f'{path_rst}\nMissing definition for "{r}"')
+                    raise Exception(f'{path_rst}\nMissing definition for "{r}" in {path_rst}.')
                 sub = self[r]
                 rst_code = self.toRST(sub,
                                       copy_icon=True,
