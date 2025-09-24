@@ -3,15 +3,15 @@ from pathlib import Path
 from typing import Iterator, List, Optional, Tuple, Union
 
 from osgeo import gdal
-
-from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
-from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent, px2geo
-from eotimeseriesviewer.sensors import create_sensor_id, SensorInstrument
 from qgis.PyQt.QtCore import QMetaType, QPoint
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractTableModel, QDate, QDateTime, QMimeData, QModelIndex, Qt
 from qgis.core import QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, \
     QgsMimeDataUtils, QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRectangle
 from qgis.core import QgsFeature, QgsFields, QgsField, QgsCoordinateTransform, QgsProject, Qgis
+
+from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
+from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent, px2geo
+from eotimeseriesviewer.sensors import create_sensor_id, SensorInstrument
 
 
 class TimeSeriesException(Exception):
@@ -36,7 +36,7 @@ def datasetExtent(ds: gdal.Dataset) -> Tuple[QgsCoordinateReferenceSystem, QgsGe
     return crs, extent
 
 
-class TimeSeriesSource(QgsFeature):
+class TimeSeriesSource(object):
     """Provides information on source images"""
 
     MIMEDATA_FORMATS = ['text/uri-list']
@@ -112,7 +112,7 @@ class TimeSeriesSource(QgsFeature):
         assert isinstance(dtg, QDateTime) and dtg.isValid()
 
         if not isinstance(name, str):
-            name = ds.GetDescription()
+            name = Path(ds.GetDescription()).name
 
         sid = create_sensor_id(ds)
         dims = [ds.RasterCount, ds.RasterYSize, ds.RasterXSize]
@@ -213,15 +213,14 @@ class TimeSeriesSource(QgsFeature):
 
         assert isinstance(extent, QgsGeometry) and extent.isSimple()
         fields = QgsFields()
-        super().__init__(fields, hash(source))
-
+        # super().__init__(fields, hash(source))
+        self.mFeature = QgsFeature(fields, hash(source))
         # set feature geometry in EPSG:4326
         transform = QgsCoordinateTransform(crs, self.CRS, QgsProject.instance().transformContext())
         g = QgsGeometry(extent)
         assert g.transform(transform) == Qgis.GeometryOperationResult.Success
-        self.setGeometry(g)
-
-        self.setAttributes([source, name, provider, sid, dtg])
+        self.mFeature.setGeometry(g)
+        self.mFeature.setAttributes([source, name, provider, sid, dtg])
 
         self.mIsVisible: bool = True
         self.mCrs: QgsCoordinateReferenceSystem = crs
@@ -236,6 +235,9 @@ class TimeSeriesSource(QgsFeature):
 
         # will be set later
         self.mTimeSeriesDate: Optional[TimeSeriesDate] = None
+
+    def geometry(self) -> QgsGeometry:
+        return self.mFeature.geometry()
 
     def provider(self) -> str:
         return self.mProvider
@@ -362,6 +364,9 @@ class TimeSeriesSource(QgsFeature):
         :rtype:
         """
         return gdal.Open(self.mSource)
+
+    def feature(self) -> QgsFeature:
+        return self.mFeature
 
     def isVisible(self) -> bool:
         return self.mIsVisible

@@ -234,6 +234,14 @@ class TestTimeSeries(EOTSVTestCase):
 
         ts.clear()
 
+    def test_add_sources(self):
+
+        ts = TimeSeries()
+        tss = TimeSeriesSource.fromGDALDataset(example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA)
+
+        self.assertIsInstance(tss, TimeSeriesSource)
+        ts.addTimeSeriesSources([tss])
+
     def test_TimeSeriesSource(self):
 
         sources = [example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA,
@@ -246,7 +254,7 @@ class TestTimeSeries(EOTSVTestCase):
             print('Test input source: {}'.format(src))
             tss = TimeSeriesSource.create(src)
             self.assertIsInstance(tss, TimeSeriesSource)
-            self.assertIsInstance(tss, QgsFeature)
+            self.assertIsInstance(tss.feature(), QgsFeature)
             self.assertIsInstance(tss.geometry(), QgsGeometry)
             extent = tss.spatialExtent(source_crs=False)
             self.assertIsInstance(extent, SpatialExtent)

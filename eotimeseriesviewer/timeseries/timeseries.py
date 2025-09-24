@@ -160,7 +160,7 @@ class TimeSeries(QAbstractItemModel):
         self.mVisibleDates: Set[TimeSeriesDate] = set()
 
         self.mColumnNames = {
-            self.cDate: 'Date',
+            self.cDate: 'Date-Time',
             self.cSensor: 'Sensor',
             self.cNS: 'ns',
             self.cNB: 'nb',
@@ -168,7 +168,15 @@ class TimeSeries(QAbstractItemModel):
             self.cCRS: 'CRS',
             self.cImages: 'Source Image(s)'
         }
-
+        self.mColumnToolTip = {
+            self.cDate: 'Date and time of observation, grouped by sensor',
+            self.cSensor: 'Sensor or product type',
+            self.cNS: 'Number of raster samples / pixel in x direction',
+            self.cNB: 'Number of raster bands',
+            self.cNL: 'Number of raster lines / pixel in y direction',
+            self.cCRS: 'Coordinate Reference System of the raster source',
+            self.cImages: 'Source image(s) of the time series'
+        }
         self.mRootIndex = QModelIndex()
         self.mTasks = dict()
 
@@ -518,7 +526,7 @@ class TimeSeries(QAbstractItemModel):
                 tsd.sigSourcesRemoved.disconnect(self.sigSourcesRemoved)
 
                 for tss in tsd.sources():
-                    self.mSpatialIndex.deleteFeature(tss)
+                    self.mSpatialIndex.deleteFeature(tss.feature())
 
                 removed.append(tsd)
             self.endRemoveRows()
@@ -756,7 +764,7 @@ class TimeSeries(QAbstractItemModel):
         # add the source
 
         tsd.addSource(tss)
-        self.mSpatialIndex.addFeature(tss)
+        self.mSpatialIndex.addFeature(tss.feature())
         self.mLUT_Path2TSD[tss.source()] = tsd
         return newTSD
 
@@ -835,15 +843,12 @@ class TimeSeries(QAbstractItemModel):
     def headerData(self, section, orientation, role):
         assert isinstance(section, int)
 
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-
-            if len(self.mColumnNames) > section:
-                return self.mColumnNames[section]
-            else:
-                return ''
-
-        else:
-            return None
+        if orientation == Qt.Horizontal:
+            if role == Qt.DisplayRole:
+                return self.mColumnNames.get(section, str(section))
+            if role == Qt.ToolTipRole:
+                return self.mColumnToolTip.get(section, str(section))
+        return None
 
     def parent(self, index: QModelIndex) -> QModelIndex:
         """
@@ -1036,9 +1041,13 @@ class TimeSeries(QAbstractItemModel):
         c = index.column()
 
         if isinstance(node, TimeSeriesSource):
-            if role in [Qt.DisplayRole]:
+            if role in [Qt.DisplayRole, Qt.ToolTipRole]:
                 if c == self.cDate:
-                    return tss.dtg().toString(Qt.ISODate)
+                    dateStr = tss.dtg().toString(Qt.ISODate)
+                    if role == Qt.DisplayRole:
+                        return re.sub(r'T00(:00)*$', '', dateStr)
+                    else:
+                        return dateStr
                 if c == self.cImages:
                     return tss.source()
                 if c == self.cNB:
@@ -1062,7 +1071,7 @@ class TimeSeries(QAbstractItemModel):
                 return QColor('yellow')
 
         if isinstance(node, TimeSeriesDate):
-            if role in [Qt.DisplayRole]:
+            if role in [Qt.DisplayRole, Qt.ToolTipRole]:
                 if c == self.cSensor:
                     return tsd.sensor().name()
                 if c == self.cImages:

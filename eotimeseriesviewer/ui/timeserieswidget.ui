@@ -59,6 +59,9 @@
       <property name="sortingEnabled">
        <bool>true</bool>
       </property>
+      <attribute name="headerCascadingSectionResizes">
+       <bool>true</bool>
+      </attribute>
      </widget>
     </item>
     <item>
