@@ -22,11 +22,12 @@ import concurrent.futures
 import json
 import os
 import re
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import List, Union, Tuple, Optional
 
-from osgeo import gdal, ogr, osr
+from osgeo import gdal, ogr, osr, gdalconst
 from osgeo.gdal import Dataset
 from osgeo.ogr import OGRERR_NONE
 
@@ -147,7 +148,7 @@ class SourceInfoProvider(object):
         if len(filenames) > 0:
             path = Path(filenames[0])
 
-            # a) check the filenname
+            # a) check the filename
             if dtg := cls._datetime_from_string(path.name):
                 return dtg
 
@@ -164,7 +165,7 @@ class SourceInfoProvider(object):
         (ii) a string with the corresponding wavelength unit, e.g. "nm" for nanometers.
         """
 
-        def deduce_wlu(wl, float) -> Optional[str]:
+        def deduce_wlu(wl: float) -> Optional[str]:
             """Try to deduce a wavelength unit from the wavelength value."""
             if 100 <= wl:
                 return 'nm'
@@ -225,7 +226,7 @@ class SourceInfoProvider(object):
         if isinstance(wl, list) and len(wl) == ds.RasterCount:
             wl = to_float_list(wl)
             if wlu is None:
-                wlu = deduce_wlu(max(wl), float)
+                wlu = deduce_wlu(max(wl))
             return wl, wlu
 
         # 4. generic checking for wavelengths in band metadata
@@ -255,7 +256,7 @@ class SourceInfoProvider(object):
         return None, None
 
     @classmethod
-    def _datetime_from_string(cls, text: str) -> Optional[datetime]:
+    def _datetime_from_string(cls, text: str) -> Optional['datetime']:
         """
         Tries to parse a datetime from a string.
         """
@@ -501,9 +502,12 @@ def main(rasters, vector,
     if in_place:
         ds_src = ds_dst = ogr.Open(str(vector), update=gdal.OF_UPDATE)
     else:
-        ds_src = ogr.Open(str(vector))
+        # ds_src = ogr.Open(str(vector))
+        ds_src = gdal.OpenEx(str(vector), gdalconst.OF_VECTOR)
+        # assert isinstance(ds_src, ogr.DataSource)
         # create output vector dataset
-        ds_dst = gdal.VectorTranslate(str(output_vector), ds_src, callback=callback)
+
+        ds_dst = gdal.VectorTranslate(str(output_vector), ds_src)
 
     assert isinstance(ds_src, Dataset)
     assert isinstance(ds_dst, Dataset), "Could not open output vector"
@@ -643,30 +647,81 @@ def points_info(layer: ogr.Layer) -> Tuple[dict, str]:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Sample temporal profiles from a EO raster time series for each vector feature.")
-    parser.add_argument('-v', '--vector', required=True, help='Vector file with point geometries')
-    parser.add_argument('-r', '--rasters', nargs='*',
-                        help='Raster files to sample (space-separated). If omitted, use -r_dir')
-    parser.add_argument('-r_dir', '--rasters-dir', help='Directory containing rasters (alternative to -r).')
-    parser.add_argument('--id-field', help='Vector attribute to use as ID. If omitted, uses feature FID.')
+        description="Sample temporal profiles from EO raster time series for each vector feature.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+    # Basic usage with default settings
+    python load_eotsv_profiles.py -v points.gpkg -r_dir /path/to/rasters
+
+    # With multiple specific raster files
+    python load_eotsv_profiles.py -v points.gpkg -r file1.tif file2.tif file3.tif
+
+    # Advanced usage with all options
+    python load_eotsv_profiles.py -v points.gpkg -r_dir /path/to/rasters \\
+        --recursive --threads 8 --field custom_profiles \\
+        --output output.gpkg --pattern "*.tif"
+        """
+    )
+
+    # Required arguments
+    parser.add_argument('-v', '--vector', required=True,
+                        help='Input vector file with point geometries')
+
+    # Raster input options (mutually exclusive)
+    raster_group = parser.add_mutually_exclusive_group(required=True)
+    raster_group.add_argument('-r', '--rasters', nargs='+',
+                              help='Space-separated list of raster files to sample')
+    raster_group.add_argument('-r_dir', '--rasters-dir',
+                              help='Directory containing raster files')
+
+    # Optional arguments
+    parser.add_argument('--pattern', default='*.tif',
+                        help='File pattern for raster search. Default: *.tif')
     parser.add_argument('-t', '--threads', type=int, default=4,
-                        help='Number of threads to use for processing. Default is 4.')
+                        help='Number of threads to use. Default: 4')
     parser.add_argument('--recursive', action='store_true',
-                        help='Recursively search for raster files in subdirectories.')
+                        help='Recursively search for raster files in subdirectories')
     parser.add_argument('-f', '--field', default='profiles',
-                        help='Field name to store the extracted profiles. Default is "profiles".')
+                        help='Field name to store the extracted profiles. Default: profiles')
+    parser.add_argument('-o', '--output',
+                        help='Output vector file. If omitted, input file will be modified in-place')
+    parser.add_argument('-l', '--layer',
+                        help='Layer name/index in the vector file. If omitted, first layer is used')
+    parser.add_argument('--format', default='GPKG',
+                        help='Output vector format (if --output is specified). Default: GPKG')
+
     args = parser.parse_args()
 
-    raster_paths = []
-    if args.rasters and len(args.rasters) > 0:
-        raster_paths = args.rasters
+    # Prepare raster input list
+    raster_files = []
+    if args.rasters:
+        raster_files = args.rasters
     elif args.rasters_dir:
-        raster_paths = list_rasters_from_dir(args.rasters_dir)
-    else:
-        parser.error("You must provide raster files with -r or a raster directory with -r_dir")
+        raster_files = find_raster_files(args.rasters_dir,
+                                         pattern=args.pattern,
+                                         recursive=args.recursive)
 
-    if not raster_paths:
-        raise RuntimeError("No raster files found/provided.")
+    if not raster_files:
+        parser.error("No raster files found/provided")
 
-    # detect vector layer SRS
-    v_srs = layer.GetS_
+    try:
+        # Run main function with parsed arguments
+        ds_out, profiles = main(
+            rasters=raster_files,
+            vector=args.vector,
+            pattern=args.pattern,
+            threads=args.threads,
+            layer_name=args.layer,
+            output_vector=args.output,
+            output_field=args.field,
+            output_format=args.format,
+            recursive=args.recursive
+        )
+
+        print(f"Successfully processed {len(raster_files)} raster files")
+        print(f"Results saved to: {args.output or args.vector}")
+
+    except Exception as e:
+        print(f"Error: {str(e)}", file=sys.stderr)
+        sys.exit(1)

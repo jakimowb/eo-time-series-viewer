@@ -7,6 +7,7 @@ from typing import Optional, Union
 
 from numpy import datetime64, int16, timedelta64
 from osgeo import gdal
+
 from qgis.PyQt.QtCore import QDate, QDateTime, Qt, QTime
 from qgis.core import Qgis, QgsDateTimeRange, QgsRasterDataProvider, QgsRasterLayer, QgsRasterLayerTemporalProperties
 
@@ -519,7 +520,7 @@ class ImageDateUtils(object):
         raise NotImplementedError(f'Unknown type: {type(dtg)}')
 
     @classmethod
-    def timestamp(cls, dtg: Union[QDateTime, QDate, datetime, date]) -> float:
+    def timestamp(cls, dtg: Union[QDateTime, QDate, date]) -> float:
         """
         Converts a time object into a float string, to be used in plotting
         :param dtg:
