@@ -149,14 +149,16 @@ def handleAlgorithmResults(
                 # note here that we may not retrieve an owned layer -- eg if the
                 # output layer already exists in the destination project
                 owned_map_layer = context.temporaryLayerStore().takeMapLayer(layer)
-                # if owned_map_layer:
-                # we don't add the layer to the tree yet -- that's done
-                # later, after we've sorted all added layers
-                # layer_tree_layer = QgsProcessingGuiUtils.ResultLayerDetails(owned_map_layer)
-
-                # result_layer_details = QgsProcessingGuiUtils.ResultLayerDetails(
-                #    owned_map_layer
-                # )
+                if owned_map_layer:
+                    # we don't add the layer to the tree yet -- that's done
+                    # later, after we've sorted all added layers
+                    # old: details.project.addMapLayer(owned_map_layer, False)
+                    # layer_tree_layer = QgsProcessingGuiUtils.ResultLayerDetails(owned_map_layer)
+                    # workaround
+                    context.project().addMapLayer(owned_map_layer, addToLegend=True)
+                    # result_layer_details = QgsProcessingGuiUtils.ResultLayerDetails(
+                    #    owned_map_layer
+                    # )
 
                 # result_layer_details.targetLayerTreeGroup = results_group
                 # result_layer_details.sortKey = details.layerSortKey or 0

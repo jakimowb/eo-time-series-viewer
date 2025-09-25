@@ -3,6 +3,12 @@ import re
 from pathlib import Path
 from typing import Dict
 
+from eotimeseriesviewer import icon
+from eotimeseriesviewer.processing.algorithmhelp import AlgorithmHelp
+from eotimeseriesviewer.qgispluginsupport.qps.fieldvalueconverter import GenericFieldValueConverter, \
+    GenericPropertyTransformer
+from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from qgis.PyQt.QtCore import NULL, QMetaType, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.core import edit, Qgis, QgsApplication, QgsFeature, QgsFeatureSink, QgsField, QgsFields, QgsMapLayer, \
@@ -11,13 +17,6 @@ from qgis.core import edit, Qgis, QgsApplication, QgsFeature, QgsFeatureSink, Qg
     QgsProcessingParameterFeatureSink, QgsProcessingParameterFieldMapping, QgsProcessingParameterFile, \
     QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessingParameterVectorLayer, \
     QgsProcessingProvider, QgsProcessingRegistry, QgsProcessingUtils, QgsVectorFileWriter, QgsVectorLayer
-
-from eotimeseriesviewer import icon
-from eotimeseriesviewer.processing.algorithmhelp import AlgorithmHelp
-from eotimeseriesviewer.qgispluginsupport.qps.fieldvalueconverter import GenericFieldValueConverter, \
-    GenericPropertyTransformer
-from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 
 
 class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):
@@ -499,7 +498,7 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
             sink.finalize()
         else:
             sink.flushBuffer()
-        del sink
+        # del sink
 
         # lyr = QgsProcessingUtils.mapLayerFromString(dest_id, context)
         # lyr.setEditorWidgetSetup(self._field_id, TemporalProfileUtils.widgetSetup())
@@ -512,6 +511,7 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
     def postProcessAlgorithm(self, context: QgsProcessingContext, feedback: QgsProcessingFeedback):
         s = ""
         result = dict()
+        assert self._dest_id
         if self._dest_id:
             lyr = QgsProcessingUtils.mapLayerFromString(self._dest_id, context)
             assert isinstance(lyr, QgsVectorLayer)
@@ -520,6 +520,7 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
             lyr.saveDefaultStyle(QgsMapLayer.StyleCategory.Forms)
             assert TemporalProfileUtils.isProfileLayer(lyr)
             result[self.OUTPUT] = self._dest_id
+            self._layer = lyr
 
         return result
 
