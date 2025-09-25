@@ -30,9 +30,9 @@ from typing import Iterator, Optional, Union
 import git
 import markdown
 
-from qgis.core import QgsUserProfile, QgsUserProfileManager
 from eotimeseriesviewer.qgispluginsupport.qps.make.deploy import QGISMetadataFileWriter, userProfileManager
 from eotimeseriesviewer.qgispluginsupport.qps.utils import zipdir
+from qgis.core import QgsUserProfile, QgsUserProfileManager
 
 site.addsitedir(Path(__file__).parents[1].as_posix())
 import eotimeseriesviewer
@@ -54,7 +54,7 @@ MD.mHomepage = eotimeseriesviewer.HOMEPAGE
 MD.mAbout = ''
 MD.mTracker = eotimeseriesviewer.ISSUE_TRACKER
 MD.mRepository = eotimeseriesviewer.REPOSITORY
-MD.mQgisMinimumVersion = '3.40'
+MD.mQgisMinimumVersion = eotimeseriesviewer.QGIS_MIN_VERSION
 MD.mEmail = eotimeseriesviewer.MAIL
 MD.mIsExperimental = False
 
