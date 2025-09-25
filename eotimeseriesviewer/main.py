@@ -19,8 +19,8 @@
  ***************************************************************************/
 """
 import json
+import logging
 import os
-import pathlib
 import re
 import sys
 import webbrowser
@@ -76,6 +76,8 @@ from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, 
     QgsTask, QgsTaskManager, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
 from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsLayerTreeView, QgsMapCanvas, QgsMessageBar, \
     QgsMessageViewer, QgsStatusBar, QgsTaskManagerWidget
+
+logger = logging.getLogger(__name__)
 
 DEBUG = False
 
@@ -451,6 +453,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.mTimeSeries.sigTimeSeriesDatesRemoved.connect(self.onTimeSeriesChanged)
         self.mTimeSeries.sigSensorAdded.connect(self.onSensorAdded)
 
+        self.mTimeSeriesDefinitionFile: Optional[Path] = None
         # self.mTimeSeries.sigMessage.connect(self.setM)
 
         tswidget.setTimeSeries(self.mTimeSeries)
@@ -575,10 +578,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionRemoveTSD.triggered.connect(
             lambda: self.mTimeSeries.removeTSDs(tswidget.selectedTimeSeriesDates()))
         self.ui.actionRefresh.triggered.connect(mw.refresh)
-        self.ui.actionLoadTS.triggered.connect(self.loadTimeSeriesDefinition)
+        self.ui.actionLoadTS.triggered.connect(lambda *args: self.loadTimeSeriesDefinition())
         self.ui.actionClearTS.triggered.connect(self.clearTimeSeries)
-        self.ui.actionSaveTS.triggered.connect(self.saveTimeSeriesDefinition)
-        self.ui.actionAddTSExample.triggered.connect(lambda: self.loadExampleTimeSeries(loadAsync=True))
+        self.ui.actionSaveTS.triggered.connect(
+            lambda *args: self.saveTimeSeriesDefinition())
+        self.ui.actionAddTSExample.triggered.connect(lambda: self.loadExampleTimeSeries())
         self.ui.actionLoadTimeSeriesStack.triggered.connect(self.loadTimeSeriesStack)
         self.ui.actionAddFORCEProducts.triggered.connect(self.loadFORCEProducts)
         # self.ui.actionShowCrosshair.toggled.connect(mw.setCrosshairVisibility)
@@ -1421,8 +1425,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
             if bTP:
                 self.loadCurrentTemporalProfile(spatialPoint)
-        except Exception as e:
-            print(e)
+        except Exception as ex:
+            logger.debug(str(ex))
 
         self.sigCurrentLocationChanged[QgsCoordinateReferenceSystem, QgsPointXY].emit(
             self.mCurrentMapLocation.crs(),
@@ -1569,50 +1573,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.mTemporalProfileLayerInitialized = False
         return None
 
-    def onShowProfile(self, spatialPoint, mapCanvas, mapToolKey):
-
-        assert mapToolKey in MapTools.mapToolValues()
-
-        if mapToolKey == MapTools.TemporalProfile:
-
-            self.profileDock.loadTemporalProfile(spatialPoint)
-
-        elif mapToolKey == MapTools.SpectralProfile:
-            tsd = None
-            from .mapcanvas import MapCanvas
-            if isinstance(mapCanvas, MapCanvas):
-                tsd = mapCanvas.tsd()
-
-            if not hasattr(self, 'cntSpectralProfile'):
-                self.cntSpectralProfile = 0
-
-            profiles = [SpectralLibraryUtils.readProfileDict(lyr, spatialPoint)
-                        for lyr in mapCanvas.layers() if isinstance(lyr, QgsRasterLayer)]
-
-            # add metadata
-            if isinstance(tsd, TimeSeriesDate):
-                profiles2 = []
-                sl = self.spectralLibrary()
-                if is_spectral_library(sl):
-                    for p in profiles:
-                        self.cntSpectralProfile += 1
-                        assert isinstance(p, QgsFeature)
-                        p2 = p.copyFieldSubset(fields=sl.fields())
-                        p2.setName('Profile {} {}'.format(self.cntSpectralProfile, tsd.mDTR))
-                        p2.setAttribute('date', '{}'.format(tsd.mDTR))
-                        p2.setAttribute('doy', int(tsd.mDOY))
-                        p2.setAttribute('sensor', tsd.mSensor.name())
-                        profiles2.append(p2)
-                    self.ui.dockSpectralLibrary.SLW.setCurrentSpectralProfiles(profiles2)
-
-        elif mapToolKey == MapTools.CursorLocation:
-
-            self.ui.dockCursorLocation.loadCursorLocation(spatialPoint, mapCanvas)
-
-        else:
-            s = ""
-        pass
-
     def messageBar(self) -> QgsMessageBar:
         """
         Returns the QgsMessageBar that is used to show messages in the TimeSeriesViewer UI.
@@ -1621,40 +1581,35 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         return self.ui.mMapWidget.messageBar()
 
     def loadTimeSeriesDefinition(self,
-                                 files: Optional[List[Union[str, pathlib.Path]]] = None,
+                                 file: Union[None, str, Path] = None,
                                  n_max: int = None,
-                                 runAsync=True):
+                                 runAsync: bool = True):
         """
         Loads a time series definition file
-        :param files:
+        :param file:
         :param n_max:
         :return:
         """
-        if isinstance(files, bool):
-            files = None
+        if file:
+            file = Path(file)
 
-        if isinstance(files, (str, pathlib.Path)):
-            files = [files]
-
-        if files is None:
-            if is_spectral_library(self.path_time_series_definition, Path):
-                defDir = self.path_time_series_definition.parent
+        if file is None:
+            if isinstance(self.mTimeSeriesDefinitionFile, Path) and self.mTimeSeriesDefinitionFile.is_file():
+                defDir = str(self.mTimeSeriesDefinitionFile.parent)
             else:
                 defDir = None
 
             filters = "CSV (*.csv *.txt);;" + \
                       "All files (*.*)"
 
-            files, filter = QFileDialog.getOpenFileNames(caption='Load Time Series definition', directory=defDir,
-                                                         filter=filters)
+            file, filter = QFileDialog.getOpenFileName(caption='Load Time Series definition', directory=defDir,
+                                                       filter=filters)
 
-        if isinstance(files, list):
-            # self.clearTimeSeries()
-            for file in sorted(files):
-                path = Path(file)
-                if path.is_file():
-                    EOTimeSeriesViewer.path_time_series_definition = path
-                self.mTimeSeries.loadFromFile(file, n_max=n_max, runAsync=runAsync)
+        if file not in [None, '']:
+            file = Path(file)
+            if file.is_file():
+                self.mTimeSeriesDefinitionFile = file
+            self.mTimeSeries.loadFromFile(file, n_max=n_max, runAsync=runAsync)
 
     def currentMapCanvas(self) -> MapCanvas:
         return self.mapWidget().currentMapCanvas()
@@ -1763,22 +1718,22 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         return self.ui.mMapWidget
 
-    path_time_series_definition: Optional[Path] = None
+    def saveTimeSeriesDefinition(self, path: Union[None, str, Path] = None):
+        if path is None:
 
-    def saveTimeSeriesDefinition(self):
+            if self.mTimeSeriesDefinitionFile:
+                defFile = str(self.mTimeSeriesDefinitionFile)
+            else:
+                defFile = None
 
-        if isinstance(self.path_time_series_definition, Path):
-            defFile = str(Path(self.path_time_series_definition))
-        else:
-            defFile = None
+            filters = "CSV (*.csv *.txt);;" + \
+                      "All files (*.*)"
+            path, filter = QFileDialog.getSaveFileName(caption='Save Time Series definition', filter=filters,
+                                                       directory=defFile)
 
-        filters = "CSV (*.csv *.txt);;" + \
-                  "All files (*.*)"
-        path, filter = QFileDialog.getSaveFileName(caption='Save Time Series definition', filter=filters,
-                                                   directory=defFile)
         if path not in [None, '']:
             path = self.mTimeSeries.saveToFile(path)
-            EOTimeSeriesViewer.path_time_series_definition = Path(path)
+            self.mTimeSeriesDefinitionFile = Path(path)
 
     def loadFORCEProducts(self, *args, force_cube=None, tile_ids: str = None):
 
@@ -1842,7 +1797,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
 
         import example.Images
-        exampleDataDir = pathlib.Path(example.Images.__file__).parent
+        exampleDataDir = Path(example.Images.__file__).parent
         rasterFiles = sorted(list(file_search(exampleDataDir, filter_raster, recursive=True)))
         vectorFiles = sorted(list(file_search(exampleDataDir.parent, filter_vector, recursive=True)))
 
@@ -2071,7 +2026,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
 
         reg: QgsProcessingRegistry = QgsApplication.processingRegistry()
-        alg = reg.createAlgorithmById(f'{EOTSVProcessingProvider.name()}:{CreateEmptyTemporalProfileLayer.name()}')
+        alg = reg.createAlgorithmById(f'{EOTSVProcessingProvider.id()}:{CreateEmptyTemporalProfileLayer.name()}')
         assert isinstance(alg, CreateEmptyTemporalProfileLayer)
         feedback = QgsProcessingFeedback()
         context = QgsProcessingContext()
