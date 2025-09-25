@@ -1,8 +1,3 @@
----
-title: Changelog
-hide-toc: false
----
-
 # Changelog
 
 ## EOTSV 2.2 (2025-09-25)

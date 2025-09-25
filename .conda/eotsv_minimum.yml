@@ -27,6 +27,7 @@ dependencies:
       - flake8-qgis
       - pytest-env
       - pytest-xdist
+      - myst-parser
 
 variables:
   QT_MAC_WANTS_LAYER: 1

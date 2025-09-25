@@ -1,8 +1,3 @@
----
-title: About
-hide-toc: false
----
-
 # About
 
 The EO Time Series Viewer (EOTSV) is a QGIS Plugin to visualize and label Earth Observation (EO) time series data.
