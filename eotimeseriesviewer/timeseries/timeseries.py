@@ -21,21 +21,12 @@
 import bisect
 import datetime
 import logging
-import pathlib
 import re
 from pathlib import Path
 from typing import Any, Iterator, List, Optional, Set, Union
 
 import numpy as np
 from osgeo import gdal
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QModelIndex, Qt
-from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import QTreeView
-from qgis.PyQt.QtXml import QDomDocument
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDateTimeRange, \
-    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsRasterLayer, QgsRectangle, QgsTask, \
-    QgsTaskManager
-from qgis.core import QgsSpatialIndex
 
 from eotimeseriesviewer import messageLog
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
@@ -45,6 +36,14 @@ from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.timeseries.tasks import TimeSeriesFindOverlapTask, TimeSeriesLoadingTask
 from eotimeseriesviewer.utils import findNearestDateIndex
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QModelIndex, Qt
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QTreeView
+from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDateTimeRange, \
+    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsRasterLayer, QgsRectangle, QgsTask, \
+    QgsTaskManager
+from qgis.core import QgsSpatialIndex
 
 logger = logging.getLogger(__name__)
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
@@ -321,7 +320,7 @@ class TimeSeries(QAbstractItemModel):
         """
         return self.mSensors[:]
 
-    def loadFromFile(self, path: Union[str, pathlib.Path], n_max=None, runAsync: bool = None):
+    def loadFromFile(self, path: Union[str, Path], n_max=None, runAsync: bool = None):
         """
         Loads a CSV file with source images of a TimeSeries
         :param path: str, Path of CSV file
@@ -339,7 +338,7 @@ class TimeSeries(QAbstractItemModel):
 
     @classmethod
     def sourcesFromFile(cls, path: Union[str, Path]) -> List[str]:
-        refDir = pathlib.Path(path).parent
+        refDir = Path(path).parent
         images = []
         masks = []
         with open(path, 'r') as f:
@@ -348,22 +347,22 @@ class TimeSeries(QAbstractItemModel):
                 if re.match('^[ ]*[;#&]', line):
                     continue
                 line = line.strip()
-                path = pathlib.Path(line)
+                path = Path(line)
                 if not path.is_absolute():
                     path = refDir / path
 
                 images.append(path.as_posix())
         return images
 
-    def saveToFile(self, path, relative_path: bool = True):
+    def saveToFile(self, path: Union[str, Path], relative_path: bool = True):
         """
         Saves the TimeSeries sources into a CSV file
         :param path: str, path of CSV file
         :return: path of CSV file
         """
         if isinstance(path, str):
-            path = pathlib.Path(path)
-        assert isinstance(path, pathlib.Path)
+            path = Path(path)
+        assert isinstance(path, Path)
 
         lines = []
         lines.append('#Time series definition file: {}'.format(np.datetime64('now').astype(str)))
