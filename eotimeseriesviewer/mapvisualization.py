@@ -220,7 +220,7 @@ class MapView(QFrame):
         self.mDummyCanvas.setVisible(False)
 
         self.mLayerTree = QgsLayerTree()
-        self.mLayerTree.removedChildren.connect(lambda *args: self.layersRemoved.emit())
+        self.mLayerTree.removedChildren.connect(self.onRemovedChildren)
         self.mLayerTreeMapCanvasBridge = QgsLayerTreeMapCanvasBridge(self.mLayerTree, self.mDummyCanvas)
 
         # self.mLayerTreeModel = QgsLayerTreeModel(self.mLayerTree)
@@ -420,6 +420,9 @@ class MapView(QFrame):
             self.mMapBackgroundColor = color
             self.sigCanvasAppearanceChanged.emit()
         return self.mMapBackgroundColor
+
+    def onRemovedChildren(self, *args, **kwargs):
+        self.layersRemoved.emit()
 
     def onAddMapLayer(self, filter: QgsMapLayerProxyModel.Filter = QgsMapLayerProxyModel.All):
         """
@@ -905,7 +908,8 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         selected = self.layerTreeView().selectedLayers()
         for lyr in selected:
             if not has_sensor_id(lyr):
-                self.mapView().mLayerTree.removeLayer(lyr)
+                mv = self.mapView()
+                mv.layerTree().removeLayer(lyr)
 
     def onSetCanvasCRS(self):
         s = ""
