@@ -2009,7 +2009,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
     def loadTemporalProfilesForPoints(self):
 
         reg: QgsProcessingRegistry = QgsApplication.processingRegistry()
-        alg = reg.createAlgorithmById(f'{EOTSVProcessingProvider.name()}:{ReadTemporalProfiles.name()}')
+        alg = reg.createAlgorithmById(f'{EOTSVProcessingProvider.id()}:{ReadTemporalProfiles.name()}')
         assert isinstance(alg, ReadTemporalProfiles)
         # alg = alg.createInstance()
 
@@ -2028,8 +2028,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         def onExecuted(success, results):
             nonlocal layer
             if success and alg.OUTPUT in results:
-                layer = QgsProcessingUtils.mapLayerFromString(results[alg.OUTPUT], d.processingContext())
-                s = ""
+                layer = results[alg.OUTPUT]
+                if isinstance(layer, str):
+                    layer = context.project().mapLayer(layer)
             d.close()
 
         d.algorithmFinished.connect(onExecuted)
