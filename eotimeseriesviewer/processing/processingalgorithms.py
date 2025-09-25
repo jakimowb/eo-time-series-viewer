@@ -3,12 +3,6 @@ import re
 from pathlib import Path
 from typing import Dict
 
-from eotimeseriesviewer import icon
-from eotimeseriesviewer.processing.algorithmhelp import AlgorithmHelp
-from eotimeseriesviewer.qgispluginsupport.qps.fieldvalueconverter import GenericFieldValueConverter, \
-    GenericPropertyTransformer
-from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from qgis.PyQt.QtCore import NULL, QMetaType, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.core import edit, Qgis, QgsApplication, QgsFeature, QgsFeatureSink, QgsField, QgsFields, QgsMapLayer, \
@@ -17,6 +11,13 @@ from qgis.core import edit, Qgis, QgsApplication, QgsFeature, QgsFeatureSink, Qg
     QgsProcessingParameterFeatureSink, QgsProcessingParameterFieldMapping, QgsProcessingParameterFile, \
     QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessingParameterVectorLayer, \
     QgsProcessingProvider, QgsProcessingRegistry, QgsProcessingUtils, QgsVectorFileWriter, QgsVectorLayer
+
+from eotimeseriesviewer import icon
+from eotimeseriesviewer.processing.algorithmhelp import AlgorithmHelp
+from eotimeseriesviewer.qgispluginsupport.qps.fieldvalueconverter import GenericFieldValueConverter, \
+    GenericPropertyTransformer
+from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 
 
 class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):
@@ -169,6 +170,7 @@ class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):
             # lyr.setEditorWidgetSetup(self._field_id, TemporalProfileUtils.widgetSetup())
             lyr.saveDefaultStyle(QgsMapLayer.StyleCategory.Forms)
             assert TemporalProfileUtils.isProfileLayer(lyr)
+            # context.project().addMapLayer(lyr)
             result[self.OUTPUT] = self._dest_id
 
         # context.project().addMapLayer(self._layer)

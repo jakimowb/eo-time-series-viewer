@@ -26,9 +26,6 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from osgeo import osr
-
-from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from qgis.PyQt.QtCore import QMetaObject
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QItemSelectionModel, QModelIndex, QObject, \
     QPoint, Qt
@@ -38,6 +35,9 @@ from qgis.core import QgsApplication, QgsCoordinateTransform, QgsExpression, Qgs
     QgsExpressionContextUtils, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsMapLayer, QgsPointXY, \
     QgsProject, QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
 from qgis.gui import QgsDockWidget, QgsFilterLineEdit
+
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from .datetimeplot import DateTimePlotDataItem, DateTimePlotWidget
 from .plotsettings import PlotSettingsProxyModel, PlotSettingsTreeModel, PlotSettingsTreeView, \
     PlotSettingsTreeViewDelegate, TPVisGroup
@@ -496,7 +496,7 @@ class TemporalProfileVisualization(QObject):
         """
         Initializes a TPVisGroup visualization by connecting it to the TimeSeries etc.
         """
-
+        vis.setProject(self.project())
         ts = self.timeSeries()
         if isinstance(ts, TimeSeries):
             vis.setTimeSeries(ts)
@@ -512,16 +512,20 @@ class TemporalProfileVisualization(QObject):
             if (TemporalProfileUtils.isProfileLayer(lyr)
                     and field in lyr.fields().names()
                     and TemporalProfileUtils.isProfileField(lyr.fields()[field])):
+                assert len(QgsProject.instance().mapLayers()) == 0
                 vis.setLayer(lyr)
+                assert len(QgsProject.instance().mapLayers()) == 0
                 vis.setField(field)
                 # other settings to copy?
                 return
+
+        assert len(QgsProject.instance().mapLayers()) == 0
 
         # initialize with a temporal profile layer not shown yet
         for lyr in self.mModel.project().mapLayers().values():
             if TemporalProfileUtils.isProfileLayer(lyr):
                 field = TemporalProfileUtils.profileFields(lyr).field(0)
-                assert lyr.project() == self.project()
+                # assert lyr.project() == self.project()
                 assert lyr.id() in self.project().mapLayers()
                 # vis.setProject(lyr.project())
                 vis.setLayer(lyr)
@@ -903,7 +907,7 @@ class TemporalProfileVisualization(QObject):
 
     def initPlot(self):
 
-        # create a visualization for each temporal profile layer
+        # create a visualization for each known temporal profile layer
         project = self.project()
         assert isinstance(project, QgsProject)
 
@@ -919,15 +923,20 @@ class TemporalProfileVisualization(QObject):
                 if exampleData:
                     break
             vis = TPVisGroup()
+            vis.setProject(self.project())
             self.initVisualization(vis)
+            assert len(QgsProject.instance().mapLayers()) == 0
             self.mModel.addVisualizations(vis)
+            assert len(QgsProject.instance().mapLayers()) == 0
 
         if len(self.mModel.visualizations()) > 0:
             try:
                 project.layersAdded.disconnect(self.initPlot)
             except Exception as ex:
                 pass
+            assert len(QgsProject.instance().mapLayers()) == 0
             self.updatePlot()
+            assert len(QgsProject.instance().mapLayers()) == 0
 
     def setTimeSeries(self, timeseries: TimeSeries):
         self.mModel.setTimeSeries(timeseries)
@@ -940,11 +949,11 @@ class TemporalProfileVisualization(QObject):
 
     def setProject(self, project: QgsProject):
         self.mModel.setProject(project)
+
         self.mTreeView.setProject(project)
 
         if not self.mIsInitialized:
             self.initPlot()
-            pass
 
 
 class TemporalProfileDock(QgsDockWidget):

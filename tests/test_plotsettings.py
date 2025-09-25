@@ -307,7 +307,7 @@ class PlotSettingsTests(EOTSVTestCase):
         dock.setTimeSeries(ts)
         dock.setProject(project)
         self.assertEqual(dock.project(), project)
-
+        self.taskManagerProcessEvents()
         dock.mVis.flushSignals()
         gc.collect()
         QApplication.processEvents()

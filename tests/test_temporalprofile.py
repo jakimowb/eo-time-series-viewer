@@ -7,15 +7,16 @@ __copyright__ = 'Copyright 2024, Benjamin Jakimow'
 import datetime
 import unittest
 
+from qgis.PyQt.QtWidgets import QComboBox
+from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsFeature, QgsField, QgsFields, QgsProject, \
+    QgsRasterLayer, QgsTaskManager, QgsVectorLayer
+
 from eotimeseriesviewer.force import FORCEUtils
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, \
     TemporalProfileLayerFieldComboBox, TemporalProfileLayerProxyModel, TemporalProfileUtils
 from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app, TestObjects
-from qgis.PyQt.QtWidgets import QComboBox
-from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsFeature, QgsField, QgsFields, QgsProject, \
-    QgsRasterLayer, QgsTaskManager, QgsVectorLayer
 
 start_app()
 

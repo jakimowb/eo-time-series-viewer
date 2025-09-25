@@ -1,6 +1,18 @@
 import itertools
 import json
+import logging
 from typing import Any, Dict, List, Optional, Union
+
+from qgis.PyQt.QtCore import QObject
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
+from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, \
+    QPixmap, QStandardItem, QStandardItemModel
+from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QHeaderView, QMenu, QStyle, QStyledItemDelegate, \
+    QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
+from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
+    QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsGeometry, QgsProject, QgsProperty, \
+    QgsPropertyDefinition, QgsVectorLayer
+from qgis.gui import QgsFieldExpressionWidget
 
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, \
@@ -15,16 +27,8 @@ from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
 from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileLayerFieldComboBox, TemporalProfileUtils
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
-from qgis.PyQt.QtCore import QObject
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
-from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, \
-    QPixmap, QStandardItem, QStandardItemModel
-from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QHeaderView, QMenu, QStyle, QStyledItemDelegate, \
-    QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
-from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
-    QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsGeometry, QgsProject, QgsProperty, \
-    QgsPropertyDefinition, QgsVectorLayer
-from qgis.gui import QgsFieldExpressionWidget
+
+logger = logging.getLogger(__name__)
 
 
 class StyleItem(PlotStyleItem):
@@ -580,21 +584,11 @@ class TPVisGroup(PropertyItemGroup):
         self.mLayerID = None
 
         if isinstance(layer, QgsVectorLayer) and layer.isValid():
-
-            if layer.project() != self.project():
-                self.setProject(layer.project())
+            # ensure that this layer exists in the model project
+            self.project().addMapLayer(layer)
 
             self.mLayerID = layer.id()
             return
-            model = self.model()
-
-            if isinstance(model, PlotSettingsTreeModel):
-                # this will create / update signal connections
-                model.layersChanged.emit()
-                pass
-
-            if not self.field() in layer.fields().names():
-                self.setField(self.mLastLayerFields.get(layer.id()))
 
     def onLayerUpdate(self, *args, **kwds):
         model = self.model()
@@ -948,6 +942,9 @@ class PlotSettingsTreeModel(QStandardItemModel):
         return layers
 
     def addVisualizations(self, vis: Union[TPVisGroup, List[TPVisGroup]]):
+
+        if vis.project() != self.project():
+            logger.warning('Different projects: {} vs. {}'.format(vis.project(), self.project()))
 
         if isinstance(vis, TPVisGroup):
             vis = [vis]
