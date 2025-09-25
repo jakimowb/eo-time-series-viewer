@@ -1046,8 +1046,9 @@ class TemporalProfileDock(QgsDockWidget):
     def setTimeSeries(self, timeseries: TimeSeries):
         self.mVis.setTimeSeries(timeseries)
 
-    def setMapDateRange(self, d0: QDateTime, d1: QDateTime):
-        self.mVis.mPlotWidget.setMapDateRange(d0, d1)
+    def setMapDateRange(self, d0: Optional[QDateTime], d1: Optional[QDateTime]):
+        if isinstance(d0, QDateTime) and isinstance(d1, QDateTime):
+            self.mVis.mPlotWidget.setMapDateRange(d0, d1)
 
     def setVectorLayerTools(self, vectorLayerTools: VectorLayerTools):
         self.mVectorLayerTool = vectorLayerTools
