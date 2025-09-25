@@ -30,7 +30,6 @@ from typing import Dict, Iterator, List, Optional, Tuple, Union
 import qgis.utils
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QDateTime, QMimeData, QModelIndex, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
-from qgis.PyQt.QtWidgets import QAction
 from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
     QWidget
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsExpression, QgsExpressionContext, \
@@ -1019,12 +1018,10 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
             # Export...
             # ------
             menu.addSeparator()
-            # Styles...
-            a: QAction = eotsv.actionPasteLayerStyle()
 
-            menu.addAction(a)
-            a: QAction = eotsv.actionCopyLayerStyle()
-            menu.addAction(a)
+            # Styles...
+            menu.addAction(eotsv.actionCopyLayerStyle())
+            menu.addAction(eotsv.actionPasteLayerStyle())
 
             # Properties
             menu.addSeparator()
