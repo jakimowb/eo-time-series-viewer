@@ -1,24 +1,23 @@
 import unittest
 
+import processing.gui.ProcessingToolbox
+import qgis.utils
+from eotimeseriesviewer import initAll
+from eotimeseriesviewer.forceinputs import FindFORCEProductsTask
+from eotimeseriesviewer.main import EOTimeSeriesViewer
+from eotimeseriesviewer.processing.processingalgorithms import AddTemporalProfileField, CreateEmptyTemporalProfileLayer, \
+    EOTSVProcessingProvider, ReadTemporalProfiles
+from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent, SpatialPoint
+from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
+from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app, TestObjects
+from example import examplePoints
+from processing import AlgorithmDialog
+from processing.gui.ProcessingToolbox import ProcessingToolbox
+from qgis.PyQt.QtCore import QMetaType
 from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsFeature, QgsField, QgsGeometry, \
     QgsProcessingAlgorithm, QgsProcessingAlgRunnerTask, QgsProcessingParameterDefinition, QgsProcessingProvider, \
     QgsProcessingRegistry, QgsProcessingUtils, QgsProject, QgsRasterLayer, QgsTaskManager, QgsVectorLayer, \
     QgsVectorLayerUtils
-from processing import AlgorithmDialog
-from processing.gui.ProcessingToolbox import ProcessingToolbox
-import processing.gui.ProcessingToolbox
-from qgis.PyQt.QtCore import QMetaType
-import qgis.utils
-
-from eotimeseriesviewer.processing.processingalgorithms import AddTemporalProfileField, CreateEmptyTemporalProfileLayer, \
-    EOTSVProcessingProvider, ReadTemporalProfiles
-from eotimeseriesviewer.forceinputs import FindFORCEProductsTask
-from eotimeseriesviewer.main import EOTimeSeriesViewer
-from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent, SpatialPoint
-from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
-from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app, TestObjects
-from eotimeseriesviewer import initAll
-from example import examplePoints
 
 start_app()
 initAll()
@@ -36,10 +35,10 @@ class ProcessingAlgorithmTests(EOTSVTestCase):
 
         registry: QgsProcessingRegistry = QgsApplication.instance().processingRegistry()
 
-        p = registry.providerById(EOTSVProcessingProvider.name())
+        p = registry.providerById(EOTSVProcessingProvider.id())
         self.assertIsInstance(p, EOTSVProcessingProvider)
 
-        alg = registry.createAlgorithmById(f'{EOTSVProcessingProvider.name()}:{AddTemporalProfileField.name()}', {})
+        alg = registry.createAlgorithmById(f'{EOTSVProcessingProvider.id()}:{AddTemporalProfileField.name()}', {})
         self.assertIsInstance(alg, AddTemporalProfileField)
 
         unregisterProcessingProvider()
@@ -66,7 +65,7 @@ class ProcessingAlgorithmTests(EOTSVTestCase):
         conf = {}
         alg.initAlgorithm(conf)
 
-        # run with default parameters -> should produce valid file
+        # run with default parameters -> should produce a valid file
         parm = {}
         results, success = alg.run(parm, context, feedback)
         self.assertTrue(success)

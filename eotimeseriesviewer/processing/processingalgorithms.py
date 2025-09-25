@@ -27,7 +27,7 @@ class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
-        self._layer = None
+        self._dest_id = None
 
     def initAlgorithm(self, config: Dict = None):
         # self.addParameter(
@@ -156,12 +156,23 @@ class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):
             assert i >= 0, f'Failed to generate profile field "{f}"'
             lyr.setEditorWidgetSetup(i, TemporalProfileUtils.widgetSetup())
         lyr.saveDefaultStyle(QgsMapLayer.StyleCategory.Forms)
-        self._layer = lyr
+        self._dest_id = dest_id
         return {self.OUTPUT: dest_id}
 
     def postProcessAlgorithm(self, context: QgsProcessingContext, feedback: QgsProcessingFeedback):
 
-        return {self.OUTPUT: self._layer}
+        result = {}
+        if self._dest_id:
+            lyr = QgsProcessingUtils.mapLayerFromString(self._dest_id, context)
+            assert isinstance(lyr, QgsVectorLayer)
+            assert lyr.isValid()
+            # lyr.setEditorWidgetSetup(self._field_id, TemporalProfileUtils.widgetSetup())
+            lyr.saveDefaultStyle(QgsMapLayer.StyleCategory.Forms)
+            assert TemporalProfileUtils.isProfileLayer(lyr)
+            result[self.OUTPUT] = self._dest_id
+
+        # context.project().addMapLayer(self._layer)
+        return result
 
     def createInstance(self):
         return self.__class__()
@@ -568,16 +579,16 @@ class EOTSVProcessingProvider(QgsProcessingProvider):
         self._algs.clear()
         self.loadAlgorithms()
 
-    @classmethod
-    def name(cls) -> str:
-        return 'eotsv'
-
     def longName(self):
         return 'EO Time Series Viewer'
 
     @classmethod
-    def id(cls):
-        return cls.name()
+    def id(cls) -> str:
+        return 'eotsv'
+
+    @classmethod
+    def name(cls) -> str:
+        return 'EO Time Series Viewer'
 
     def helpId(self):
         return self.id()
