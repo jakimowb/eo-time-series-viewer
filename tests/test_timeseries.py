@@ -2,6 +2,7 @@
 """Tests QGIS plugin init."""
 import os
 import unittest
+from pathlib import Path
 
 import numpy as np
 from osgeo import gdal
@@ -32,7 +33,7 @@ start_app()
 
 class TestTimeSeries(EOTSVTestCase):
 
-    def test_loadfromfile(self):
+    def test_loadfromfile_csv(self):
         ts = TimeSeries()
         import example
         files = [example.Images.Img_2014_01_15_LC82270652014015LGN00_BOA,
@@ -62,6 +63,41 @@ class TestTimeSeries(EOTSVTestCase):
         tsRel = TimeSeries()
         tsRel.loadFromFile(pathTSFileAbs, runAsync=False)
         self.assertTrue(len(tsRel) == len(files))
+
+    def test_loadfromfile_json(self):
+        ts = TimeSeries()
+        import example
+        files = [example.Images.Img_2014_01_15_LC82270652014015LGN00_BOA,
+                 example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA,
+                 example.Images.re_2014_06_25,
+                 example.Images.re_2014_08_20]
+        for f in files:
+            self.assertTrue(os.path.isfile(f))
+        ts.addSources(files, runAsync=False)
+        self.assertTrue(len(ts) == len(files))
+
+        # save time series, absolute paths
+        pathTSFileAbs = self.createTestOutputDirectory() / 'timeseries_abs.json'
+        ts.saveToFile(pathTSFileAbs, relative_path=False)
+        self.assertTrue(os.path.isfile(pathTSFileAbs))
+
+        # save time series, relative paths
+        pathTSFileRel = self.createTestOutputDirectory() / 'timeseries_rel.json'
+        ts.saveToFile(pathTSFileRel, relative_path=True)
+        self.assertTrue(os.path.isfile(pathTSFileRel))
+
+        # load time series
+        tsRel = TimeSeries()
+        tsRel.loadFromFile(pathTSFileRel, runAsync=False)
+        self.assertTrue(len(tsRel) == len(files))
+        for tss in tsRel.timeSeriesSources():
+            self.assertTrue(Path(tss.source()).is_file())
+
+        tsAbs = TimeSeries()
+        tsAbs.loadFromFile(pathTSFileAbs, runAsync=False)
+        self.assertTrue(len(tsAbs) == len(files))
+        for tss in tsAbs.timeSeriesSources():
+            self.assertTrue(Path(tss.source()).is_file())
 
     def test_focus_visibility(self):
 

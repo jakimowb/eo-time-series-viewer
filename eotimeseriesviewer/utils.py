@@ -19,6 +19,7 @@
  ***************************************************************************/
 """
 import enum
+import logging
 import sys
 from typing import Any, List, Union
 
@@ -35,6 +36,8 @@ from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
+
+logger = logging.getLogger(__name__)
 
 
 def qgisInstance():
@@ -124,7 +127,7 @@ def setLayerStyleString(layer: QgsMapLayer,
     success, err = layer.importNamedStyle(doc, categories)
     layer.triggerRepaint()
     if not success:
-        print(f'setLayerStyleString: {err}', file=sys.stderr)
+        logger.error(f'setLayerStyleString: {err}', file=sys.stderr)
     return success
 
 

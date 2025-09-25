@@ -46,6 +46,10 @@ class TimeSeriesSource(object):
     MKeyProvider = 'provider'
     MKeyName = 'name'
     MKeySensor = 'sid'
+    MKeyDimensions = 'dims'
+    MKeyCrs = 'crs'
+    MKeyExtent = 'extent'
+    MKeyIsVisible = 'visible'
 
     @classmethod
     def fromMimeData(cls, mimeData: QMimeData) -> List['TimeSeriesSource']:
@@ -69,9 +73,32 @@ class TimeSeriesSource(object):
         :return:
         """
 
-        d = json.loads(jsonData)
+        data = json.loads(jsonData)
 
-        provider = d.get(TimeSeriesSource.MKeyProvider)
+        return cls.fromMap(data)
+
+    @classmethod
+    def fromMap(cls, d: dict) -> 'TimeSeriesSource':
+        provider = d[TimeSeriesSource.MKeyProvider]
+        source = d[TimeSeriesSource.MKeySource]
+        name = d.get(TimeSeriesSource.MKeyName, '')
+        sid = d[TimeSeriesSource.MKeySensor]
+        dtg = d[TimeSeriesSource.MKeyDateTime]
+        crs = d[TimeSeriesSource.MKeyCrs]
+        extent = d[TimeSeriesSource.MKeyExtent]
+        dims = d[TimeSeriesSource.MKeyDimensions]
+
+        #             source=ds.GetDescription(),
+        #             dtg=dtg,
+        #             sid=sid,
+        #             dims=dims,
+        #             crs=crs,
+        #             extent=extent,
+        #             provider='gdal',
+        #             name=name
+
+        return TimeSeriesSource(source, dtg, sid, dims, crs, extent, provider, name=name)
+
         if provider == 'gdal':
             ds = gdal.Open(d[TimeSeriesSource.MKeySource])
             return TimeSeriesSource.fromGDALDataset(ds,
@@ -181,11 +208,11 @@ class TimeSeriesSource(object):
 
     def __init__(self,
                  source: str,
-                 dtg: QDateTime,
+                 dtg: Union[str, QDateTime],
                  sid: str,
                  dims: List[int],
-                 crs: QgsCoordinateReferenceSystem,
-                 extent: QgsGeometry,
+                 crs: Union[str, QgsCoordinateReferenceSystem],
+                 extent: Union[str, QgsGeometry],
                  provider: str = 'gdal',
                  name: Optional[str] = None):
         """
@@ -198,6 +225,12 @@ class TimeSeriesSource(object):
         :param provider: QgsRasterLayer provider, defaults to 'gdal'
         :param name: name of source
         """
+
+        dtg = ImageDateUtils.datetime(dtg)
+        if isinstance(crs, str):
+            crs = QgsCoordinateReferenceSystem(crs)
+        if isinstance(extent, str):
+            extent = QgsGeometry.fromWkt(extent)
 
         assert isinstance(source, str) and len(source) > 0
         assert isinstance(dtg, QDateTime) and dtg.isValid()
@@ -279,7 +312,12 @@ class TimeSeriesSource(object):
              self.MKeyName: self.mName,
              self.MKeyProvider: self.mProvider,
              self.MKeySensor: self.mSid,
-             self.MKeyDateTime: self.mDTG.toString(Qt.ISODate)}
+             self.MKeyDateTime: self.mDTG.toString(Qt.ISODate),
+             self.MKeyExtent: self.mFeature.geometry().asWkt(),
+             self.MKeyDimensions: self.mDims,
+             self.MKeyCrs: self.mCrs.toWkt(),
+             self.MKeyIsVisible: self.mIsVisible,
+             }
 
         return d
 

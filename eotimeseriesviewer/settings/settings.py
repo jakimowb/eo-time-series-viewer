@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Union
 from qgis.PyQt.QtCore import QMimeData, QSize
 from qgis.PyQt.QtGui import QColor, QFont, QPen
 from qgis.core import QgsSettings, QgsTextBufferSettings, QgsTextFormat, QgsUnitTypes
+
 from eotimeseriesviewer import __version__, TITLE
 from eotimeseriesviewer.dateparser import DateTimePrecision
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
@@ -30,6 +31,8 @@ class EOTSVSettings(object):
         self.mapUpdateInterval: int = 500
         self.mapSize: QSize = QSize(150, 150)
         self.mapBackgroundColor: QColor = QColor('black')
+
+        self.timeSeriesDefinitionFile: Path = Path.home() / 'eotsv_timeseries.json'
 
         # Profiles
         stylec = PlotStyle()

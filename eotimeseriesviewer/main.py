@@ -27,9 +27,22 @@ import webbrowser
 from pathlib import Path
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
+import qgis.utils
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
+from qgis.PyQt.QtGui import QCloseEvent, QIcon
+from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
+    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
+from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
+from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, \
+    QgsExpressionContext, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, \
+    QgsPointXY, QgsProcessingContext, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProcessingRegistry, \
+    QgsProcessingUtils, QgsProject, QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, \
+    QgsTask, QgsTaskManager, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
+from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsLayerTreeView, QgsMapCanvas, QgsMessageBar, \
+    QgsMessageViewer, QgsStatusBar, QgsTaskManagerWidget
+
 import eotimeseriesviewer
 import eotimeseriesviewer.labeling
-import qgis.utils
 from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG
 from eotimeseriesviewer.about import AboutDialogUI
 from eotimeseriesviewer.dateparser import DateTimePrecision
@@ -42,7 +55,8 @@ from eotimeseriesviewer.processing.algorithmdialog import AlgorithmDialog
 from eotimeseriesviewer.processing.processingalgorithms import CreateEmptyTemporalProfileLayer, EOTSVProcessingProvider, \
     ReadTemporalProfiles
 from eotimeseriesviewer.qgispluginsupport.qps.cursorlocationvalue import CursorLocationInfoDock
-from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
+from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog, pasteStyleFromClipboard, \
+    pasteStyleToClipboard
 from eotimeseriesviewer.qgispluginsupport.qps.maptools import MapTools
 from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_INT, QMETATYPE_QDATE, QMETATYPE_QSTRING
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.core import create_profile_field, is_spectral_library, \
@@ -64,18 +78,6 @@ from eotimeseriesviewer.timeseries.timeseries import TimeSeries, \
 from eotimeseriesviewer.timeseries.widgets import TimeSeriesDock, TimeSeriesTreeView, TimeSeriesWidget
 from eotimeseriesviewer.utils import fixMenuButtons
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
-from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
-from qgis.PyQt.QtGui import QCloseEvent, QIcon
-from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
-    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
-from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
-from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, \
-    QgsExpressionContext, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, \
-    QgsPointXY, QgsProcessingContext, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProcessingRegistry, \
-    QgsProcessingUtils, QgsProject, QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, \
-    QgsTask, QgsTaskManager, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
-from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsLayerTreeView, QgsMapCanvas, QgsMessageBar, \
-    QgsMessageViewer, QgsStatusBar, QgsTaskManagerWidget
 
 logger = logging.getLogger(__name__)
 
@@ -453,9 +455,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.mTimeSeries.sigTimeSeriesDatesRemoved.connect(self.onTimeSeriesChanged)
         self.mTimeSeries.sigSensorAdded.connect(self.onSensorAdded)
 
-        self.mTimeSeriesDefinitionFile: Optional[Path] = None
-        # self.mTimeSeries.sigMessage.connect(self.setM)
-
         tswidget.setTimeSeries(self.mTimeSeries)
         self.ui.dockSensors.setTimeSeries(self.mTimeSeries)
 
@@ -536,6 +535,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.optionSelectFeaturesFreehand.triggered.connect(self.onSelectFeatureOptionTriggered)
         self.ui.optionSelectFeaturesRadius.triggered.connect(self.onSelectFeatureOptionTriggered)
         self.ui.mActionDeselectFeatures.triggered.connect(self.deselectFeatures)
+
+        self.ui.mActionPasteLayerStyle.triggered.connect(self.onPasteLayerStyle)
+        self.ui.mActionCopyLayerStyle.triggered.connect(self.onCopyLayerStyle)
 
         m = QMenu()
         m.addAction(self.ui.optionSelectFeaturesRectangle)
@@ -746,6 +748,17 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         jsonNode.appendChild(cdata)
         node.appendChild(jsonNode)
         root.appendChild(node)
+
+    def onCopyLayerStyle(self, *args):
+        lyr = self.currentLayer()
+        if isinstance(lyr, QgsMapLayer):
+            pasteStyleToClipboard(lyr)
+
+    def onPasteLayerStyle(self, *args):
+        lyr = self.currentLayer()
+        if isinstance(lyr, QgsMapLayer):
+            pasteStyleFromClipboard(lyr)
+        s = ""
 
     def onCurrentDateChanged(self, date):
         tp_dock = self.temporalProfileDock()
@@ -1594,12 +1607,15 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             file = Path(file)
 
         if file is None:
-            if isinstance(self.mTimeSeriesDefinitionFile, Path) and self.mTimeSeriesDefinitionFile.is_file():
-                defDir = str(self.mTimeSeriesDefinitionFile.parent)
-            else:
-                defDir = None
 
-            filters = "CSV (*.csv *.txt);;" + \
+            settings = EOTSVSettingsManager.settings()
+            defPath = settings.timeSeriesDefinitionFile
+            defDir = None
+            if isinstance(defPath, Path):
+                defDir = str(defPath.parent)
+
+            filters = "JSON (*.json);;" + \
+                      "CSV (*.csv *.txt);;" + \
                       "All files (*.*)"
 
             file, filter = QFileDialog.getOpenFileName(caption='Load Time Series definition', directory=defDir,
@@ -1720,20 +1736,20 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     def saveTimeSeriesDefinition(self, path: Union[None, str, Path] = None):
         if path is None:
+            settings = EOTSVSettingsManager.settings()
+            defFile = str(settings.timeSeriesDefinitionFile)
 
-            if self.mTimeSeriesDefinitionFile:
-                defFile = str(self.mTimeSeriesDefinitionFile)
-            else:
-                defFile = None
-
-            filters = "CSV (*.csv *.txt);;" + \
+            filters = "JSON (*.json);;" + \
+                      "CSV (*.csv *.txt);;" + \
                       "All files (*.*)"
             path, filter = QFileDialog.getSaveFileName(caption='Save Time Series definition', filter=filters,
                                                        directory=defFile)
 
         if path not in [None, '']:
             path = self.mTimeSeries.saveToFile(path)
-            self.mTimeSeriesDefinitionFile = Path(path)
+            settings = EOTSVSettingsManager.settings()
+            settings.timeSeriesDefinitionFile = Path(path)
+            EOTSVSettingsManager.saveSettings(settings)
 
     def loadFORCEProducts(self, *args, force_cube=None, tile_ids: str = None):
 
@@ -2048,7 +2064,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 nonlocal layer
                 if success and alg.OUTPUT in results:
                     layer = results[alg.OUTPUT]
-
+                    if isinstance(layer, str):
+                        layer = context.project().mapLayer(layer)
                 d.close()
 
             d.algorithmFinished.connect(onExecuted)

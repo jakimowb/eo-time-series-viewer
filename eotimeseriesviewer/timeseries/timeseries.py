@@ -20,6 +20,7 @@
 """
 import bisect
 import datetime
+import json
 import logging
 import re
 from pathlib import Path
@@ -27,6 +28,14 @@ from typing import Any, Iterator, List, Optional, Set, Union
 
 import numpy as np
 from osgeo import gdal
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QModelIndex, Qt
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QTreeView
+from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDateTimeRange, \
+    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsRasterLayer, QgsRectangle, QgsTask, \
+    QgsTaskManager
+from qgis.core import QgsSpatialIndex
 
 from eotimeseriesviewer import messageLog
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
@@ -36,14 +45,6 @@ from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.timeseries.tasks import TimeSeriesFindOverlapTask, TimeSeriesLoadingTask
 from eotimeseriesviewer.utils import findNearestDateIndex
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QModelIndex, Qt
-from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import QTreeView
-from qgis.PyQt.QtXml import QDomDocument
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDateTimeRange, \
-    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsRasterLayer, QgsRectangle, QgsTask, \
-    QgsTaskManager
-from qgis.core import QgsSpatialIndex
 
 logger = logging.getLogger(__name__)
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
@@ -338,25 +339,42 @@ class TimeSeries(QAbstractItemModel):
 
     @classmethod
     def sourcesFromFile(cls, path: Union[str, Path]) -> List[str]:
+        path = Path(path)
         refDir = Path(path).parent
         images = []
         masks = []
-        with open(path, 'r') as f:
-            lines = f.readlines()
-            for line in lines:
-                if re.match('^[ ]*[;#&]', line):
-                    continue
-                line = line.strip()
-                path = Path(line)
-                if not path.is_absolute():
-                    path = refDir / path
 
-                images.append(path.as_posix())
+        if path.suffix in ['.csv', '.txt']:
+            with open(path, 'r') as f:
+                lines = f.readlines()
+                for line in lines:
+                    if re.match('^[ ]*[;#&]', line):
+                        continue
+                    line = line.strip()
+                    path = Path(line)
+                    if not path.is_absolute():
+                        path = refDir / path
+
+                    images.append(path.as_posix())
+        elif path.suffix == '.json':
+
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                for source in data.get('sources', []):
+
+                    path = Path(source['source'])
+                    if not path.is_absolute():
+                        path = (refDir / path).resolve()
+                        source['source'] = str(path)
+                    tss = TimeSeriesSource.fromMap(source)
+                    if isinstance(tss, TimeSeriesSource):
+                        images.append(tss)
+
         return images
 
-    def saveToFile(self, path: Union[str, Path], relative_path: bool = True):
+    def saveToFile(self, path: Union[str, Path], relative_path: bool = True) -> Optional[Path]:
         """
-        Saves the TimeSeries sources into a CSV file
+        Saves the TimeSeries sources into a CSV or JSON file
         :param path: str, path of CSV file
         :return: path of CSV file
         """
@@ -364,21 +382,37 @@ class TimeSeries(QAbstractItemModel):
             path = Path(path)
         assert isinstance(path, Path)
 
-        lines = []
-        lines.append('#Time series definition file: {}'.format(np.datetime64('now').astype(str)))
-        lines.append('#<image path>')
-        for TSD in self:
-            assert isinstance(TSD, TimeSeriesDate)
-            for TSS in TSD:
-                uri = TSS.source()
-                if relative_path:
-                    uri = relativePath(uri, path.parent)
-                lines.append(str(uri))
+        assert path.suffix in ['.csv', '.txt', '.json']
 
-        with open(path, 'w', newline='\n', encoding='utf-8') as f:
-            f.write('\n'.join(lines))
-            messageLog('Time series source images written to {}'.format(path))
-        return path
+        to_write = None
+
+        if path.suffix in ['.csv', '.txt']:
+            lines = []
+            lines.append('#Time series definition file: {}'.format(np.datetime64('now').astype(str)))
+            lines.append('#<image path>')
+            for TSD in self:
+                assert isinstance(TSD, TimeSeriesDate)
+                for TSS in TSD:
+                    uri = TSS.source()
+                    if relative_path:
+                        uri = relativePath(uri, path.parent)
+                    lines.append(str(uri))
+            to_write = '\n'.join(lines)
+        elif path.suffix == '.json':
+            data = self.asMap()
+            if relative_path:
+                for source in data.get('sources', []):
+                    source['source'] = str(relativePath(source['source'], path.parent))
+
+            to_write = json.dumps(data, indent=4, ensure_ascii=False)
+
+        if isinstance(to_write, str):
+            with open(path, 'w', newline='\n', encoding='utf-8') as f:
+                f.write(to_write)
+                messageLog('Time series source images written to {}'.format(path))
+            return path
+        else:
+            return None
 
     def pixelSizes(self):
         """
@@ -657,12 +691,12 @@ class TimeSeries(QAbstractItemModel):
             logger.debug(f'# added {n} sources: t_avg: {dt1 / n: 0.3f}s t_total: {dt1} s, signals: {dt2: 0.3f}s')
 
     def addSources(self,
-                   sources: list,
+                   sources: List[Union[str, Path, TimeSeriesSource, gdal.Dataset, QgsRasterLayer]],
                    runAsync: bool = None,
                    n_threads: Optional[int] = None):
         """
         Adds source images to the TimeSeries
-        :param sources: list of source images, e.g. a list of file paths
+        :param sources: list of source images, e.g., a list of file paths
         :param runAsync: bool
         :param n_threads:
         """
@@ -670,37 +704,45 @@ class TimeSeries(QAbstractItemModel):
         if runAsync is None:
             runAsync = EOTSVSettingsManager.settings().qgsTaskAsync
 
-        sourcePaths = []
+        source_paths = []
+        ts_sources = []
         for s in sources:
             path = None
-            if isinstance(s, gdal.Dataset):
+            if isinstance(s, TimeSeriesSource):
+                ts_sources.append(s)
+                continue
+            elif isinstance(s, gdal.Dataset):
                 path = s.GetDescription()
             elif isinstance(s, QgsRasterLayer):
                 path = s.source()
             else:
                 path = str(s)
             if path:
-                sourcePaths.append(path)
+                source_paths.append(path)
 
-        if n_threads is None:
-            settings = EOTSVSettingsManager.settings()
-            n_threads = settings.qgsTaskFileReadingThreads
-        qgsTask = TimeSeriesLoadingTask(sourcePaths,
-                                        description=f'Load {len(sourcePaths)} images',
-                                        n_threads=n_threads)
+        if len(ts_sources) > 0:
+            self.addTimeSeriesSources(ts_sources)
 
-        qgsTask.imagesLoaded.connect(self.addTimeSeriesSources)
-        qgsTask.progressChanged.connect(self.sigProgress.emit)
-        qgsTask.executed.connect(self.onTaskFinished)
+        if len(source_paths) > 0:
+            if n_threads is None:
+                settings = EOTSVSettingsManager.settings()
+                n_threads = settings.qgsTaskFileReadingThreads
+            qgsTask = TimeSeriesLoadingTask(source_paths,
+                                            description=f'Load {len(source_paths)} images',
+                                            n_threads=n_threads)
 
-        self.mTasks[id(qgsTask)] = qgsTask
+            qgsTask.imagesLoaded.connect(self.addTimeSeriesSources)
+            qgsTask.progressChanged.connect(self.sigProgress.emit)
+            qgsTask.executed.connect(self.onTaskFinished)
 
-        if runAsync:
-            tm: QgsTaskManager = QgsApplication.taskManager()
-            assert isinstance(tm, QgsTaskManager)
-            tm.addTask(qgsTask)
-        else:
-            qgsTask.run_serial()
+            self.mTasks[id(qgsTask)] = qgsTask
+
+            if runAsync:
+                tm: QgsTaskManager = QgsApplication.taskManager()
+                assert isinstance(tm, QgsTaskManager)
+                tm.addTask(qgsTask)
+            else:
+                qgsTask.run_serial()
 
     def onRemoveTask(self, key):
         # print(f'remove {key}', flush=True)
@@ -976,11 +1018,7 @@ class TimeSeries(QAbstractItemModel):
         d = {}
         sources = []
         for tss in self.timeSeriesSources():
-            tss: TimeSeriesSource
-            sources.append({
-                'source': tss.source(),
-                'visible': tss.isVisible()
-            })
+            sources.append(tss.asMap())
         d['sources'] = sources
         return d
 
