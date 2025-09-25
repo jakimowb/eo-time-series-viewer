@@ -192,6 +192,26 @@ class TestMapCanvas(EOTSVTestCase):
         self.assertIsInstance(lastPos, SpatialPoint)
         self.assertTrue(lastPos == p2)
 
+    def test_open_in_qgis(self):
+        ts = TestObjects.createTimeSeries()
+        self.assertTrue(len(ts) > 0)
+
+        p0 = QgsProject.instance()
+        p1 = QgsProject()
+        canvas = MapCanvas()
+        canvas.setProject(p1)
+        canvas.setTSD(ts[0])
+        lyr = ts[0][0].asRasterLayer()
+        canvas.setLayers([lyr])
+
+        assert len(p1.mapLayers()) == 1
+        assert len(p0.mapLayers()) == 0
+        canvas.onOpenLayersInQGIS([lyr])
+        assert len(p1.mapLayers()) == 1
+        assert len(p0.mapLayers()) == 1
+
+        QgsProject.instance().removeAllMapLayers()
+
 
 if __name__ == "__main__":
     unittest.main(buffer=False)

@@ -1221,8 +1221,7 @@ class MapWidget(QFrame):
         self.mLastQGISMapCanvasCenter: SpatialPoint = None
         self.mLastEOTSVMapCanvasCenter: SpatialPoint = None
         self.mMaxNumberOfCachedLayers = 0
-
-        self.mMapLayerStore = EOTimeSeriesViewerProject()
+        self.mProject = EOTimeSeriesViewerProject()
         self.mMapLayerCache = dict()
         self.mCanvasCache = dict()
 
@@ -1322,7 +1321,7 @@ class MapWidget(QFrame):
         SensorMockupDataProvider._release_sip_deleted()
 
         self.mMapLayerCache.clear()
-        self.mMapLayerStore.removeAllMapLayers()
+        self.mProject.removeAllMapLayers()
 
         super().close()
 
@@ -1726,7 +1725,7 @@ class MapWidget(QFrame):
                     # check for layers that already exist, e.g. because we
                     # call load project within the same session
                     # check QGIS and internal layers
-                    for store in [self.mMapLayerStore, QgsProject.instance()]:
+                    for store in [self.mProject, QgsProject.instance()]:
                         if existingLayer := store.mapLayer(oldId):
                             if existingLayer.isValid():
                                 lyr = existingLayer
@@ -1743,7 +1742,7 @@ class MapWidget(QFrame):
 
                             new_layers[oldId] = lyr
 
-            self.mMapLayerStore.addMapLayers(new_layers.values())
+            self.mProject.addMapLayers(new_layers.values())
 
             for i_mv, mv_layer_ids in enumerate(aux_layers.get('map_views', [])):
                 if i_mv >= len(self.mapViews()):
@@ -2229,7 +2228,7 @@ QSlider::add-page {{
         return mapView
 
     def mapLayerStore(self) -> EOTimeSeriesViewerProject:
-        return self.mMapLayerStore
+        return self.mProject
 
     def mapViews(self) -> List[MapView]:
         """
@@ -2309,7 +2308,7 @@ QSlider::add-page {{
     def _createMapCanvas(self, parent=None) -> MapCanvas:
         mapCanvas = MapCanvas(parent)
         mapCanvas.setVisible(False)
-        mapCanvas.setMapLayerStore(self.mMapLayerStore)
+        mapCanvas.setProject(self.mProject)
         mapCanvas.mInfoItem.setTextFormat(self.mapTextFormat())
 
         # set general canvas properties
@@ -2495,7 +2494,7 @@ QSlider::add-page {{
 
     def _freeUnusedMapLayers(self):
 
-        layers = [lyr for lyr in self.mMapLayerStore.mapLayers().values() if has_sensor_id(lyr)]
+        layers = [lyr for lyr in self.mProject.mapLayers().values() if has_sensor_id(lyr)]
         needed = self.usedLayers()
         toRemove = [lyr for lyr in layers if has_sensor_id(lyr) and lyr not in needed]
 
@@ -2503,7 +2502,7 @@ QSlider::add-page {{
         for mv in self.mMapLayerCache.keys():
             layers = [lyr for lyr in self.mMapLayerCache[mv] if lyr not in toRemove]
             self.mMapLayerCache[mv] = layers
-        self.mMapLayerStore.removeMapLayers(toRemove)
+        self.mProject.removeMapLayers(toRemove)
 
     def _updateCrosshair(self, mapView=None):
 

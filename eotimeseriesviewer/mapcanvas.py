@@ -35,7 +35,7 @@ from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QDir, QMimeData, QObject, QP
 from qgis.PyQt.QtGui import QColor, QFont, QIcon, QMouseEvent
 from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QMenu, QSizePolicy, QStyle, QStyleOptionProgressBar
 from qgis.core import Qgis, QgsContrastEnhancement, QgsCoordinateReferenceSystem, QgsDateTimeRange, \
-    QgsExpression, QgsLayerTreeGroup, QgsMapLayer, QgsMapLayerStore, QgsMapSettings, \
+    QgsExpression, QgsLayerTreeGroup, QgsMapLayer, QgsMapSettings, \
     QgsMapToPixel, QgsMimeDataUtils, QgsMultiBandColorRenderer, QgsPalettedRasterRenderer, QgsPointXY, QgsPolygon, \
     QgsProject, QgsRasterBandStats, QgsRasterDataProvider, QgsRasterLayer, QgsRasterLayerTemporalProperties, \
     QgsRasterRenderer, QgsRectangle, QgsRenderContext, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, \
@@ -412,7 +412,7 @@ class MapCanvas(QgsMapCanvas):
     def __init__(self, parent=None):
         super(MapCanvas, self).__init__(parent=parent)
         self.setProperty(KEY_LAST_CLICKED, time.time())
-        self.mMapLayerStore: QgsProject = QgsProject.instance()
+        self.setProject(QgsProject.instance())
 
         self.contextMenuAboutToShow.connect(self.populateContextMenu)
 
@@ -493,14 +493,6 @@ class MapCanvas(QgsMapCanvas):
         self.mCadDock = QgsAdvancedDigitizingDockWidget(self)
         self.mCadDock.setVisible(False)
         self.mMapTools = MapCanvasMapTools(self, self.mCadDock)
-
-    def setMapLayerStore(self, store: Union[QgsMapLayerStore, QgsProject]):
-        """
-        Sets the QgsMapLayerStore or QgsProject instance that is used to register map layers
-        :param store: QgsMapLayerStore | QgsProject
-        """
-        assert isinstance(store, (QgsMapLayerStore, QgsProject))
-        self.mMapLayerStore = store
 
     def renderingFinished(self) -> bool:
         """
@@ -636,7 +628,7 @@ class MapCanvas(QgsMapCanvas):
             assert not isinstance(l.dataProvider(), SensorMockupDataProvider)
 
         # self.mLayerRefs = mapLayers
-        self.mMapLayerStore.addMapLayers(mapLayers)
+        self.project().addMapLayers(mapLayers)
         super(MapCanvas, self).setLayers(mapLayers)
 
     def isRefreshing(self) -> bool:
@@ -1327,9 +1319,9 @@ class MapCanvas(QgsMapCanvas):
                 tprop: QgsRasterLayerTemporalProperties = lyr2.temporalProperties()
                 tprop.setMode(QgsRasterLayerTemporalProperties.ModeFixedTemporalRange)
                 tprop.setIsActive(True)
-                dtg = self.tsd().date().astype(object)
-                dt1 = QDateTime(dtg, QTime(0, 0))
-                dt2 = QDateTime(dtg, QTime(23, 59, 59))
+                dtg = self.tsd().dtg()
+                dt1 = QDateTime(dtg.date(), QTime(0, 0))
+                dt2 = QDateTime(dtg.date(), QTime(23, 59, 59))
                 range = QgsDateTimeRange(dt1, dt2)
                 tprop.setFixedTemporalRange(range)
                 layers.append(lyr2)
