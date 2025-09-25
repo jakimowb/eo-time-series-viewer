@@ -69,7 +69,7 @@ class TestMain(EOTSVTestCase):
 
         TSV.close()
         assert len(QgsProject.instance().mapLayers()) == 0
-        assert len(TSV.mapLayerStore().mapLayers()) == 0
+        assert len(TSV.project().mapLayers()) == 0
         # QgsProject.instance().removeAllMapLayers()
         s = ""
 
