@@ -20,17 +20,17 @@ The EO Time Series Viewer (EOTSV) is a QGIS Plugin to visualize and label Earth 
 
 ## How to cite?
 
-* **Publication**:
+**Publication**:
 
-  _Jakimow, B., van der Linden, S., Thiel, F., Frantz, D., & Hostert, P. (2020).
-  Visualizing and labeling dense multi-sensor earth observation time series: The EO Time Series Viewer.
-  Environmental Modelling & Software,
-  125._ [10.1016/j.envsoft.2020.104631](https://doi.org/10.1016/j.envsoft.2020.104631)
+_Jakimow, B., van der Linden, S., Thiel, F., Frantz, D., & Hostert, P. (2020).
+Visualizing and labeling dense multi-sensor earth observation time series: The EO Time Series Viewer.
+Environmental Modelling & Software,
+125._ [10.1016/j.envsoft.2020.104631](https://doi.org/10.1016/j.envsoft.2020.104631)
 
-* **Python Plugin**:
+**QGIS Plugin**:
 
-  _Jakimow, B. (``<year>``). EO Time Series Viewer, version (
-  ``<version>``), [https://plugins.qgis.org/plugins/timeseriesviewerplugin](https://plugins.qgis.org/plugins/timeseriesviewerplugin)_
+_Jakimow, B. (\<year\>). EO Time Series Viewer, version
+\<version\>, [https://plugins.qgis.org/plugins/timeseriesviewerplugin](https://plugins.qgis.org/plugins/timeseriesviewerplugin)_
 
 ## Acknowledgements
 

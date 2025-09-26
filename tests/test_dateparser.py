@@ -3,12 +3,12 @@ import unittest
 
 import numpy as np
 from osgeo import gdal, gdal_array
+from qgis.PyQt.QtCore import QDate, QDateTime, Qt, QTime
+from qgis.core import QgsDateTimeRange, QgsRasterLayer
 
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from example import exampleLandsat8, exampleNoDataImage, exampleRapidEye
-from qgis.PyQt.QtCore import QDate, QDateTime, Qt, QTime
-from qgis.core import QgsDateTimeRange, QgsRasterLayer
 
 start_app()
 
@@ -48,25 +48,26 @@ class TestDateParser(EOTSVTestCase):
             self.assertEqual(year, int(dyr))
 
     def test_date_extraction(self):
-        lyr = QgsRasterLayer(exampleNoDataImage.as_posix())
-        dtg = ImageDateUtils.dateTimeFromLayer(lyr)
-        self.assertIsInstance(dtg, QDateTime)
-
-        dtg = ImageDateUtils.dateTimeFromLayer(exampleRapidEye)
-        # 2014-06-25
-        self.assertIsInstance(dtg, QDateTime)
-        self.assertTrue(dtg.isValid())
-        self.assertEqual(dtg, QDateTime.fromString('2014-06-25', Qt.ISODate))
-
-        dtg = ImageDateUtils.dateTimeFromLayer(exampleLandsat8)
-        # 2014-01-15
-        self.assertEqual(dtg, QDateTime(QDate(2014, 1, 15), QTime()))
 
         pathTmp = '/vsimem/nothing.tif'
-        ds = TestObjects.createRasterDataset(path=pathTmp, drv='GTiff')
-        rl = QgsRasterLayer(pathTmp)
-        self.assertTrue(rl.isValid())
-        self.assertTrue(ImageDateUtils.dateTimeFromLayer(pathTmp) is None)
+        ds0 = TestObjects.createRasterDataset(path=pathTmp, drv='GTiff')
+
+        examples = [
+            (pathTmp, None),
+            (exampleNoDataImage, QDateTime.fromString('2014-01-08', Qt.ISODate)),
+            (exampleRapidEye, QDateTime.fromString('2014-06-25', Qt.ISODate)),
+            (exampleLandsat8, QDateTime.fromString('2014-01-15', Qt.ISODate)),
+        ]
+
+        for (uri, expected) in examples:
+            ds = gdal.Open(str(uri))
+            lyr = QgsRasterLayer(str(uri))
+
+            dtg1 = ImageDateUtils.dateTimeFromGDALDataset(ds)
+            dtg2 = ImageDateUtils.dateTimeFromLayer(lyr)
+
+            self.assertEqual(dtg1, expected)
+            self.assertEqual(dtg2, expected)
 
         dt1 = QDateTime(QDate(2022, 1, 1), QTime())
         self.assertTrue(ImageDateUtils.doiFromDateTime(dt1), 1)
@@ -142,12 +143,16 @@ class TestDateParser(EOTSVTestCase):
             example.toPyDateTime(),
             str(example.toPyDateTime()),
             example.toPyDateTime().timestamp(),
+            example.date(),
         ]
 
         for input in inputs:
             dt = ImageDateUtils.datetime(input)
             self.assertIsInstance(dt, QDateTime)
-            self.assertEqual(dt, example)
+            if isinstance(input, QDate):
+                self.assertEqual(dt, QDateTime(input, QTime()))
+            else:
+                self.assertEqual(dt, example)
 
         d = example.date().toPyDate()
         d2 = ImageDateUtils.datetime(d)

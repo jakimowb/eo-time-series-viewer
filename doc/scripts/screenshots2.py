@@ -1,18 +1,12 @@
 import json
-import sys
 import os
-from pathlib import Path
 import re
+import sys
+from pathlib import Path
 
 import numpy as np
 from eotimeseriesviewer.profilevisualization import ProfileViewDock, TemporalProfilePlotStyle
 
-from qgis.core import QgsApplication, QgsFillSymbolLayer, QgsMultiBandColorRenderer, QgsProject, QgsRasterLayer, \
-    QgsVectorLayer
-from qgis.gui import QgsMapCanvas, QgsRasterLayerProperties
-from qgis.PyQt.QtCore import QSize, Qt
-from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import QWidget
 from eotimeseriesviewer import DIR_REPO
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapcanvas import MapCanvas
@@ -20,6 +14,12 @@ from eotimeseriesviewer.mapvisualization import MapViewDock
 from eotimeseriesviewer.qgispluginsupport.qps.testing import start_app
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
 from eotimeseriesviewer.sensors import SensorInstrument
+from qgis.PyQt.QtCore import QSize, Qt
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QWidget
+from qgis.core import QgsApplication, QgsFillSymbolLayer, QgsMultiBandColorRenderer, QgsProject, QgsRasterLayer, \
+    QgsVectorLayer
+from qgis.gui import QgsMapCanvas, QgsRasterLayerProperties
 
 app = start_app()
 
@@ -78,7 +78,7 @@ def mapProperties(bn: str):
 def rasterLayerProperties(bn: str):
     path = DIR_SCREENSHOTS / bn
 
-    for l in TSV.mapLayerStore().mapLayers().values():
+    for l in TSV.project().mapLayers().values():
         if isinstance(l, QgsRasterLayer):
             canvas = QgsMapCanvas()
             canvas.setDestinationCrs(l.crs())

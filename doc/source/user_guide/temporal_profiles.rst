@@ -1,4 +1,3 @@
-
 .. _temporal_profiles:
 
 =================

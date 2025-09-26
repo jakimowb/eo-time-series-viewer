@@ -1,7 +1,9 @@
 import itertools
 import json
+import logging
 from typing import Any, Dict, List, Optional, Union
 
+from qgis.PyQt.QtCore import QObject
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
 from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, \
     QPixmap, QStandardItem, QStandardItemModel
@@ -25,6 +27,8 @@ from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
 from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileLayerFieldComboBox, TemporalProfileUtils
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
+
+logger = logging.getLogger(__name__)
 
 
 class StyleItem(PlotStyleItem):
@@ -149,6 +153,12 @@ class ActionItem(QStandardItem):
 
 
 class PythonCodeItem(PropertyItem):
+    class Signals(QObject):
+
+        validationRequest = pyqtSignal(dict)
+
+        def __init__(self, *args, **kwds):
+            super().__init__(*args, **kwds)
 
     def __init__(self, *args, **kwds):
 
@@ -157,11 +167,12 @@ class PythonCodeItem(PropertyItem):
         self.setEditable(True)
         self.mPythonExpression = 'b(1)'
         self.mIsValid: bool = True
+        self.signals = PythonCodeItem.Signals()
 
     def createEditor(self, parent):
         w = FieldPythonExpressionWidget(parent=parent)
         w.setExpression(self.mPythonExpression)
-        # w.validationRequest.connect(self.signals().validationRequest)
+        w.validationRequest.connect(self.signals.validationRequest.emit)
         return w
 
     def data(self, role: int = ...) -> Any:
@@ -573,26 +584,11 @@ class TPVisGroup(PropertyItemGroup):
         self.mLayerID = None
 
         if isinstance(layer, QgsVectorLayer) and layer.isValid():
-
-            if layer.project() != self.project():
-                self.setProject(layer.project())
+            # ensure that this layer exists in the model project
+            self.project().addMapLayer(layer)
 
             self.mLayerID = layer.id()
             return
-            model = self.model()
-
-            if isinstance(model, PlotSettingsTreeModel):
-                # this will create / update signal connections
-                model.layersChanged.emit()
-                pass
-
-            if not self.field() in layer.fields().names():
-                self.setField(self.mLastLayerFields.get(layer.id()))
-
-    def onLayerUpdate(self, *args, **kwds):
-        model = self.model()
-        if isinstance(model, PlotSettingsTreeModel):
-            model.layersChanged.emit()
 
     def layer(self) -> Optional[QgsVectorLayer]:
         return self.project().mapLayer(self.mLayerID)
@@ -639,7 +635,8 @@ class TPVisGroup(PropertyItemGroup):
                     if not is_tp_layer:
                         text.append(f'<b>Layer "{lyr.name()}" has no field for temporal profiles!</b>')
                     text.append(lyr.name())
-                    text.append(lyr.id())
+                    text.append(f'<br>{lyr.id()}')
+                    text.append(f'<code>{lyr.source()}</code>')
                 else:
                     text.append('Missing vector layer. Select vector layer with field for temporal profiles')
                 return '<br>'.join(text)
@@ -750,6 +747,7 @@ class TPVisSensor(PropertyItemGroup):
         self.mPSymbol.label().setIcon(QIcon(':/images/themes/default/propertyicons/stylepreset.svg'))
 
         self.mPBand = PythonCodeItem('Band')
+        self.mPBand.signals.validationRequest.connect(self.validate_sensor_band)
         self.mPBand.setToolTip('Band or spectral index to display.')
         self.mPBand.setText('b(1)')
         self.mPBand.setEditable(True)
@@ -879,7 +877,7 @@ class PlotSettingsTreeModel(QStandardItemModel):
     cName = 0
     cValue = 1
 
-    layersChanged = pyqtSignal()
+    updateLayerRequest = pyqtSignal()
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
@@ -941,6 +939,9 @@ class PlotSettingsTreeModel(QStandardItemModel):
 
     def addVisualizations(self, vis: Union[TPVisGroup, List[TPVisGroup]]):
 
+        if vis.project() != self.project():
+            logger.warning('Different projects: {} vs. {}'.format(vis.project(), self.project()))
+
         if isinstance(vis, TPVisGroup):
             vis = [vis]
         for v in vis:
@@ -950,7 +951,8 @@ class PlotSettingsTreeModel(QStandardItemModel):
             self.insertRow(n, v)
 
         if len(vis) > 0:
-            self.layersChanged.emit()
+            # self.itemChanged.emit(vis[0])
+            self.updateLayerRequest.emit()
 
     def removeAllVisualizations(self):
         self.removeVisualizations(self.visualizations())
@@ -958,14 +960,14 @@ class PlotSettingsTreeModel(QStandardItemModel):
     def removeVisualizations(self, vis: Union[TPVisGroup, List[TPVisGroup]]):
         if isinstance(vis, TPVisGroup):
             vis = [vis]
-        for v in vis:
-            assert isinstance(v, TPVisGroup)
+
+        to_remove = [v for v in vis if isinstance(v, TPVisGroup) and v in self.mVisualizations]
+        for v in to_remove:
             idx: QModelIndex = self.indexFromItem(v)
-            if v in self.mVisualizations:
-                self.mVisualizations.remove(v)
+            self.mVisualizations.remove(v)
             if idx.isValid():
-                self.removeRow(idx.row(), idx.parent())
-        self.layersChanged.emit()
+                self.takeRow(idx.row())
+        self.updateLayerRequest.emit()
 
     def setData(self, index, value, role=None) -> bool:
 
@@ -1181,6 +1183,15 @@ class PlotSettingsTreeView(QTreeView):
         for i in code_items:
             assert isinstance(i, PythonCodeItem)
 
+        def batched(iterable, n: int):
+            """Batch data into tuples of length n. The last batch may be shorter."""
+            it = iter(iterable)
+            while True:
+                batch = tuple(itertools.islice(it, n))
+                if not batch:
+                    break
+                yield batch
+
         m: QMenu = menu.addMenu('Spectral Index')
         indices = spectral_indices()
         DOMAINS = dict()
@@ -1203,8 +1214,8 @@ class PlotSettingsTreeView(QTreeView):
             mDomain: QMenu = m.addMenu(d.title())
             mDomain.setToolTipsVisible(True)
             indices = DOMAINS[d]
-            for batch in itertools.batched(indices, 10):
-                mBatch: QMenu = mDomain.addMenu(f'{batch[0]['short_name']} - {batch[-1]['short_name']}')
+            for batch in batched(indices, 10):
+                mBatch: QMenu = mDomain.addMenu(f'{batch[0]["short_name"]} - {batch[-1]["short_name"]}')
                 mBatch.setToolTipsVisible(True)
                 for idx in batch:
                     self.addSpectralIndexAction(mBatch, idx, code_items)
@@ -1216,7 +1227,7 @@ class PlotSettingsTreeView(QTreeView):
         ln = spectral_index['long_name']
         sn = spectral_index['short_name']
         link = spectral_index.get('reference')
-        tt = f'{spectral_index['long_name']}<br>{spectral_index['formula']}<br><a href="{link}">{link}</a>'
+        tt = f'{spectral_index["long_name"]}<br>{spectral_index["formula"]}<br><a href="{link}">{link}</a>'
         a.setText(f'{sn} - {ln}')
         a.setToolTip(tt)
         a.setData(spectral_index['formula'])

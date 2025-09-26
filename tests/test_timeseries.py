@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
 """Tests QGIS plugin init."""
+import json
+import logging
 import os
 import unittest
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
 
 import numpy as np
 from osgeo import gdal
@@ -11,15 +16,17 @@ from qgis.PyQt.QtGui import QDropEvent
 from qgis.PyQt.QtWidgets import QTableView, QTreeView
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsMimeDataUtils, \
     QgsProject, QgsRasterLayer, QgsVector
+from qgis.core import QgsGeometry, QgsFeature
 from qgis.gui import QgsTaskManagerWidget
 
 import example
 import example.Images
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
 from eotimeseriesviewer.sensors import registerDataProvider, sensorID, SensorInstrument, SensorMockupDataProvider
 from eotimeseriesviewer.tasks import EOTSVTask
-from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects, EOTSV_TIMESERIES_JSON
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.timeseries.tasks import TimeSeriesFindOverlapSubTask, TimeSeriesFindOverlapTask, \
     TimeSeriesLoadingTask
@@ -28,10 +35,49 @@ from eotimeseriesviewer.timeseries.widgets import TimeSeriesDock
 
 start_app()
 
+logger = logging.getLogger(__name__)
+
 
 class TestTimeSeries(EOTSVTestCase):
 
-    def test_loadfromfile(self):
+    @unittest.skipIf(EOTSVTestCase.runsInCI() or not EOTSV_TIMESERIES_JSON.is_file(),
+                     'EOTSV_TIMESERIES_JSON is undefined')
+    def test_add_thousands(self):
+
+        with open(EOTSV_TIMESERIES_JSON, 'r') as f:
+            data = json.load(f)
+
+            for d in data['sources']:
+                p = Path(d['source'])
+                if not p.is_absolute():
+                    p = EOTSV_TIMESERIES_JSON.parent / p
+                    d['source'] = str(p)
+
+        t0 = None
+
+        def dt(msg: Optional[str] = None):
+            nonlocal t0
+            n = datetime.now()
+            d = n - t0
+            t0 = n
+            logger.info(f'{msg}: {d}')
+            return d
+
+        # TS = TimeSeries()
+        TSV = EOTimeSeriesViewer()
+        TS = TSV.timeSeries()
+        t0 = datetime.now()
+
+        sources = [TimeSeriesSource.fromMap(d) for d in data['sources']]
+        n = len(sources)
+        dt0 = dt(f'loading {n} TimeSeriesSources from json')
+        TS.addTimeSeriesSources(sources[0:2])
+        dt2 = dt(f'adding {n} TimeSeriesSource to TimeSeries')
+
+        self.showGui(TSV.ui)
+        TSV.close()
+
+    def test_loadfromfile_csv(self):
         ts = TimeSeries()
         import example
         files = [example.Images.Img_2014_01_15_LC82270652014015LGN00_BOA,
@@ -50,7 +96,7 @@ class TestTimeSeries(EOTSVTestCase):
 
         # save time series, relative paths
         pathTSFileRel = self.createTestOutputDirectory() / 'timeseries_rel.txt'
-        ts.saveToFile(pathTSFileRel, relative_path=False)
+        ts.saveToFile(pathTSFileRel, relative_path=True)
         self.assertTrue(os.path.isfile(pathTSFileRel))
 
         # load time series
@@ -61,6 +107,41 @@ class TestTimeSeries(EOTSVTestCase):
         tsRel = TimeSeries()
         tsRel.loadFromFile(pathTSFileAbs, runAsync=False)
         self.assertTrue(len(tsRel) == len(files))
+
+    def test_loadfromfile_json(self):
+        ts = TimeSeries()
+        import example
+        files = [example.Images.Img_2014_01_15_LC82270652014015LGN00_BOA,
+                 example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA,
+                 example.Images.re_2014_06_25,
+                 example.Images.re_2014_08_20]
+        for f in files:
+            self.assertTrue(os.path.isfile(f))
+        ts.addSources(files, runAsync=False)
+        self.assertTrue(len(ts) == len(files))
+
+        # save time series, absolute paths
+        pathTSFileAbs = self.createTestOutputDirectory() / 'timeseries_abs.json'
+        ts.saveToFile(pathTSFileAbs, relative_path=False)
+        self.assertTrue(os.path.isfile(pathTSFileAbs))
+
+        # save time series, relative paths
+        pathTSFileRel = self.createTestOutputDirectory() / 'timeseries_rel.json'
+        ts.saveToFile(pathTSFileRel, relative_path=True)
+        self.assertTrue(os.path.isfile(pathTSFileRel))
+
+        # load time series
+        tsRel = TimeSeries()
+        tsRel.loadFromFile(pathTSFileRel, runAsync=False)
+        self.assertTrue(len(tsRel) == len(files))
+        for tss in tsRel.timeSeriesSources():
+            self.assertTrue(Path(tss.source()).is_file())
+
+        tsAbs = TimeSeries()
+        tsAbs.loadFromFile(pathTSFileAbs, runAsync=False)
+        self.assertTrue(len(tsAbs) == len(files))
+        for tss in tsAbs.timeSeriesSources():
+            self.assertTrue(Path(tss.source()).is_file())
 
     def test_focus_visibility(self):
 
@@ -233,6 +314,14 @@ class TestTimeSeries(EOTSVTestCase):
 
         ts.clear()
 
+    def test_add_sources(self):
+
+        ts = TimeSeries()
+        tss = TimeSeriesSource.fromGDALDataset(example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA)
+
+        self.assertIsInstance(tss, TimeSeriesSource)
+        ts.addTimeSeriesSources([tss])
+
     def test_TimeSeriesSource(self):
 
         sources = [example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA,
@@ -245,8 +334,20 @@ class TestTimeSeries(EOTSVTestCase):
             print('Test input source: {}'.format(src))
             tss = TimeSeriesSource.create(src)
             self.assertIsInstance(tss, TimeSeriesSource)
-            self.assertIsInstance(tss.spatialExtent(), SpatialExtent)
-            self.assertIsInstance(tss, TimeSeriesSource)
+            self.assertIsInstance(tss.feature(), QgsFeature)
+            self.assertIsInstance(tss.geometry(), QgsGeometry)
+            extent = tss.spatialExtent(source_crs=False)
+            self.assertIsInstance(extent, SpatialExtent)
+            self.assertEqual(extent.crs(), QgsCoordinateReferenceSystem('EPSG:4326'))
+
+            lyr = tss.asRasterLayer()
+            self.assertIsInstance(lyr, QgsRasterLayer)
+            self.assertTrue(lyr.isValid())
+
+            extent = tss.spatialExtent()
+            self.assertIsInstance(extent, SpatialExtent)
+            self.assertEqual(extent.crs(), lyr.crs())
+
             self.assertIsInstance(tss.dtg(), QDateTime)
 
             if not isinstance(ref, TimeSeriesSource):
@@ -265,7 +366,9 @@ class TestTimeSeries(EOTSVTestCase):
             self.assertEqual(lyr.width(), tss.ns())
             self.assertEqual(lyr.height(), tss.nl())
             ext1 = SpatialExtent.fromLayer(lyr)
-            ext2 = tss.spatialExtent()
+            ext_ds = SpatialExtent.fromRasterSource(tss.asDataset())
+            ext2 = tss.spatialExtent(source_crs=True)
+
             if ext1 != ext2:
                 s = ""
             self.assertEqual(SpatialExtent.fromLayer(lyr), tss.spatialExtent())

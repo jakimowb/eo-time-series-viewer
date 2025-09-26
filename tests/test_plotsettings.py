@@ -184,13 +184,22 @@ class PlotSettingsTests(EOTSVTestCase):
         aPan: QAction = dock.actionPanToSelected
         aZoom: QAction = dock.actionZoomToSelected
 
+        assert dock.mVis.layers() == [lyr]
+
+        self.assertFalse(aPan.isEnabled())
+        self.assertFalse(aZoom.isEnabled())
+
         lyr.selectByIds([fid])
-        dock.mVis.selectLayer(lyr)
+        assert dock.mVis.selectLayer(lyr)
+
         dock.mVis.flushSignals()
+        assert lyr.selectedFeatureCount() == 1
+        assert dock.mVis.layers() == [lyr]
 
         self.assertTrue(aPan.isEnabled())
         self.assertTrue(aZoom.isEnabled())
-
+        # self.showGui(dock)
+        dock.mVis.layerFields()
         lyr.removeSelection()
         dock.mVis.flushSignals()
         # self.showGui(dock)
@@ -307,7 +316,7 @@ class PlotSettingsTests(EOTSVTestCase):
         dock.setTimeSeries(ts)
         dock.setProject(project)
         self.assertEqual(dock.project(), project)
-
+        self.taskManagerProcessEvents()
         dock.mVis.flushSignals()
         gc.collect()
         QApplication.processEvents()

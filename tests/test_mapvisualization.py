@@ -16,8 +16,11 @@
 *                                                                         *
 ***************************************************************************
 """
+import logging
 import os
 import unittest
+from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 from qgis.PyQt.QtCore import QSize
@@ -27,8 +30,12 @@ from qgis.PyQt.QtXml import QDomDocument, QDomNode
 from qgis.core import QgsFeatureRenderer, QgsHillshadeRenderer, QgsMultiBandColorRenderer, QgsPalettedRasterRenderer, \
     QgsProject, QgsRasterLayer, QgsRasterRenderer, QgsRasterShader, QgsSingleBandColorDataRenderer, \
     QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsVectorLayer, QgsVirtualLayerDefinition
+from qgis.core import QgsMapLayer, QgsCoordinateTransform, QgsCoordinateReferenceSystem
 from qgis.gui import QgsFontButton
 
+from eotimeseriesviewer.force import FORCEUtils
+from eotimeseriesviewer.forceinputs import FindFORCEProductsTask
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import rendererFromXml, rendererToXml
@@ -38,7 +45,10 @@ from eotimeseriesviewer.qgispluginsupport.qps.utils import bandClosestToWaveleng
 from eotimeseriesviewer.sensors import SensorInstrument
 from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
 from eotimeseriesviewer.tests import EOTSVTestCase, example_raster_files, start_app, TestObjects
+from eotimeseriesviewer.tests import FORCE_CUBE
 from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
+
+logger = logging.getLogger(__name__)
 
 start_app()
 
@@ -117,6 +127,89 @@ class TestMapVisualization(EOTSVTestCase):
 
         btn.changed.connect(onChanged)
         self.showGui()
+
+    def test_crs(self):
+
+        transform = QgsCoordinateTransform(QgsCoordinateReferenceSystem("EPSG:3035"),
+                                           QgsCoordinateReferenceSystem("EPSG:4326"), QgsProject.instance())
+
+        self.assertTrue(transform.isValid())
+
+    @unittest.skipIf(not isinstance(FORCE_CUBE, Path), 'FORCE_CUBE is undefined')
+    def test_load_force_cube(self):
+        eotsv = EOTimeSeriesViewer()
+        eotsv.ui.show()
+        eotsv.mapWidget().setMapsPerMapView(1, 1)
+        tiles = [d.name for d in FORCEUtils.tileDirs(FORCE_CUBE)]
+        if False and len(tiles) > 2:
+            tiles = tiles[:2]
+        dateMin = datetime(2020, 1, 1)
+        dateMax = datetime(2020, 12, 31)
+        task = FindFORCEProductsTask('BOA', FORCE_CUBE,
+                                     dateMin=dateMin, dateMax=dateMax, tile_ids=tiles)
+        task.run()
+        files = task.files()  # [0:100]
+        eotsv.addTimeSeriesImages(files)
+
+        self.showGui(eotsv.ui)
+        eotsv.close()
+        QgsProject.instance().removeAllMapLayers()
+        pass
+
+    def test_load_layers_async(self):
+
+        from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA, Img_2014_03_20_LC82270652014079LGN00_BOA, \
+            re_2014_08_17
+        from example import examplePoints, exampleNoDataImage
+        from eotimeseriesviewer.mapvis.tasks import LoadMapCanvasLayers
+
+        def onExecuted(bool, layers):
+            s = ""
+
+        raster_sources = {str(Img_2014_05_07_LC82270652014127LGN00_BOA): Img_2014_05_07_LC82270652014127LGN00_BOA,
+                          str(Img_2014_03_20_LC82270652014079LGN00_BOA): None,
+                          str(re_2014_08_17): {'type': QgsRasterLayer,
+                                               'uri': re_2014_08_17,
+                                               'providerType': 'gdal'},
+                          'nonexistent': {},
+                          }
+
+        raster_sources = [
+            {'uri': Img_2014_05_07_LC82270652014127LGN00_BOA,
+             'legend_layer': 'foobar'},
+            {'uri': Img_2014_03_20_LC82270652014079LGN00_BOA,
+             'type': QgsRasterLayer,
+             'providerType': 'gdal'},
+            {'uri': 'does_not_exist'},
+        ]
+
+        other_sources = [
+            {'uri': examplePoints},
+            {'uri': exampleNoDataImage},
+        ]
+
+        task = LoadMapCanvasLayers(raster_sources)
+        task.setCallback(onExecuted)
+        task.run_task_manager()
+
+        for result in task.mResults:
+            assert isinstance(result, dict)
+            assert 'legend_layer' in result
+            assert 'uri' in result
+            self.assertIsInstance(result.get('layer'), QgsMapLayer)
+
+        self.assertTrue(len(task.mErrors) == 1)
+        self.assertTrue('does_not_exist' in str(task.mErrors))
+
+        task = LoadMapCanvasLayers(other_sources)
+        task.run_task_manager()
+
+        results = task.mResults
+        self.assertEqual(len(results), 2)
+        for result in results:
+            lyr = result.get('layer')
+            self.assertIsInstance(lyr, QgsMapLayer)
+            self.assertTrue(lyr.isValid())
 
     def test_mapWidget(self):
 
@@ -289,6 +382,7 @@ class TestMapVisualization(EOTSVTestCase):
         MW.setMapsPerMapView(3, 2)
         MW.addMapView(mapview)
         MW.setCurrentDate(tsd)
+        self.taskManagerProcessEvents()
         self.assertTrue(len(MW.mapCanvases()) == 6)
 
         canvas = MW.mapCanvases()[0]
@@ -298,6 +392,7 @@ class TestMapVisualization(EOTSVTestCase):
 
         self.assertEqual([], canvas.layers())
         canvas.timedRefresh()
+
         self.assertNotEqual([], canvas.layers())
         l = canvas.layers()[-1]
         MW.setCrs(l.crs())

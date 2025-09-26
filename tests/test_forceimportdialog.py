@@ -91,7 +91,7 @@ class FORCEImportTestCases(EOTSVTestCase):
             self.assertTrue(f.is_dir())
             self.assertTrue(rx_FORCE_TILEFOLDER.match(f.name))
 
-    @unittest.skipIf(not EOTSVTestCase.runsInCI(), 'Blocking dialogs')
+    @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Blocking dialogs')
     def test_data_loading(self):
         d = FORCEProductImportDialog()
         d.setRootFolder(FORCE_CUBE)

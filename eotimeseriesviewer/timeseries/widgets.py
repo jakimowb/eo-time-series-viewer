@@ -7,9 +7,11 @@ from qgis.PyQt.QtCore import pyqtSignal, QDir, QItemSelectionModel, QMimeData, Q
     QSortFilterProxyModel, \
     Qt, QUrl
 from qgis.PyQt.QtGui import QContextMenuEvent, QCursor, QDragEnterEvent, QDragMoveEvent, QDropEvent
-from qgis.PyQt.QtWidgets import QAbstractItemView, QAction, QHeaderView, QMainWindow, QMenu, QToolBar, QTreeView
+from qgis.PyQt.QtWidgets import QAbstractItemView, QAction, QMainWindow, QMenu, QToolBar, QTreeView
+from qgis.PyQt.QtWidgets import QHeaderView
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsProject
 from qgis.gui import QgisInterface, QgsDockWidget
+
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi, SpatialExtent
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
@@ -80,7 +82,7 @@ class TimeSeriesTreeView(QTreeView):
         selectedTSSs = sorted(set(selectedTSSs))
 
         menu = QMenu(self)
-
+        menu.setToolTipsVisible(True)
         if len(selectedRows) > 0:
             a = menu.addAction('Clear Selection')
             a.triggered.connect(self.clearSelection)
@@ -95,29 +97,38 @@ class TimeSeriesTreeView(QTreeView):
         menu.addSeparator()
 
         if isinstance(node, TimeSeriesDate):
-            a = menu.addAction(f'Move maps to date {node.dtgString()}')
-            a.setToolTip(f'Sets the current map date to {node.dtg()}.')
+            dtgString = node.dtg().toString(Qt.DateFormat.ISODate)
+            a = menu.addAction('Move to date')
+            a.setToolTip(f'Sets the current map date to {dtgString}.')
             a.triggered.connect(lambda *args, tsd=node: self.sigMoveToDate.emit(tsd))
 
-            a = menu.addAction('Move maps to extent')
-            a.setToolTip(f'Sets the current map extent to:<br>{node.spatialExtent()}')
+            a = menu.addAction('Zoom to extent')
+            a.setToolTip(f'Zoom to {node.spatialExtent().asWktCoordinates()}')
             a.triggered.connect(lambda *args, tsd=node: self.onMoveToExtent(tsd.spatialExtent()))
 
             menu.addSeparator()
 
         elif isinstance(node, TimeSeriesSource):
 
-            a = menu.addAction('Show {}'.format(node.name()))
+            dtgString = node.dtg().toString(Qt.DateFormat.ISODate)
+            a = menu.addAction(f'Show {node.name()}')
+
+            def onMoveAndZoom(tss: TimeSeriesSource):
+                s = ""
+                tss.setIsVisible(True)
+                self.sigMoveToSource.emit(tss)
+
             a.setToolTip(
-                f'Sets the current map date to {node.dtg()} and zooms\nto the spatial extent of {node.source()}')
-            a.triggered.connect(lambda *args, tss=node: self.sigMoveToSource.emit(tss))
+                f'Moves to {dtgString} and zooms to {node.source()}')
+            a.triggered.connect(lambda *args, tss=node: onMoveAndZoom(tss))
 
             a = menu.addAction(f'Set map CRS from {node.name()}')
             a.setToolTip(f'Sets the map projection to {node.crs().description()}')
             a.triggered.connect(lambda *args, crs=node.crs(): self.sigSetMapCrs.emit(crs))
 
             menu.addSeparator()
-
+        else:
+            s = ""
         a = menu.addAction('Set date(s) invisible')
         a.setToolTip('Hides the selected time series dates from being shown in a map.')
         a.triggered.connect(lambda *args, tsds=selectedTSDs: self.timeseries().showTSDs(tsds, False))
@@ -345,8 +356,11 @@ class TimeSeriesWidget(QMainWindow):
             tstv.setSelectionModel(self.mSelectionModel)
             tstv.sortByColumn(0, Qt.AscendingOrder)
 
-            for c in range(self.mTSProxyModel.columnCount()):
+            # for c in range(self.mTSProxyModel.columnCount()):
+            auto_resize = [TimeSeries.cDate, TimeSeries.cSensor, TimeSeries.cImages]
+            for c in auto_resize:
                 self.timeSeriesTreeView().header().setSectionResizeMode(c, QHeaderView.ResizeToContents)
+
             self.mTimeSeries.rowsInserted.connect(self.updateSummary)
             # self.mTimeSeries.dataChanged.connect(self.updateSummary)
             self.mTimeSeries.rowsRemoved.connect(self.updateSummary)

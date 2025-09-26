@@ -7,12 +7,12 @@ __copyright__ = 'Copyright 2024, Benjamin Jakimow'
 import datetime
 import unittest
 
+from qgis.PyQt.QtWidgets import QComboBox
 from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsFeature, QgsField, QgsFields, QgsProject, \
     QgsRasterLayer, QgsTaskManager, QgsVectorLayer
-from qgis.PyQt.QtWidgets import QComboBox
 
-from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.force import FORCEUtils
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, \
     TemporalProfileLayerFieldComboBox, TemporalProfileLayerProxyModel, TemporalProfileUtils
@@ -67,15 +67,9 @@ class TestTemporalProfilesV2(EOTSVTestCase):
                   (10, 10)]
         points = [SpatialPoint.fromPixelPosition(lyr1, *px).toCrs(crs) for px in points]
 
-        nFiles = len(files)
         info = dict(id=1)
         task = LoadTemporalProfileTask(['does_not_exists.tif'] + files, points, crs=crs, info=info, save_sources=True)
-
-        tm: QgsTaskManager = QgsApplication.instance().taskManager()
-        tm.addTask(task)
-
-        while tm.count() > 0:
-            QgsApplication.processEvents()
+        task.run_task_manager()
 
         profiles = task.profiles()
 
@@ -264,33 +258,58 @@ class TestTemporalProfilesV2(EOTSVTestCase):
     def test_FORCE2(self):
 
         files = self.allFORCEFiles()
-        files = files[0:10]
+        # files = files[0:10]
         lyr = QgsRasterLayer(files[0].as_posix())
-        pixels = [(100, 100),
-                  (int((lyr.width() / 2)), int(lyr.height() / 2))]
+        pixels = [(100, 50),
+                  (-10, -20),
+                  (25, 75),
+                  (-20, -5),
+                  ]
         points = [SpatialPoint.fromPixelPosition(lyr, *px) for px in pixels]
-
-        results = None
 
         def onExecuted(success, r):
             self.assertTrue(success)
-            nonlocal results
-            results = r
+            self.assertIsInstance(r, list)
 
         def onProgress(progress):
             print(f'Progress {progress}')
 
-        task = LoadTemporalProfileTask(files[0:100], points, lyr.crs(),
-                                       n_threads=4)
-        task.executed.connect(onExecuted)
-        task.progressChanged.connect(onProgress)
-        tm: QgsTaskManager = QgsApplication.instance().taskManager()
-        tm.addTask(task)
+        # files = files[0:10]
 
-        while tm.count() > 0:
-            QgsApplication.processEvents()
+        runs = [
+            {'loader': 'gdal', 'n_threads': 4},
+            {'loader': 'qgis', 'n_threads': 4},
+            {'loader': 'qgis', 'n_threads': 1},
+            {'loader': 'gdal', 'n_threads': 1},
+        ]
 
-        self.assertEqual(len(results), len(points))
+        results = []
+        for run in runs:
+            n_threads = run['n_threads']
+            loader = run['loader']
+            task = LoadTemporalProfileTask(files[0:100], points, lyr.crs(),
+                                           loader=loader, n_threads=n_threads)
+            task.executed.connect(onExecuted)
+            task.progressChanged.connect(onProgress)
+            if False:
+                task.run_serial()
+            else:
+                task.run_task_manager()
+            result = run.copy()
+            result['profiles'] = task.profiles()
+            result['points'] = task.mPoints
+            result['duration'] = datetime.datetime.now() - task.mInitTime
+            results.append(result)
+
+        profiles = None
+        print(f'Load {len(points)} points from {len(files)} files:')
+        for i, result in enumerate(results):
+            p = result['profiles']
+            if i == 0:
+                profiles = p
+            else:
+                self.assertEqual(profiles, p)
+            print(f"{result['loader']} {result['n_threads']} {result['duration']}")
 
     @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Live testing only')
     def test_temp_profile_loading(self):

@@ -3,12 +3,121 @@ import math
 import warnings
 from typing import Dict, List, Tuple
 
-from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
+from osgeo import gdal
+
+from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent, geo2px
 from eotimeseriesviewer.tasks import EOTSVTask
-from eotimeseriesviewer.timeseries.source import TimeSeriesSource
+from eotimeseriesviewer.timeseries.source import TimeSeriesSource, datasetExtent
 from qgis.PyQt.QtCore import pyqtSignal, QDateTime
 from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsCoordinateTransformContext, \
     QgsProject, QgsRasterBandStats, QgsRasterLayer, QgsRectangle, QgsTask
+from qgis.core import QgsRasterDataProvider, QgsPointXY
+
+EMPTY_STATS: QgsRasterBandStats = QgsRasterBandStats()
+
+
+def hasValidPixel(source: str,
+                  crs: QgsCoordinateReferenceSystem,
+                  extent: QgsRectangle,
+                  sample_size: int = 16,
+                  use_gdal: bool = True,
+                  transform_context: QgsCoordinateTransformContext = None) -> Tuple[bool, str]:
+    if transform_context is None:
+        transform_context = QgsProject.instance().transformContext()
+
+    if not (isinstance(extent, QgsRectangle) and extent.isFinite()):
+        return False, 'Invalid spatial extent'
+
+    ext = QgsRectangle(extent)
+
+    error = None
+    if use_gdal:
+        # use GDAL only
+        ds: gdal.Dataset = gdal.Open(source)
+        if not isinstance(ds, gdal.Dataset):
+            return False, f'Unable to open {source} as GDAL Dataset'
+
+        if ds.RasterCount == 0:
+            return False, f'No bands in {source}'
+
+        if ds.RasterXSize == 0 or ds.RasterYSize == 0:
+            return False, f'Empty raster in {source}'
+
+        ds_crs, ds_extent = datasetExtent(ds)
+
+        if ds_crs != crs:
+            transform = QgsCoordinateTransform(crs, ds_crs, transform_context)
+            if not transform.isValid():
+                return False, (f'Unable to get coordinate transformation from {crs.description()} '
+                               f'to {ds_crs.description()}: {source}')
+            ext = transform.transformBoundingBox(ext)
+
+        inter = ext.intersect(ds_extent.boundingBox())
+        if inter.isEmpty():
+            # not an error, just no overlap
+            return False, ''
+
+        s = int(math.sqrt(sample_size))
+        band1: gdal.Band = ds.GetRasterBand(1)
+        no_data = band1.GetNoDataValue()
+        if not isinstance(no_data, (int, float)):
+            return True, ''
+
+        # sample within overlap
+        w, h = inter.width(), inter.height()
+        gt = ds.GetGeoTransform()
+        ul = geo2px(QgsPointXY(inter.xMinimum(), inter.yMaximum()), gt)
+        lr = geo2px(QgsPointXY(inter.xMaximum(), inter.yMinimum()), gt)
+
+        step_x = max(1, int((lr.x() - ul.x()) / s))
+        step_y = max(1, int((lr.y() - ul.y()) / s))
+
+        n_total = 0
+        for x in range(ul.x() + step_x, lr.x(), step_x):
+            for y in range(ul.y() + step_y, lr.y(), step_y):
+                value = band1.ReadAsArray(x, y, 1, 1)[0][0]
+                n_total += 1
+                if value != no_data:
+                    return True, ''
+        if n_total != sample_size:
+            s = ""
+        return False, ''
+
+    else:
+        # use QGIS API
+        options = QgsRasterLayer.LayerOptions(loadDefaultStyle=False, transformContext=transform_context)
+        lyr = QgsRasterLayer(source, options=options)
+        if not lyr.isValid():
+            return False, f'Unable to open {source} {lyr.error()}'
+
+        if crs != lyr.crs():
+            trans = QgsCoordinateTransform(crs, lyr.crs(), transform_context)
+            if not trans.isValid():
+                error = f'Unable to get coordinate transformation from {crs.description()} to {lyr.crs().description()}: {lyr.source()}'
+                return False, error
+            ext = trans.transformBoundingBox(ext)
+
+        if not ext.intersects(lyr.extent()):
+            return False, ''
+
+        dp: QgsRasterDataProvider = lyr.dataProvider()
+        if not dp.sourceHasNoDataValue(1):
+            # all values are valid
+            return True, ''
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', category=DeprecationWarning)
+            # get band statistics for 1st band in given spatial extent, based on n random samples
+
+            stats: QgsRasterBandStats = dp.bandStatistics(1,
+                                                          stats=Qgis.RasterBandStatistic.Range,
+                                                          extent=ext,
+                                                          sampleSize=sample_size)
+
+        if not isinstance(stats, QgsRasterBandStats):
+            return False, 'Could not retrieve stats'
+
+        return (stats.minimumValue, stats.maximumValue) != (EMPTY_STATS.minimumValue, EMPTY_STATS.maximumValue), ''
 
 
 class TimeSeriesFindOverlapSubTask(QgsTask):
@@ -42,36 +151,6 @@ class TimeSeriesFindOverlapSubTask(QgsTask):
     def canCancel(self):
         return True
 
-    def hasValidPixel(self, source: str) -> bool:
-
-        options = QgsRasterLayer.LayerOptions(loadDefaultStyle=False, transformContext=self.transformContext)
-        lyr = QgsRasterLayer(source, options=options)
-        if not lyr.isValid():
-            self.errors.append(f'Unable to open {source} {lyr.error()}')
-            return False
-
-        ext = QgsRectangle(self.extent)
-        if self.crs != lyr.crs():
-            trans = QgsCoordinateTransform(self.crs, lyr.crs(), self.transformContext)
-            if not trans.isValid():
-                self.errors.append(f'Unable to get coordinate transformation from {self.crs.description()} '
-                                   f'to {lyr.crs().description()}: {lyr.source()}')
-                return False
-            ext = trans.transformBoundingBox(ext)
-
-        with warnings.catch_warnings():
-            warnings.filterwarnings('ignore', category=DeprecationWarning)
-            # get band statistics for 1st band in given spatial extent, based on n random samples
-            stats: QgsRasterBandStats = lyr.dataProvider().bandStatistics(1,
-                                                                          stats=Qgis.RasterBandStatistic.Range,
-                                                                          extent=ext,
-                                                                          sampleSize=self.sample_size)
-
-        if not isinstance(stats, QgsRasterBandStats):
-            return False
-
-        return (stats.minimumValue, stats.maximumValue) != (self.emptyStats.minimumValue, self.emptyStats.maximumValue)
-
     def run(self) -> bool:
 
         n_total = len(self.sources)
@@ -81,8 +160,12 @@ class TimeSeriesFindOverlapSubTask(QgsTask):
 
             if self.isCanceled():
                 return False
+            b, err = hasValidPixel(source, self.crs, self.extent, use_gdal=True)
 
-            intersections[source] = self.hasValidPixel(source)
+            intersections[source] = b
+            if err not in ['', None]:
+                self.errors.append(err)
+
             if (i > 0 and i % 20 == 0) or i >= n_total - 1:
                 self.setProgress(100 * (i + 1) / n_total)
                 self.foundSourceOverlaps.emit(intersections.copy())
@@ -116,7 +199,8 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
         """
         if description is None:
             if isinstance(date_of_interest, QDateTime):
-                description = f'Find image overlap ({date_of_interest.toString('yyyy-MM-dd')})'
+                s = date_of_interest.toString('yyyy-MM-dd')
+                description = f'Find image overlap ({s})'
             else:
                 description = 'Find image overlap'
 
@@ -185,7 +269,7 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
 
 
 class TimeSeriesLoadingSubTask(QgsTask):
-    imagesLoaded = pyqtSignal(list)
+    imagesLoaded = pyqtSignal(object)
 
     def __init__(self,
                  sources: List[str], *args,
@@ -239,7 +323,7 @@ class TimeSeriesLoadingSubTask(QgsTask):
 
 
 class TimeSeriesLoadingTask(EOTSVTask):
-    imagesLoaded = pyqtSignal(list)
+    imagesLoaded = pyqtSignal(object)
 
     executed = pyqtSignal(bool, EOTSVTask)
 

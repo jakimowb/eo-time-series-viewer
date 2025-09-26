@@ -21,15 +21,15 @@ import random
 import unittest
 from typing import List, Optional
 
-from example import examplePoints
-from qgis.PyQt.QtCore import QSize
-from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsProject, QgsVectorLayer
-from qgis.gui import QgsMapCanvas
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapvisualization import MapView, MapWidget
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
+from example import examplePoints
+from qgis.PyQt.QtCore import QSize
+from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsProject, QgsVectorLayer
+from qgis.gui import QgsMapCanvas
 
 start_app()
 
@@ -296,7 +296,7 @@ class TestProjectIO(EOTSVTestCase):
 
         TSV.close()
         assert len(QgsProject.instance().mapLayers()) == 0
-        assert len(TSV.mapLayerStore().mapLayers()) == 0
+        assert len(TSV.project().mapLayers()) == 0
         QgsProject.instance().removeAllMapLayers()
 
         # QgsApplication.processEvents()

@@ -18,12 +18,14 @@
  *                                                                         *
  ***************************************************************************/
 """
+import logging
 import os
 import sys
 from itertools import chain
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
+from osgeo import osr
 from qgis.PyQt.QtCore import QMetaObject
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QItemSelectionModel, QModelIndex, QObject, \
     QPoint, Qt
@@ -49,6 +51,7 @@ from ..qgispluginsupport.qps.vectorlayertools import VectorLayerTools
 from ..sensors import SensorInstrument
 from ..utils import addFeatures, doEdit
 
+logger = logging.getLogger(__name__)
 DEBUG = False
 OPENGL_AVAILABLE = False
 ENABLE_OPENGL = False
@@ -169,7 +172,7 @@ class TemporalProfileVisualization(QObject):
         self.mModel = PlotSettingsTreeModel()
         self.mModel.setPlotWidget(self.mPlotWidget)
         self.mModel.itemChanged.connect(self.updatePlotIfChanged)
-        self.mModel.layersChanged.connect(self.updateLayerConnections)
+        self.mModel.updateLayerRequest.connect(self.updateLayerConnections)
 
         settingsActions = [
             self.mPlotWidget.dateTimeViewBox().mActionShowMapViewRange,
@@ -236,7 +239,10 @@ class TemporalProfileVisualization(QObject):
         #    self.mLayerConnections.remove(l)
 
     def updateLayerConnections(self):
-
+        """
+        Updates the signal-slot connections for all layers used in
+        the visualization.
+        """
         old_lids = list(self.mLayerConnectionSignalProxys.keys())
         layers = self.mModel.layers()
         new_lids = [l.id() for l in layers]
@@ -288,9 +294,20 @@ class TemporalProfileVisualization(QObject):
     def profileCandidates(self) -> Dict[Tuple[str, str], List[int]]:
         return self.mProfileCandidates
 
-    def temporalProfileLayerFields(self) -> List[Tuple[QgsVectorLayer, str]]:
+    def layers(self) -> List[QgsVectorLayer]:
         """
-        Returns a list with all layer ids and field names which are used in
+        Returns all vector layers that are used in the visualization
+        """
+        results = []
+        for vis in self.mModel.visualizations():
+            lyr = vis.layer()
+            if lyr not in results:
+                results.append(lyr)
+        return results
+
+    def layerFields(self) -> List[Tuple[QgsVectorLayer, str]]:
+        """
+        Returns a list with all layers and field names which are used in
         profile visualizations
         :return:
         """
@@ -326,7 +343,7 @@ class TemporalProfileVisualization(QObject):
         generalSettings = self.mModel.mSettingsNode.settingsMap()
 
         if not isinstance(layer, QgsVectorLayer):
-            for (lyr, fn) in self.temporalProfileLayerFields():
+            for (lyr, fn) in self.layerFields():
                 layer = lyr
                 field = fn
                 break
@@ -339,9 +356,21 @@ class TemporalProfileVisualization(QObject):
                 and TemporalProfileUtils.isProfileField(layer.fields()[field])):
             return False
 
-        trans = QgsCoordinateTransform(point.crs(), layer.crs(), QgsProject.instance())
+        crs_pt = point.crs()
+        crs_lyr = layer.crs()
+
+        trans = QgsCoordinateTransform(crs_pt, crs_lyr, QgsProject.instance())
         if not trans.isValid():
-            print(f'Unable to transform coordinates: {trans}', file=sys.stderr)
+            logger.error(f'Unable to get valid QgsCoordinateTransform: {trans}')
+            # try with GDAL
+            srs_src = osr.SpatialReference()
+            srs_dst = osr.SpatialReference()
+
+            srs_src.ImportFromWkt(crs_pt.toWkt())
+            srs_dst.ImportFromWkt(crs_lyr.toWkt())
+
+            s = ""
+
             return False
         point = point.toCrs(layer.crs())
         if not isinstance(point, SpatialPoint):
@@ -392,6 +421,11 @@ class TemporalProfileVisualization(QObject):
             task.taskTerminated.connect(self.onTaskFinished)
             task.progressChanged.connect(self.loadingProgress)
             task.interimResults.connect(self.onInterimResults)
+
+            # cancel older tasks if still running
+            for t in self.mTasks:
+                t.cancel()
+
             self.mTasks.append(task)
             if run_async:
                 tm: QgsTaskManager = QgsApplication.instance().taskManager()
@@ -433,30 +467,37 @@ class TemporalProfileVisualization(QObject):
 
         if not isinstance(task, LoadTemporalProfileTask):
             return
-        if success:
-            # where should we add the profiles to?
-            taskInfo = task.info()
-            lid = taskInfo.get('lid')
-            field = taskInfo.get('field')
-            fids = taskInfo.get('fids')
 
-            any_change = False
-            lyr = self.project().mapLayer(lid)
-            if isinstance(lyr, QgsVectorLayer):
-                with doEdit(lyr):
-                    i_field = lyr.fields().lookupField(field)
-                    if i_field >= 0:
-                        all_fids = lyr.allFeatureIds()
-                        for fid, profile in zip(fids, task.profiles()):
-                            if fid in all_fids:
-                                changed = lyr.changeAttributeValue(fid, i_field, profile)
-                                if not changed:
-                                    print(lyr.error())
-                                    break
-                                else:
-                                    any_change = True
-            if any_change:
-                self.updatePlot()
+        if success:
+            try:
+                # where should we add the profiles to?
+                taskInfo = task.info()
+                lid = taskInfo.get('lid')
+                field = taskInfo.get('field')
+                fids = taskInfo.get('fids')
+
+                any_change = False
+                lyr = self.project().mapLayer(lid)
+                if isinstance(lyr, QgsVectorLayer):
+                    with doEdit(lyr):
+                        i_field = lyr.fields().lookupField(field)
+                        if i_field >= 0:
+                            all_fids = lyr.allFeatureIds()
+                            for fid, profile in zip(fids, task.profiles()):
+                                if fid in all_fids:
+                                    changed = lyr.changeAttributeValue(fid, i_field, profile)
+                                    if not changed:
+                                        print(lyr.error())
+                                        break
+                                    else:
+                                        any_change = True
+                if any_change:
+                    self.updatePlot()
+
+                logger.debug(f'Loaded temporal profile: {task.info()}')
+            except Exception as ex:
+                logger.warning(f'Failed to load temporal profile: {ex}\n{task.info()}')
+
         s = ""
 
     def setFilter(self, filter: str):
@@ -469,7 +510,7 @@ class TemporalProfileVisualization(QObject):
         """
         Initializes a TPVisGroup visualization by connecting it to the TimeSeries etc.
         """
-
+        vis.setProject(self.project())
         ts = self.timeSeries()
         if isinstance(ts, TimeSeries):
             vis.setTimeSeries(ts)
@@ -485,16 +526,20 @@ class TemporalProfileVisualization(QObject):
             if (TemporalProfileUtils.isProfileLayer(lyr)
                     and field in lyr.fields().names()
                     and TemporalProfileUtils.isProfileField(lyr.fields()[field])):
+                assert len(QgsProject.instance().mapLayers()) == 0
                 vis.setLayer(lyr)
+                assert len(QgsProject.instance().mapLayers()) == 0
                 vis.setField(field)
                 # other settings to copy?
                 return
+
+        assert len(QgsProject.instance().mapLayers()) == 0
 
         # initialize with a temporal profile layer not shown yet
         for lyr in self.mModel.project().mapLayers().values():
             if TemporalProfileUtils.isProfileLayer(lyr):
                 field = TemporalProfileUtils.profileFields(lyr).field(0)
-                assert lyr.project() == self.project()
+                # assert lyr.project() == self.project()
                 assert lyr.id() in self.project().mapLayers()
                 # vis.setProject(lyr.project())
                 vis.setLayer(lyr)
@@ -506,14 +551,18 @@ class TemporalProfileVisualization(QObject):
             task.cancel()
 
     def createVisualization(self, *args) -> TPVisGroup:
-
+        """
+        Create and initialize a new temporal profile visualization (TPVisGroup)
+        """
         v = TPVisGroup()
         self.initVisualization(v)
         self.mModel.addVisualizations(v)
         return v
 
-    def selectLayer(self, layer: QgsVectorLayer):
-
+    def selectLayer(self, layer: QgsVectorLayer) -> bool:
+        """
+        Selects the 1st. TPVisGroup visualization that corresponds to the given layer.
+        """
         if isinstance(layer, QgsVectorLayer):
             lid = layer.id()
             m = self.mTreeView.model()
@@ -524,6 +573,8 @@ class TemporalProfileVisualization(QObject):
                     sm: QItemSelectionModel = self.mTreeView.selectionModel()
                     sm.select(idx,
                               QItemSelectionModel.SelectionFlag.SelectCurrent | QItemSelectionModel.SelectionFlag.Rows)
+                    return True
+        return False
 
     def selectedFeatures(self) -> List[Tuple[QgsVectorLayer, List[int]]]:
 
@@ -876,7 +927,7 @@ class TemporalProfileVisualization(QObject):
 
     def initPlot(self):
 
-        # create a visualization for each temporal profile layer
+        # create a visualization for each known temporal profile layer
         project = self.project()
         assert isinstance(project, QgsProject)
 
@@ -892,15 +943,20 @@ class TemporalProfileVisualization(QObject):
                 if exampleData:
                     break
             vis = TPVisGroup()
+            vis.setProject(self.project())
             self.initVisualization(vis)
+            assert len(QgsProject.instance().mapLayers()) == 0
             self.mModel.addVisualizations(vis)
+            assert len(QgsProject.instance().mapLayers()) == 0
 
         if len(self.mModel.visualizations()) > 0:
             try:
                 project.layersAdded.disconnect(self.initPlot)
             except Exception as ex:
                 pass
+            assert len(QgsProject.instance().mapLayers()) == 0
             self.updatePlot()
+            assert len(QgsProject.instance().mapLayers()) == 0
 
     def setTimeSeries(self, timeseries: TimeSeries):
         self.mModel.setTimeSeries(timeseries)
@@ -913,11 +969,11 @@ class TemporalProfileVisualization(QObject):
 
     def setProject(self, project: QgsProject):
         self.mModel.setProject(project)
+
         self.mTreeView.setProject(project)
 
         if not self.mIsInitialized:
             self.initPlot()
-            pass
 
 
 class TemporalProfileDock(QgsDockWidget):
@@ -1019,8 +1075,9 @@ class TemporalProfileDock(QgsDockWidget):
     def setTimeSeries(self, timeseries: TimeSeries):
         self.mVis.setTimeSeries(timeseries)
 
-    def setMapDateRange(self, d0: QDateTime, d1: QDateTime):
-        self.mVis.mPlotWidget.setMapDateRange(d0, d1)
+    def setMapDateRange(self, d0: Optional[QDateTime], d1: Optional[QDateTime]):
+        if isinstance(d0, QDateTime) and isinstance(d1, QDateTime):
+            self.mVis.mPlotWidget.setMapDateRange(d0, d1)
 
     def setVectorLayerTools(self, vectorLayerTools: VectorLayerTools):
         self.mVectorLayerTool = vectorLayerTools

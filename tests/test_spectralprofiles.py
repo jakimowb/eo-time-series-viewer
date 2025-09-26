@@ -29,6 +29,8 @@ class TestSpectralProfiles(EOTSVTestCase):
         self.assertTrue(not pt.isEmpty())
         self.assertTrue(pt.crs().isValid())
         EOTSV.createSpectralLibrary()
+        EOTSV.mapWidget().timedRefresh()
+        self.taskManagerProcessEvents()
 
         sensorLayers = [lyr for lyr in c1.layers() if has_sensor_id(lyr)]
         self.assertTrue(len(sensorLayers) > 0)
@@ -45,6 +47,7 @@ class TestSpectralProfiles(EOTSVTestCase):
             pdis = [item for item in slw.plotModel().plotWidget().items()
                     if isinstance(item, SpectralProfilePlotDataItem)]
             self.assertEqual(len(pdis), 1)
+
         self.showGui(EOTSV.ui)
         EOTSV.close()
         QgsProject.instance().removeAllMapLayers()

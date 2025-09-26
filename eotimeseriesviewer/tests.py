@@ -30,6 +30,10 @@ from typing import Any, Dict, List, Match, Pattern, Tuple, Union
 
 import numpy as np
 from osgeo import gdal, osr
+from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtWidgets import QWidget
+from qgis.core import edit, QgsApplication, QgsError, QgsFeature, QgsFields, QgsGeometry, QgsMapToPixel, QgsPointXY, \
+    QgsRasterLayer, QgsVectorLayer
 
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
@@ -40,10 +44,6 @@ from eotimeseriesviewer.sensors import SensorInstrument
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
 from eotimeseriesviewer.timeseries.source import TimeSeriesSource
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
-from qgis.PyQt.QtCore import Qt
-from qgis.PyQt.QtWidgets import QWidget
-from qgis.core import edit, QgsApplication, QgsError, QgsFeature, QgsFields, QgsGeometry, QgsMapToPixel, QgsPointXY, \
-    QgsRasterLayer, QgsVectorLayer
 
 start_app = start_app
 
@@ -52,8 +52,11 @@ gdal.UseExceptions()
 
 DIR_LARGE_TIMESERIES = None
 
+EOTSV_TIMESERIES_JSON = Path(os.environ.get('EOTSV_TIMESERIES_JSON', Path()))
+
 FORCE_CUBE = os.environ.get('FORCE_CUBE')
-FORCE_CUBE = Path(FORCE_CUBE) if isinstance(FORCE_CUBE, str) and os.path.isdir(FORCE_CUBE) else None
+FORCE_CUBE = Path(FORCE_CUBE).expanduser() if isinstance(FORCE_CUBE, str) and Path(
+    FORCE_CUBE).expanduser().is_dir() else None
 JSON_NDVI = [{"name": None,
               "x": [456616800.0, 460764000.0, 462146400.0, 486424800.0, 492559200.0, 520207200.0, 522972000.0,
                     523749600.0, 524354400.0, 552002400.0, 556149600.0, 583797600.0, 613605600.0, 614210400.0,

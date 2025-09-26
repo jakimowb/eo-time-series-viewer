@@ -1,10 +1,11 @@
 from typing import Optional, Tuple
 
+from qgis.PyQt.QtCore import pyqtSignal, Qt
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QDialog, QDialogButtonBox, QHBoxLayout, QLineEdit, QTextBrowser, QToolButton, QWidget
-from qgis.PyQt.QtCore import pyqtSignal, Qt
 from qgis.core import QgsVectorLayer
 from qgis.gui import QgsCodeEditorPython, QgsFeaturePickerWidget
+
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi
 
@@ -14,7 +15,10 @@ path_ui = DIR_UI / 'pythoncodeeditordialog.ui'
 def create_pythoncode_validation_request(expression: str) -> dict:
     d = {'expression': expression,
          'error': None,
-         'is_valid': None}
+         'is_valid': None,
+         'preview_text': '',
+         'preview_tooltip': '',
+         }
 
     return d
 

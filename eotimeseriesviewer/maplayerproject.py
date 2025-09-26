@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, List, Union
 
 from qgis.core import QgsMapLayer, QgsProject
 
@@ -33,8 +33,7 @@ class EOTimeSeriesViewerProject(QgsProject):
                 self.mLayerRefs.append(lyr)
         return added_layers
 
-    def removeMapLayers(self, layers):
-        # self.debugPrint(f'removeMapLayers {layers}')
+    def removeMapLayers(self, layers: List[Union[str, QgsMapLayer]]):
 
         result = super().removeMapLayers([lyr.id() if isinstance(lyr, QgsMapLayer) else lyr for lyr in layers])
 
@@ -43,7 +42,6 @@ class EOTimeSeriesViewerProject(QgsProject):
                 lyr = self.mapLayer(lyr)
             if lyr in self.mLayerRefs:
                 self.mLayerRefs.remove(lyr)
-        # self.debugPrint('removeMapLayers')
         return result
 
     def takeMapLayer(self, layer: QgsMapLayer, **kwargs) -> QgsMapLayer:

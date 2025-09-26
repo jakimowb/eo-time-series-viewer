@@ -4,16 +4,16 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Union
 
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.dateparser import ImageDateUtils
+from eotimeseriesviewer.qgispluginsupport.qps.models import Option, OptionListModel
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, loadUi
+from eotimeseriesviewer.tasks import EOTSVTask
 from qgis.PyQt.QtCore import pyqtSignal, QDate, Qt
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QComboBox, QDialog, QDialogButtonBox, QLabel
 from qgis.core import QgsApplication, QgsTask
 from qgis.gui import QgsFileWidget
-
-from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer.qgispluginsupport.qps.models import Option, OptionListModel
-from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, loadUi
-from eotimeseriesviewer.tasks import EOTSVTask
 
 FORCE_PRODUCTS = {
     'BOA': (r'.*_BOA\.(vrt|tif|dat|hdr)$', 'Bottom of Atmosphere (BOA)'),
@@ -66,8 +66,8 @@ class FindFORCEProductsTask(EOTSVTask):
                  product: str, path,
                  *args,
                  tile_ids: List[str] = None,
-                 dateMin: Optional[QDate] = None,
-                 dateMax: Optional[QDate] = None,
+                 dateMin: Union[None, QDate, str, datetime.datetime] = None,
+                 dateMax: Union[None, QDate, str, datetime.datetime] = None,
                  **kwds):
         super().__init__(
             *args,
@@ -85,8 +85,8 @@ class FindFORCEProductsTask(EOTSVTask):
 
         self.mProduct = product
         self.mPath = path
-        self.mDateMin = dateMin
-        self.mDateMax = dateMax
+        self.mDateMin = ImageDateUtils.datetime(dateMin).date() if dateMin else None
+        self.mDateMax = ImageDateUtils.datetime(dateMax).date() if dateMax else None
         self.mRxProduct = re.compile(FORCE_PRODUCTS[product][0])
         self.setDescription(f'Search {self.mProduct} in "../{self.mPath.name}"')
         self.mFiles: List[Path] = []

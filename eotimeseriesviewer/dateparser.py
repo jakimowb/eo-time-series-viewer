@@ -1,7 +1,7 @@
-from datetime import date, datetime, timedelta
 import enum
 import os
 import re
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional, Union
 
@@ -36,7 +36,7 @@ regDecimalYear = re.compile(r'(?P<year>(19|20)\d\d)\.(?P<datefraction>\d\d\d)')
 
 class DateTimePrecision(enum.Enum):
     """
-    Describes the precision to pares DateTimeStamps.
+    Describes the precision to create DateTimeStamps.
     """
 
     Year = 'Y'
@@ -321,7 +321,7 @@ dateParserList = [
 ]
 
 
-def parseDateFromDataSet(dataSet: gdal.Dataset) -> Optional[datetime64]:
+def depr_parseDateFromDataSet(dataSet: gdal.Dataset) -> Optional[datetime64]:
     assert isinstance(dataSet, gdal.Dataset)
     for parser in dateParserList:
         dtg = parser(dataSet).readDTG()
@@ -348,6 +348,9 @@ DATETIME_FORMATS = [
     # FORCE outputs
     ('%Y%m%d', re.compile(r'(?P<dtg>\d{8})_LEVEL\d_.+_(BOA|QAI|DST|HOT|VZN)')),
 ]
+
+rxDTGKey = re.compile(r'(acquisition|observation)[ _]*(time|date|datetime)', re.IGNORECASE)
+rxDTG = re.compile(r'((acquisition|observation)[ _]*(time|date|datetime)=(?P<dtg>[^<]+))', re.IGNORECASE)
 
 GDAL_DATETIME_ITEMS = [
     # see https://gdal.org/en/stable/user/raster_data_model.html#imagery-domain-remote-sensing
@@ -406,6 +409,40 @@ class ImageDateUtils(object):
         return None
 
     @classmethod
+    def dateTimeFromGDALDataset(cls, ds: gdal.Dataset) -> Optional[QDateTime]:
+        assert isinstance(ds, gdal.Dataset)
+
+        dtg = None
+
+        # search in dataset metadata
+        domains = ds.GetMetadataDomainList()
+        domains = sorted(domains, key=lambda d: d in ['IMAGE_STRUCTURE', 'ENVI'], reverse=True)
+
+        for domain in domains:
+            for k, v in ds.GetMetadata_Dict(domain).items():
+                if rxDTGKey.search(k):
+                    dtg = cls.dateTimeFromString(v)
+                if isinstance(dtg, QDateTime):
+                    return dtg
+
+        filenames = ds.GetFileList()
+        if len(filenames) > 0:
+            path = Path(filenames[0])
+
+            dtg = ImageDateUtils.dateTimeFromString(path.name)
+            if dtg:
+                return dtg
+
+            folder = path.parent
+            if folder.is_dir():
+                dtg = ImageDateUtils.dateTimeFromString(folder.name)
+
+            if dtg:
+                return dtg
+
+        return None
+
+    @classmethod
     def dateTimeFromLayer(cls, layer: Union[Path, str, QgsRasterLayer, gdal.Dataset]) -> Optional[QDateTime]:
         if isinstance(layer, Path):
             layer = str(layer)
@@ -423,7 +460,6 @@ class ImageDateUtils(object):
         else:
             # try to find an observation date
             dtg = None
-            filepath = Path(layer.source())
 
             # read from raster layer's temporal properties
             tprop: QgsRasterLayerTemporalProperties = layer.temporalProperties()
@@ -447,16 +483,7 @@ class ImageDateUtils(object):
             if not dtg:
                 # read from raster data provider
                 dp: QgsRasterDataProvider = layer.dataProvider()
-                tcap = dp.temporalCapabilities()
                 dtg = ImageDateUtils.dateTimeFromDataProvider(dp)
-
-            if not dtg:
-                # read from file name
-                dtg = ImageDateUtils.dateTimeFromString(filepath.name)
-
-            if not dtg:
-                # read from parent directory
-                dtg = ImageDateUtils.dateTimeFromString(filepath.parent.name)
 
             if not dtg:
                 # read from HTML metadata
@@ -488,10 +515,12 @@ class ImageDateUtils(object):
             return QDateTime(dtg)
         if isinstance(dtg, QDateTime):
             return dtg
+        if isinstance(dtg, QDate):
+            return QDateTime(dtg, QTime())
         raise NotImplementedError(f'Unknown type: {type(dtg)}')
 
     @classmethod
-    def timestamp(cls, dtg: Union[QDateTime, QDate, datetime, date]) -> float:
+    def timestamp(cls, dtg: Union[QDateTime, QDate, date]) -> float:
         """
         Converts a time object into a float string, to be used in plotting
         :param dtg:
@@ -546,8 +575,14 @@ class ImageDateUtils(object):
         tcap = dp.temporalCapabilities()
         if tcap.hasTemporalCapabilities():
             raise NotImplementedError()
-        else:
-            return None
+
+        if dp.name() == 'gdal':
+            ds = gdal.Open(dp.dataSourceUri())
+            return ImageDateUtils.dateTimeFromGDALDataset(ds)
+
+        # other providers?
+
+        return None
 
     @classmethod
     def dateRange(cls,

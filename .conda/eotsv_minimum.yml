@@ -1,16 +1,15 @@
-# install: conda env create --file=eotsv.yml
-# update: conda env update --file=eotsv.yml
+# install: conda env create --file=eotsv_minimum.yml
+# update: conda env update --file=eotsv_minimum.yml
 # see also https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-from-an-environment-yml-file
-name: eotsv
+name: eotsv_minimum
 channels:
   - conda-forge
 dependencies:
-  - python>=3.10
-  - qgis>=3.38
+  - python=3.10
+  - qgis=3.38
+  - gdal=3.9
   - gitpython
-  - scipy
   - markdown
-  - myst-parser
   - sphinx_rtd_theme > 1
   - sphinx-copybutton
   - sphinx-autobuild

@@ -28,7 +28,7 @@ class AlgorithmHelp(object):
         an = cls.alg_name(alg)
         data: dict = cls.JSON.get(an, {})
 
-        info = [f'<p>{data.get('shortHelpString', default)}</p>']
+        info = ['<p>{}</p>'.format(data.get('shortHelpString', default))]
 
         for p in alg.parameterDefinitions():
             p: QgsProcessingParameterDefinition

@@ -57,7 +57,7 @@ as published by the Free Software Foundation. See also :ref:`license`.
     About <general/ABOUT.md>
     Contributors <general/CONTRIBUTORS.md>
     Changelog <general/CHANGELOG.md>
-    Gallery <general/gallery.rst>
+    Features <general/features.rst>
     License <general/license.rst>
 
 ..  toctree::

@@ -1,3 +1,4 @@
+import datetime
 from typing import List, Optional
 
 from qgis.core import QgsApplication, QgsTask, QgsTaskManager
@@ -10,6 +11,10 @@ class EOTSVTask(QgsTask):
         self.mCallback = callback
         self._sub_tasks: List[QgsTask] = []
         self.mInfo = info.copy() if info else None
+        self.mInitTime = datetime.datetime.now()
+
+    def setCallback(self, callback):
+        self.mCallback = callback
 
     def info(self) -> Optional[dict]:
 
