@@ -28,6 +28,7 @@ hide-toc: false
 * map canvas context menu option 'Copy > All Maps' now copies maps without other widget boundaries
   to the clipboard
 * missing / inaccessible sources are highlighted in the time series view
+* fixed minor issues related to the QGIS processing framework, e.g., with QGIS 3.44
 
 ## EOTSV 2.1 (2025-06-05)
 
