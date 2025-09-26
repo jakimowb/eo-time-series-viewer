@@ -50,8 +50,9 @@ is stored in a JSON struct that contains:
     - ``nb`` (integer) number of bands
     - ``px_size_x`` (float) pixel resolution in x direction
     - ``px_size_y`` (float) pixel resolution in y direction
-    - ``dt`` (integer) raster data type as _`Qgis::DataType <https://api.qgis.org/api/classQgis.html#a99509074b35d33f9ce7addf3a07be051>`_
-      value
+    - ``dt`` (integer) raster data type enumeration value, as
+      taken from `Qgis::DataType <https://api.qgis.org/api/classQgis.html#a99509074b35d33f9ce7addf3a07be051>`_
+      or `GDALDataType <https://gdal.org/en/stable/api/raster_c_api.html#_CPPv412GDALDataType>`_
     - ``wl`` (optional) a list of *nb* float values with the band wavelengths
     - ``wlu`` (optional) a string value that describes the wavelength unit, e.g. ``nm`` or ``μm``
     - ``name`` (optional) a sensor name, e.g. ``Landsat 8`` or ``Sentinel-2``
