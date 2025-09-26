@@ -20,6 +20,8 @@
 * fixed a bug that could occur when selecting vector features in a map
 * map layers that are not used in any legend (zombie layers) are now removed from the EOTSV project
   to not appear in layer selection widgets
+* map canvas context menu option 'Copy > All Maps' now copies maps without other widget boundaries
+  to the clipboard
 
 ## EOTSV 2.1 (2025-06-05)
 

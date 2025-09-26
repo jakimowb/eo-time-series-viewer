@@ -43,6 +43,7 @@ from qgis.core import Qgis, QgsContrastEnhancement, QgsCoordinateReferenceSystem
 from qgis.core import QgsApplication
 from qgis.gui import QgisInterface, QgsAdvancedDigitizingDockWidget, QgsFloatingWidget, QgsGeometryRubberBand, \
     QgsMapCanvas, QgsMapCanvasItem, QgsMapTool, QgsMapToolCapture, QgsMapToolPan, QgsMapToolZoom, QgsUserInputWidget
+
 from .labeling.quicklabeling import addQuickLabelMenu
 from .mapvis.tasks import LoadMapCanvasLayers
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairDialog, CrosshairMapCanvasItem, CrosshairStyle
@@ -654,7 +655,7 @@ class MapCanvas(QgsMapCanvas):
             elif isinstance(a, MapCanvas.Command):
                 if MapCanvas.Command not in self.mTimedRefreshPipeLine.keys():
                     self.mTimedRefreshPipeLine[MapCanvas.Command] = []
-                # remove previous commands of same type, append command to end
+                # remove previous commands of the same type, append command to end
                 while a in self.mTimedRefreshPipeLine[MapCanvas.Command]:
                     self.mTimedRefreshPipeLine[MapCanvas.Command].remove(a)
                 self.mTimedRefreshPipeLine[MapCanvas.Command].append(a)
@@ -1122,7 +1123,7 @@ class MapCanvas(QgsMapCanvas):
             mw = findParent(self, MapWidget)
             if isinstance(mw, MapWidget):
                 action = m.addAction('All Maps')
-                action.triggered.connect(lambda: QApplication.clipboard().setPixmap(mw.grab()))
+                action.triggered.connect(lambda: QApplication.clipboard().setPixmap(mw.gridFrame().grab()))
                 action.setToolTip('Copies all maps into the clipboard.')
 
         m: QMenu = menu.addMenu('Map Coordinates...')

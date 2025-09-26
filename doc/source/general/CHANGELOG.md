@@ -7,6 +7,8 @@ hide-toc: false
 
 ## EOTSV 2.2 (2025-09-25)
 
+* multi-sensor time series can be saved as json. loading from
+  the timeseries from a json file is rapid, as it avoids source files access
 * faster and asynchronous loading of time series sources
   [issue #27](https://github.com/jakimowb/eo-time-series-viewer/issues/27)
 * faster and asynchronous loading of time series raster images
@@ -14,11 +16,17 @@ hide-toc: false
 * faster and asynchronous loading of temporal profiles
 * the initial raster stretch is taken from the first sensor raster
 * added `scripts/load_eotsv_profiles.py` to load temporal profiles
-  without having QGIS API install
-* refactoring context menu entries
+  without having the QGIS API installed
+* some context menus got shorter names and better tooltips
 * preview for python-code band index expressions
 * (experimental) user functions allow creating additional profiles
-  that are derived temporal profiles
+  that are derived from temporal profiles
+* antialias for spectral and temporal profile plots
+* fixed a bug that could occur when selecting vector features in a map
+* map layers that are not used in any legend (zombie layers) are now removed from the EOTSV project
+  to not appear in layer selection widgets
+* map canvas context menu option 'Copy > All Maps' now copies maps without other widget boundaries
+  to the clipboard
 
 ## EOTSV 2.1 (2025-06-05)
 

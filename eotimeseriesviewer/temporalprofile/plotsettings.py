@@ -3,6 +3,17 @@ import json
 import logging
 from typing import Any, Dict, List, Optional, Union
 
+from qgis.PyQt.QtCore import QObject
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
+from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, \
+    QPixmap, QStandardItem, QStandardItemModel
+from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QHeaderView, QMenu, QStyle, QStyledItemDelegate, \
+    QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
+from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
+    QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsGeometry, QgsProject, QgsProperty, \
+    QgsPropertyDefinition, QgsVectorLayer
+from qgis.gui import QgsFieldExpressionWidget
+
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, \
     PlotStyleDialog, PlotStyleWidget
@@ -16,16 +27,6 @@ from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
 from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileLayerFieldComboBox, TemporalProfileUtils
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
-from qgis.PyQt.QtCore import QObject
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
-from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, \
-    QPixmap, QStandardItem, QStandardItemModel
-from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QHeaderView, QMenu, QStyle, QStyledItemDelegate, \
-    QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
-from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
-    QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsGeometry, QgsProject, QgsProperty, \
-    QgsPropertyDefinition, QgsVectorLayer
-from qgis.gui import QgsFieldExpressionWidget
 
 logger = logging.getLogger(__name__)
 
@@ -589,11 +590,6 @@ class TPVisGroup(PropertyItemGroup):
             self.mLayerID = layer.id()
             return
 
-    def onLayerUpdate(self, *args, **kwds):
-        model = self.model()
-        if isinstance(model, PlotSettingsTreeModel):
-            model.layersChanged.emit()
-
     def layer(self) -> Optional[QgsVectorLayer]:
         return self.project().mapLayer(self.mLayerID)
 
@@ -639,7 +635,8 @@ class TPVisGroup(PropertyItemGroup):
                     if not is_tp_layer:
                         text.append(f'<b>Layer "{lyr.name()}" has no field for temporal profiles!</b>')
                     text.append(lyr.name())
-                    text.append(lyr.id())
+                    text.append(f'<br>{lyr.id()}')
+                    text.append(f'<code>{lyr.source()}</code>')
                 else:
                     text.append('Missing vector layer. Select vector layer with field for temporal profiles')
                 return '<br>'.join(text)
@@ -880,7 +877,7 @@ class PlotSettingsTreeModel(QStandardItemModel):
     cName = 0
     cValue = 1
 
-    layersChanged = pyqtSignal()
+    updateLayerRequest = pyqtSignal()
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
@@ -954,7 +951,8 @@ class PlotSettingsTreeModel(QStandardItemModel):
             self.insertRow(n, v)
 
         if len(vis) > 0:
-            self.itemChanged.emit(vis[0])
+            # self.itemChanged.emit(vis[0])
+            self.updateLayerRequest.emit()
 
     def removeAllVisualizations(self):
         self.removeVisualizations(self.visualizations())
@@ -969,7 +967,7 @@ class PlotSettingsTreeModel(QStandardItemModel):
             self.mVisualizations.remove(v)
             if idx.isValid():
                 self.takeRow(idx.row())
-        self.layersChanged.emit()
+        self.updateLayerRequest.emit()
 
     def setData(self, index, value, role=None) -> bool:
 

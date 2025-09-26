@@ -172,7 +172,7 @@ class TemporalProfileVisualization(QObject):
         self.mModel = PlotSettingsTreeModel()
         self.mModel.setPlotWidget(self.mPlotWidget)
         self.mModel.itemChanged.connect(self.updatePlotIfChanged)
-        self.mModel.layersChanged.connect(self.updateLayerConnections)
+        self.mModel.updateLayerRequest.connect(self.updateLayerConnections)
 
         settingsActions = [
             self.mPlotWidget.dateTimeViewBox().mActionShowMapViewRange,
@@ -239,7 +239,10 @@ class TemporalProfileVisualization(QObject):
         #    self.mLayerConnections.remove(l)
 
     def updateLayerConnections(self):
-
+        """
+        Updates the signal-slot connections for all layers used in
+        the visualization.
+        """
         old_lids = list(self.mLayerConnectionSignalProxys.keys())
         layers = self.mModel.layers()
         new_lids = [l.id() for l in layers]
@@ -291,9 +294,20 @@ class TemporalProfileVisualization(QObject):
     def profileCandidates(self) -> Dict[Tuple[str, str], List[int]]:
         return self.mProfileCandidates
 
-    def temporalProfileLayerFields(self) -> List[Tuple[QgsVectorLayer, str]]:
+    def layers(self) -> List[QgsVectorLayer]:
         """
-        Returns a list with all layer ids and field names which are used in
+        Returns all vector layers that are used in the visualization
+        """
+        results = []
+        for vis in self.mModel.visualizations():
+            lyr = vis.layer()
+            if lyr not in results:
+                results.append(lyr)
+        return results
+
+    def layerFields(self) -> List[Tuple[QgsVectorLayer, str]]:
+        """
+        Returns a list with all layers and field names which are used in
         profile visualizations
         :return:
         """
@@ -329,7 +343,7 @@ class TemporalProfileVisualization(QObject):
         generalSettings = self.mModel.mSettingsNode.settingsMap()
 
         if not isinstance(layer, QgsVectorLayer):
-            for (lyr, fn) in self.temporalProfileLayerFields():
+            for (lyr, fn) in self.layerFields():
                 layer = lyr
                 field = fn
                 break
@@ -537,14 +551,18 @@ class TemporalProfileVisualization(QObject):
             task.cancel()
 
     def createVisualization(self, *args) -> TPVisGroup:
-
+        """
+        Create and initialize a new temporal profile visualization (TPVisGroup)
+        """
         v = TPVisGroup()
         self.initVisualization(v)
         self.mModel.addVisualizations(v)
         return v
 
-    def selectLayer(self, layer: QgsVectorLayer):
-
+    def selectLayer(self, layer: QgsVectorLayer) -> bool:
+        """
+        Selects the 1st. TPVisGroup visualization that corresponds to the given layer.
+        """
         if isinstance(layer, QgsVectorLayer):
             lid = layer.id()
             m = self.mTreeView.model()
@@ -555,6 +573,8 @@ class TemporalProfileVisualization(QObject):
                     sm: QItemSelectionModel = self.mTreeView.selectionModel()
                     sm.select(idx,
                               QItemSelectionModel.SelectionFlag.SelectCurrent | QItemSelectionModel.SelectionFlag.Rows)
+                    return True
+        return False
 
     def selectedFeatures(self) -> List[Tuple[QgsVectorLayer, List[int]]]:
 

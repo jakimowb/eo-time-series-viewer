@@ -19,11 +19,12 @@
 import os
 import unittest
 
+from qgis.core import QgsCoordinateReferenceSystem, QgsProject
+from qgis.gui import QgsMapCanvas
+
 from eotimeseriesviewer.main import EOTimeSeriesViewer, SaveAllMapsDialog
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from example import examplePoints
-from qgis.core import QgsCoordinateReferenceSystem, QgsProject
-from qgis.gui import QgsMapCanvas
 
 start_app()
 
@@ -99,7 +100,7 @@ class TestMain(EOTSVTestCase):
 
         self.taskManagerProcessEvents()
         TSV = EOTimeSeriesViewer()
-        TSV.mapWidget().setMapsPerMapView(1, 1)
+        TSV.mapWidget().setMapsPerMapView(3, 1)
         TSV.loadExampleTimeSeries(loadAsync=True)
         self.taskManagerProcessEvents()
 
@@ -107,7 +108,7 @@ class TestMain(EOTSVTestCase):
         TSV.close()
         QgsProject.instance().removeAllMapLayers()
 
-    def test_TimeSeriesViewe_VectorOnly(self):
+    def test_TimeSeriesViewer_VectorOnly(self):
 
         eotsv = EOTimeSeriesViewer()
         from example import examplePoints
