@@ -258,7 +258,7 @@ class TimeSeriesSource(object):
         self.mIsVisible: bool = True
         self.mCrs: QgsCoordinateReferenceSystem = crs
         self.mSource: str = source
-        self.mSourceExtent: Optional[SpatialExtent] = None
+        self.mSourceExtent: Optional[SpatialExtent] = SpatialExtent(crs, QgsRectangle.fromWkt(extent.asWkt()))
         self.mName: str = name
         self.mProvider: str = provider
         self.mSid: str = sid
@@ -302,6 +302,10 @@ class TimeSeriesSource(object):
         :return: str
         """
         return self.mSource
+
+    def isMissing(self):
+        from eotimeseriesviewer.mapcanvas import MapCanvas
+        return self.mSource in MapCanvas.MISSING_SOURCES
 
     def clone(self):
         return TimeSeriesSource(self.asRasterLayer(False), self.mDTG)

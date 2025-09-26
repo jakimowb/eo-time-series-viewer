@@ -18,6 +18,7 @@
  *                                                                         *
  ***************************************************************************/
 """
+import datetime
 import enum
 import math
 import os
@@ -409,6 +410,8 @@ class MapCanvas(QgsMapCanvas):
     sigCrosshairStyleChanged = pyqtSignal(CrosshairStyle)
     sigCanvasClicked = pyqtSignal(QMouseEvent)
 
+    MISSING_SOURCES: Dict[str, datetime.datetime] = dict()
+
     def __init__(self, parent=None):
         super(MapCanvas, self).__init__(parent=parent)
         self.setProperty(KEY_LAST_CLICKED, time.time())
@@ -664,7 +667,7 @@ class MapCanvas(QgsMapCanvas):
                 print('Unsupported argument: {} {}'.format(type(a), str(a)), file=sys.stderr)
 
     # def onSourceLayerLoaded(self, success: bool, task: LoadMapCanvasLayers):
-    def onSourceLayerLoaded(self, success, task):
+    def onSourceLayerLoaded(self, success, task: LoadMapCanvasLayers):
 
         if success:
             layers_old = self.layers()
@@ -672,6 +675,10 @@ class MapCanvas(QgsMapCanvas):
             for legend_lyr in layers_old:
                 if llid := legend_lyr.customProperty(KEY_LEGEND_LAYER_ID, defaultValue=None):
                     legend_layers_old.setdefault(llid, []).append(legend_lyr)
+
+            last_attempt = datetime.datetime.now()
+            for uri, err in task.mErrors.items():
+                MapCanvas.MISSING_SOURCES[uri] = last_attempt
 
             legend_layers_new = {}
             for r in task.mResults:
@@ -821,6 +828,11 @@ class MapCanvas(QgsMapCanvas):
             except Exception as ex:
                 s = ""
             # load missing source layers in another thread
+            n1 = len(source_requests)
+            source_requests = [r for r in source_requests if r['uri'] not in self.MISSING_SOURCES]
+            n2 = len(source_requests)
+            if n1 != n2:
+                s = ""
             if len(source_requests) > 0:
                 task = LoadMapCanvasLayers(source_requests)
                 task.setCallback(self.onSourceLayerLoaded)

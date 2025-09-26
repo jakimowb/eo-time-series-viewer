@@ -24,7 +24,7 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Any, Iterator, List, Optional, Set, Union
+from typing import Any, Iterator, List, Optional, Set, Union, Dict
 
 import numpy as np
 from osgeo import gdal
@@ -147,6 +147,10 @@ class TimeSeries(QAbstractItemModel):
 
     def __init__(self, imageFiles=None):
         super(TimeSeries, self).__init__()
+
+        self.mLUT_TSD: Dict[str, TimeSeriesDate] = {}
+        self.mLUT_TSS: Dict[str, TimeSeriesSource] = {}
+
         self.mTSDs: List[TimeSeriesDate] = list()
         self.mSensors: List[SensorInstrument] = []
         self.mShape = None
@@ -265,13 +269,15 @@ class TimeSeries(QAbstractItemModel):
                 idx2 = self.index(idx.row(), self.columnCount() - 1)
                 self.dataChanged.emit(idx, idx2, [Qt.BackgroundColorRole])
 
-    def findMatchingSensor(self, sensorID: str) -> Optional[SensorInstrument]:
+    def findMatchingSensor(self, sensorID: Union[str, tuple, dict]) -> Optional[SensorInstrument]:
         if isinstance(sensorID, str):
             nb, px_size_x, px_size_y, dt, wl, wlu, name = sensorIDtoProperties(sensorID)
 
-        else:
-            assert isinstance(sensorID, tuple) and len(sensorID) == 7
+        elif isinstance(sensorID, tuple):
+            assert len(sensorID) == 7
             nb, px_size_x, px_size_y, dt, wl, wlu, name = sensorID
+        else:
+            raise NotImplementedError()
 
         PX_DIMS = (nb, px_size_y, px_size_x, dt)
         for sensor in self.sensors():
@@ -461,7 +467,7 @@ class TimeSeries(QAbstractItemModel):
     def tsd(self, dtr: QgsDateTimeRange, sensor: Union[None, SensorInstrument, str]) -> Optional[TimeSeriesDate]:
         """
         Returns the TimeSeriesDate identified by date-time-range and sensorID
-        :param dtr: numpy.datetime64
+        :param dtr: QgsDateTimeRange
         :param sensor: SensorInstrument | str with sensor id
         :return:
         """
@@ -488,6 +494,15 @@ class TimeSeries(QAbstractItemModel):
         assert tsd not in self.mTSDs
         assert tsd.sensor() in self.mSensors
 
+        self._connectTSD(tsd)
+
+        row = bisect.bisect(self.mTSDs, tsd)
+        self.beginInsertRows(self.mRootIndex, row, row)
+        self.mTSDs.insert(row, tsd)
+        self.endInsertRows()
+        return tsd
+
+    def _connectTSD(self, tsd: TimeSeriesDate):
         tsd.mTimeSeries = self
         tsd.sigRemoveMe.connect(lambda t=tsd: self.removeTSDs([t]))
 
@@ -500,12 +515,6 @@ class TimeSeries(QAbstractItemModel):
 
         tsd.sigSourcesAdded.connect(self.sigSourcesAdded)
         tsd.sigSourcesRemoved.connect(self.sigSourcesRemoved)
-
-        row = bisect.bisect(self.mTSDs, tsd)
-        self.beginInsertRows(self.mRootIndex, row, row)
-        self.mTSDs.insert(row, tsd)
-        self.endInsertRows()
-        return tsd
 
     def showTSDs(self, tsds: list, b: bool = True):
         tsds = sorted(set([t for t in tsds if t in self]))
@@ -612,19 +621,26 @@ class TimeSeries(QAbstractItemModel):
         """
         self.removeTSDs(self[:])
 
-    def addSensor(self, sensor: SensorInstrument):
+    def addSensors(self, sensors: Union[SensorInstrument, List[SensorInstrument]]) -> List[SensorInstrument]:
         """
         Adds a Sensor
-        :param sensor: SensorInstrument
+        :param sensors: SensorInstrument or list of SensorInstruments
         """
-        assert isinstance(sensor, SensorInstrument)
-        if sensor not in self.mSensors:
-            sensor.sigNameChanged.connect(self.onSensorNameChanged)
-            self.mSensors.append(sensor)
-            self.sigSensorAdded.emit(sensor)
-            return sensor
-        else:
-            return None
+        if isinstance(sensors, SensorInstrument):
+            sensors = [sensors]
+        added_sensors = []
+        for sensor in sensors:
+            assert isinstance(sensor, SensorInstrument)
+
+            if sensor not in self.mSensors:
+                self._connectSensor(sensor)
+                self.mSensors.append(sensor)
+                self.sigSensorAdded.emit(sensor)
+                added_sensors.append(sensor)
+        return added_sensors
+
+    def _connectSensor(self, sensor: SensorInstrument):
+        sensor.sigNameChanged.connect(self.onSensorNameChanged)
 
     def onSensorNameChanged(self, name: str):
         sensor = self.sender()
@@ -666,13 +682,14 @@ class TimeSeries(QAbstractItemModel):
 
     def addTimeSeriesSources(self, sources: List[TimeSeriesSource]):
         """
-        Adds a list of time series sources to the time series
+        Adds a list of TimeSeriesSource to the time series
         :param sources:  list-of-TimeSeriesSources
         """
         assert isinstance(sources, list)
         n = len(sources)
         if n > 0:
             # print(f'Add {len(sources)} sources...', flush=True)
+
             addedDates = []
             t0 = datetime.datetime.now()
             for i, source in enumerate(sources):
@@ -788,8 +805,7 @@ class TimeSeries(QAbstractItemModel):
         # if necessary, add a new sensor instance
         if not isinstance(sensor, SensorInstrument):
             sensor = SensorInstrument(sid)
-            sensor = self.addSensor(sensor)
-            assert isinstance(sensor, SensorInstrument)
+            assert sensor in self.addSensors(sensor)
         assert isinstance(sensor, SensorInstrument)
         tsd = self.tsd(tsr, sensor)
 
@@ -1078,7 +1094,7 @@ class TimeSeries(QAbstractItemModel):
         c = index.column()
 
         if isinstance(node, TimeSeriesSource):
-            if role in [Qt.DisplayRole, Qt.ToolTipRole]:
+            if role == Qt.DisplayRole:
                 if c == self.cDate:
                     dateStr = tss.dtg().toString(Qt.ISODate)
                     if role == Qt.DisplayRole:
@@ -1098,14 +1114,33 @@ class TimeSeries(QAbstractItemModel):
                 if c == self.cSensor:
                     return tsd.sensor().name()
 
+            if role == Qt.ToolTipRole:
+                tt = []
+
+                if c == self.cDate:
+                    dateStr = tss.dtg().toString(Qt.ISODate)
+                    if role == Qt.DisplayRole:
+                        dateStr = re.sub(r'T00(:00)*$', '', dateStr)
+                    tt.append(dateStr)
+                if c == self.cCRS:
+                    tt.append(tss.crs().description())
+                else:
+                    tt.append(self.data(index, role=Qt.DisplayRole))
+                if tss.isMissing():
+                    tt.append(f'<span style="color:red">Cannot open: "{tss.source()}"</span>')
+                return '<br>'.join([str(t) for t in tt])
+
             if role == Qt.CheckStateRole and c == 0:
                 return Qt.Checked if node.isVisible() else Qt.Unchecked
 
             if role == Qt.DecorationRole and c == 0:
                 return None
 
-            if role == Qt.BackgroundColorRole and tsd in self.mVisibleDates:
+            if role == Qt.BackgroundRole and tsd in self.mVisibleDates:
                 return QColor('yellow')
+
+            if role == Qt.ForegroundRole and tss.isMissing():
+                return QColor('red')
 
         if isinstance(node, TimeSeriesDate):
             if role in [Qt.DisplayRole, Qt.ToolTipRole]:
@@ -1119,7 +1154,7 @@ class TimeSeries(QAbstractItemModel):
             if role == Qt.CheckStateRole and index.column() == 0:
                 return node.checkState()
 
-            if role == Qt.BackgroundColorRole and tsd in self.mVisibleDates:
+            if role == Qt.BackgroundRole and tsd in self.mVisibleDates:
                 return QColor('yellow')
 
         return None

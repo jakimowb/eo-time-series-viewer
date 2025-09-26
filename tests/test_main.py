@@ -19,12 +19,14 @@
 import os
 import unittest
 
+from osgeo import gdal
 from qgis.core import QgsCoordinateReferenceSystem, QgsProject
 from qgis.gui import QgsMapCanvas
 
 from eotimeseriesviewer.main import EOTimeSeriesViewer, SaveAllMapsDialog
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
-from example import examplePoints
+from eotimeseriesviewer.timeseries.source import TimeSeriesSource
+from example import examplePoints, exampleLandsat8
 
 start_app()
 
@@ -131,10 +133,23 @@ class TestMain(EOTSVTestCase):
     def test_TimeSeriesViewerInvalidSource(self):
 
         TSV = EOTimeSeriesViewer()
-        images = ['not-existing-source']
-        TSV.addTimeSeriesImages(images, loadAsync=False)
+        TSV.loadExampleTimeSeries(loadAsync=False)
 
-        self.showGui(TSV)
+        for tss in TSV.timeSeries()[0]:
+            tss.mSource = 'missing/source/file'
+
+        self.showGui(TSV.ui)
+        TSV.close()
+        QgsProject.instance().removeAllMapLayers()
+
+    def test_TimeSeriesViewerBecameInvalidSource(self):
+
+        ds = gdal.Open(exampleLandsat8)
+        tss = TimeSeriesSource.fromGDALDataset(ds)
+        tss.mSource = 'foobar'
+        TSV = EOTimeSeriesViewer()
+        TSV.addTimeSeriesImages([tss], loadAsync=False)
+        self.showGui(TSV.ui)
         TSV.close()
         QgsProject.instance().removeAllMapLayers()
 

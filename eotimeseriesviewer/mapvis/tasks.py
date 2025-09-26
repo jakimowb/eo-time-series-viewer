@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Union, Optional, Tuple, Type, List
+from typing import Union, Optional, Tuple, Type, List, Dict
 
 from qgis.core import QgsRasterLayer, QgsMapLayer, QgsVectorTileLayer, QgsVectorLayer, Qgis, QgsRasterFileWriter, \
     QgsVectorFileWriter
@@ -48,7 +48,7 @@ class LoadMapCanvasLayers(EOTSVTask):
             assert isinstance(s, dict)
         self.mSources: List[dict] = sources.copy()
         self.mResults: List[dict] = list()
-        self.mErrors: List[str] = list()
+        self.mErrors: Dict[str, str] = dict()
 
     def canCancel(self):
         return False
@@ -119,10 +119,10 @@ class LoadMapCanvasLayers(EOTSVTask):
             try:
                 lyr, err = self.loadLayer(info)
                 if err:
-                    self.mErrors.append(err)
+                    self.mErrors[str(uri)] = err
                     continue
             except Exception as ex:
-                self.mErrors.append(f'Unable to load {uri} {ex}'.strip())
+                self.mErrors[str(uri)] = f'Unable to load {uri} {ex}'.strip()
                 continue
             if isinstance(lyr, QgsMapLayer):
                 result = {'uri': uri, 'legend_layer': legend_layer_id, 'layer': lyr}

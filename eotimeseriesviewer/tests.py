@@ -52,6 +52,8 @@ gdal.UseExceptions()
 
 DIR_LARGE_TIMESERIES = None
 
+EOTSV_TIMESERIES_JSON = Path(os.environ.get('EOTSV_TIMESERIES_JSON', Path()))
+
 FORCE_CUBE = os.environ.get('FORCE_CUBE')
 FORCE_CUBE = Path(FORCE_CUBE).expanduser() if isinstance(FORCE_CUBE, str) and Path(
     FORCE_CUBE).expanduser().is_dir() else None

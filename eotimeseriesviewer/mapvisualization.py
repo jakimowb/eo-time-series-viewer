@@ -18,6 +18,7 @@
  *                                                                         *
  ***************************************************************************/
 """
+import datetime
 import enum
 import logging
 import math
@@ -1558,6 +1559,14 @@ class MapWidget(QFrame):
                 # print('# TIMED REFRESH')
 
                 # with MapWidgetTimedRefreshBlocker(self):
+
+                retry_after = 60  # seconds to wait to try to reload a missing source
+                t = datetime.datetime.now()
+
+                for (uri, last_try) in list(MapCanvas.MISSING_SOURCES.items()):
+                    dt = t - last_try
+                    if dt.total_seconds() > retry_after:
+                        MapCanvas.MISSING_SOURCES.pop(uri)
 
                 if self.mSyncQGISMapCanvasCenter:
                     self.syncQGISCanvasCenter()

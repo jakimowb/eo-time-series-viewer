@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 """Tests QGIS plugin init."""
+import json
+import logging
 import os
 import unittest
+from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 from osgeo import gdal
@@ -18,10 +22,11 @@ from qgis.gui import QgsTaskManagerWidget
 import example
 import example.Images
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
 from eotimeseriesviewer.sensors import registerDataProvider, sensorID, SensorInstrument, SensorMockupDataProvider
 from eotimeseriesviewer.tasks import EOTSVTask
-from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects, EOTSV_TIMESERIES_JSON
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.timeseries.tasks import TimeSeriesFindOverlapSubTask, TimeSeriesFindOverlapTask, \
     TimeSeriesLoadingTask
@@ -30,8 +35,47 @@ from eotimeseriesviewer.timeseries.widgets import TimeSeriesDock
 
 start_app()
 
+logger = logging.getLogger(__name__)
+
 
 class TestTimeSeries(EOTSVTestCase):
+
+    @unittest.skipIf(EOTSVTestCase.runsInCI() or not EOTSV_TIMESERIES_JSON.is_file(),
+                     'EOTSV_TIMESERIES_JSON is undefined')
+    def test_add_thousands(self):
+
+        with open(EOTSV_TIMESERIES_JSON, 'r') as f:
+            data = json.load(f)
+
+            for d in data['sources']:
+                p = Path(d['source'])
+                if not p.is_absolute():
+                    p = EOTSV_TIMESERIES_JSON.parent / p
+                    d['source'] = str(p)
+
+        t0 = None
+
+        def dt(msg: Optional[str] = None):
+            nonlocal t0
+            n = datetime.now()
+            d = n - t0
+            t0 = n
+            logger.info(f'{msg}: {d}')
+            return d
+
+        # TS = TimeSeries()
+        TSV = EOTimeSeriesViewer()
+        TS = TSV.timeSeries()
+        t0 = datetime.now()
+
+        sources = [TimeSeriesSource.fromMap(d) for d in data['sources']]
+        n = len(sources)
+        dt0 = dt(f'loading {n} TimeSeriesSources from json')
+        TS.addTimeSeriesSources(sources[0:2])
+        dt2 = dt(f'adding {n} TimeSeriesSource to TimeSeries')
+
+        self.showGui(TSV.ui)
+        TSV.close()
 
     def test_loadfromfile_csv(self):
         ts = TimeSeries()
