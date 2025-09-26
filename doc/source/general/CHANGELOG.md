@@ -7,8 +7,8 @@ hide-toc: false
 
 ## EOTSV 2.2 (2025-09-25)
 
-* multi-sensor time series can be saved as json. loading from
-  the timeseries from a json file is rapid, as it avoids source files access
+* multi-sensor time series can be saved as JSON. loading from
+  the timeseries from a JSON file is rapid, as it avoids source files access
 * faster and asynchronous loading of time series sources
   [issue #27](https://github.com/jakimowb/eo-time-series-viewer/issues/27)
 * faster and asynchronous loading of time series raster images
@@ -27,6 +27,7 @@ hide-toc: false
   to not appear in layer selection widgets
 * map canvas context menu option 'Copy > All Maps' now copies maps without other widget boundaries
   to the clipboard
+* missing / inaccessible sources are highlighted in the time series view
 
 ## EOTSV 2.1 (2025-06-05)
 
@@ -91,24 +92,24 @@ _Stability Update_
 
 ## EOTSV 1.17 (2021-03-10)
 
-* quick raster band selection and GDAL Metadata panel now appear in QGIS layer properties dialog
+* quick raster band selection and GDAL Metadata panel now appear in the QGIS layer properties dialog
 * fixed smaller issues related to plugin loading and unloading
 * added bulk loading from time series definition files
 * fixes to run with QGIS 3.18+
-* move to next/previous observation with arrow right/left
-* move to next/previous observation window with CTRL + arrow right/left or A/D
-* move to last/first observation with End/Pos1 or ALT + A/D
-* select next/previous vector feature with arrow downs/up or S/W
+* move to the next / previous observation with arrow right/left
+* move to the next / previous observation window with CTRL + arrow right/left or A/D
+* move to the last / first observation with End/Pos1 or ALT + A/D
+* select the next / previous vector feature with arrow downs/up or S/W
 * added option for exclusive visibility of map views
-* show next/previous map view with PageDown/PageUp or ALT + S/W
+* show the next / previous map view with PageDown/PageUp or ALT + S/W
 * set map center from/to QGIS with F1/ALT+F1
 * set map extent from/to QGIS with F2/ALT+F2
-* modified observation slider, slider shows range of visible dates
+* modified observation slider, slider shows a range of visible dates
 
 ## EOTSV 1.16 (2021-02-02)
 
 * fixed smaller issues
-* forward / backward button to move in time now shifts by number of opened observation dates/maps
+* the forward / backward button to move in time now shifts by the number of opened observation dates/maps
 * next / previous feature button offers to (i) move to the next feature and (ii)
   update the map dates according to the availability of raster sources for the new map extent
 * faster updates of observation data visibility
@@ -121,7 +122,7 @@ _Stability Update_
 * quick labels: CTRL + right mouse button opens a map menu even when the feature-modified map tool is activated
 * source visibility update can be run on the entire time series or (new and faster) for the next time steps only
 * added the "follow current date" option to the time series table to keep focus on the map window date range
-* added wildcard + regular expression filter to the time series table
+* added wildcard and regular expression filter to the time series table
 * smaller bug fixes and improvements
 
 ## EOTSV 1.14 (2020-11-06)
@@ -205,7 +206,7 @@ _Stability Update_
 
 ## EOTSV 1.4 (2019-07-02)
 
-* adding vector layers with sublayers will add all sublayers
+* adding vector layers with sub-layers will add all sub-layers
 * map canvas context menu "Focus on Spatial Extent" will hide maps without time series data for the current spatial
   extent
 * labeling dock allows iterating over vector features. the spatial map extent will be centered to each feature (#26)
@@ -233,9 +234,10 @@ _Stability Update_
 
 * dates and data sources of the TimeSeries are now shown in a TreeView instead of TableView
 * observation dates of current visible map canvases are highlighted in the time series tree view
-* sensor raster layer properties can be opened from MapView layer tree #87. Stats will be related to center mapcanvas.
-* fixed: StackedInputDialog, MapCanvas context menu, "Save Changes?" labeling dialog (#85), remove temporal profile (
-  #86), draw new feature error (#84), Crosshair button status (#90), and some more
+* sensor raster layer properties can be opened from MapView layer tree #87. Stats will be related to the center
+  mapcanvas.
+* fixed: StackedInputDialog, MapCanvas context menu, "Save Changes?" labeling dialog (#85),
+* remove temporal profile (#86), draw new feature error (#84), Crosshair button status (#90) and more ...
 
 ## EOTSV 1.0 (2019-05-15)
 
@@ -268,7 +270,7 @@ _Stability Update_
 * Visualization of images with stacked temporal information (each band = one observation date)
 * some bugfixes
 * Speclib I/O as CSV or ENVI-Spectral Library + CSV table for attributes
-* temporary VRTs now created in-memory (gdal VSI mechanism) instead of a disk temp path
+* temporary VRTs are now created in-memory (gdal VSI mechanism) instead of a disk temp path
 * Spectral Library: profile coordinate now in the center of the map pixel (issue #66)
 * Save map canvas to clipboard
 * The width of plot lines is now scale-independent (issue #64, QPen.setCosmetic(True))
@@ -296,8 +298,8 @@ Temporal Profile Module
 * removed several bug
 * visibility of vector and raster layers can be toggled per map view
 * improved interaction between QGIS and EOTSV (Buttons to import/export a spatial extent of map canvas or center)
-* improved definition of individual 2D / 3D charts per sensor & pixel-location
-* added based OpenGL based 3D plot features (axis, grids, labels)
+* improved definition of individual 2D / 3D charts per sensor and pixel-location
+* added based OpenGL-based 3D plot features (axis, grids, labels)
 * changed the name to "EO Time Series Viewer" (EOTSV)
 * merged updates to temporal profile visualization, e.g.,
   save temporal profiles, compare 2D profiles between different locations, experimental 3D visualization
@@ -314,7 +316,7 @@ Temporal Profile Module
 ## EOTSV 0.2 (2017-05-21)
 
 * many changes, done in development branch "develop",
-* e.g: QGIS MapCanvases for interactive maps, temporal profiles, ...
+* e.g.: QGIS MapCanvases for interactive maps, temporal profiles, ...
 
 ## EOTSV 0.1 (2017-02-14)
 
