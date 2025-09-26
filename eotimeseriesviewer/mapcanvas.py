@@ -43,7 +43,6 @@ from qgis.core import Qgis, QgsContrastEnhancement, QgsCoordinateReferenceSystem
 from qgis.core import QgsApplication
 from qgis.gui import QgisInterface, QgsAdvancedDigitizingDockWidget, QgsFloatingWidget, QgsGeometryRubberBand, \
     QgsMapCanvas, QgsMapCanvasItem, QgsMapTool, QgsMapToolCapture, QgsMapToolPan, QgsMapToolZoom, QgsUserInputWidget
-
 from .labeling.quicklabeling import addQuickLabelMenu
 from .mapvis.tasks import LoadMapCanvasLayers
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairDialog, CrosshairMapCanvasItem, CrosshairStyle
@@ -627,7 +626,6 @@ class MapCanvas(QgsMapCanvas):
         for l in mapLayers:
             assert not isinstance(l.dataProvider(), SensorMockupDataProvider)
 
-        # self.mLayerRefs = mapLayers
         self.project().addMapLayers(mapLayers)
         super(MapCanvas, self).setLayers(mapLayers)
 
@@ -709,18 +707,16 @@ class MapCanvas(QgsMapCanvas):
                     l.setCustomProperty(KEY_SOURCE_ID, source_id(l))
                     l.setCustomProperty(KEY_LEGEND_LAYER_ID, llid)
 
-                    # add the legen layer style
+                    # add the legend layer style
 
                     layers_new.append(l)
 
                 # add already loaded layers relating to this legend layer
                 layers_new.extend(legend_layers_old.get(llid, []))
 
-            for l in self.layers():
-                if l not in layers_new:
-                    s = ""
             if layers_old != layers_new:
                 self.setLayers(layers_new)
+
         LoadMapCanvasLayers.removeTask(task)
         # if task in self.mTasks:
         #    del self.mTasks[self.mTasks.index(task)]
@@ -771,7 +767,7 @@ class MapCanvas(QgsMapCanvas):
 
             sensor: SensorInstrument = self.tsd().sensor()
 
-            # update list of sources that should be shown
+            # update the list of sources that should be shown
             for legend_lyr in self.legendLayers():
                 assert isinstance(legend_lyr, QgsMapLayer)
 
@@ -821,7 +817,7 @@ class MapCanvas(QgsMapCanvas):
             try:
                 if self.layers() != canvas_layer_new:
                     self.setLayers(canvas_layer_new)
-            except Exception as e:
+            except Exception as ex:
                 s = ""
             # load missing source layers in another thread
             if len(source_requests) > 0:
@@ -838,109 +834,6 @@ class MapCanvas(QgsMapCanvas):
                     task.run_serial()
 
         self.mMapRefreshBlock = False
-        return True
-
-        if False:
-            for lyr in mapView.visibleLayers():
-                assert isinstance(lyr, QgsMapLayer)
-                dp = lyr.dataProvider()
-
-                # handle time series raster layer
-                if isinstance(dp, SensorMockupDataProvider):
-                    if sensor == dp.sensor():
-                        # check if we need to add a new source
-                        for tss in [s for s in self.tsd() if s.isVisible()]:
-
-                            source = tss.source()
-                            expected_sources.append(source)
-
-                            if source in existing_layers:
-                                sourceLayer = existing[existing_layers.index(source)]
-                            else:
-                                missing_sources.append()
-                                # create a new source layer
-                                sid = self.tsd().sensor().id()
-                                use_as_masterstyle = not lyr.customProperty(
-                                    SensorInstrument.PROPERTY_KEY_STYLE_INITIALIZED,
-                                    False)
-
-                                missing_sources.append({'source': tss.source(),
-                                                        'provider': tss.provider(),
-                                                        'loadDefaultStyle': use_as_masterstyle})
-
-                                # t0 = datetime.datetime.now()
-                                sourceLayer = tss.asRasterLayer(loadDefaultStyle=use_as_masterstyle)
-                                sourceLayer.setCustomProperty(SensorInstrument.PROPERTY_KEY, sid)
-                                # dt = datetime.datetime.now() - t0
-                                # print(f'# t tss.asRasterLayer {dt.total_seconds()}')
-                                s_range1 = sourceLayer.temporalProperties().fixedTemporalRange()
-                                assert self.tsd().dateTimeRange().contains(
-                                    sourceLayer.temporalProperties().fixedTemporalRange())
-
-                                if use_as_masterstyle:
-                                    self.onSetMasterLayerStyle(sourceLayer)
-                                else:
-                                    masterStyle = layerStyleString(self.mapView().sensorProxyLayer(sid),
-                                                                   categories=STYLE_CATEGORIES)
-                                    setLayerStyleString(sourceLayer, masterStyle,
-                                                        categories=STYLE_CATEGORIES
-                                                        )
-
-                                sourceLayer.styleChanged.connect(self.onSetMasterLayerStyle)
-                                s_range2 = sourceLayer.temporalProperties().fixedTemporalRange()
-                                if s_range1 != s_range2:
-                                    warnings.warn('Changed temporal ranges. Reset')
-                                    sourceLayer.temporalProperties().setFixedTemporalRange(s_range1)
-
-                            assert isinstance(sourceLayer, QgsRasterLayer)
-
-                            expected.append(sourceLayer)
-                    else:
-                        # skip any other SensorProxyLayer that relates to another sensor
-                        pass
-                else:
-                    expected.append(lyr)
-
-        if len(self.mTimedRefreshPipeLine) > 0:
-            # there is nothing to do.
-            return False
-        else:
-            if True:
-                # set sources first
-                keys = self.mTimedRefreshPipeLine.keys()
-
-                if QgsCoordinateReferenceSystem in keys:
-                    self.setDestinationCrs(self.mTimedRefreshPipeLine.pop(QgsCoordinateReferenceSystem))
-
-                if SpatialExtent in keys:
-                    self.setSpatialExtent(self.mTimedRefreshPipeLine.pop(SpatialExtent))
-
-                if SpatialPoint in keys:
-                    self.setSpatialCenter(self.mTimedRefreshPipeLine.pop(SpatialPoint))
-
-                if QColor in keys:
-                    self.setCanvasColor(self.mTimedRefreshPipeLine.pop(QColor))
-
-                if MapCanvas.Command in keys:
-                    commands = self.mTimedRefreshPipeLine.pop(MapCanvas.Command)
-                    # print(commands)
-                    for command in commands:
-                        assert isinstance(command, MapCanvas.Command)
-                        if command == MapCanvas.Command.RefreshRenderer:
-                            sensor = self.tsd().sensor()
-                            sid = sensor.id()
-                            master = self.mapView().sensorProxyLayer(sensor)
-                            masterStyle = layerStyleString(master,
-                                                           categories=QgsMapLayer.StyleCategory.Symbology | QgsMapLayer.StyleCategory.Rendering)
-                            for lyr in self.layers():
-                                if sensor_id(lyr) == sid:
-                                    copyMapLayerStyle(masterStyle, lyr,
-                                                      categories=QgsMapLayer.StyleCategory.Symbology | QgsMapLayer.StyleCategory.Rendering)
-                                    lyr.triggerRepaint()
-                        elif command == MapCanvas.Command.UpdateMapItems:
-                            self.mInfoItem
-                self.mTimedRefreshPipeLine.clear()
-            # self.refresh()
         return True
 
     def onSetMasterLayerStyle(self, lyr: Optional[QgsRasterLayer] = None):

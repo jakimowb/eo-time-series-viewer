@@ -24,7 +24,10 @@ def hasValidPixel(source: str,
                   transform_context: QgsCoordinateTransformContext = None) -> Tuple[bool, str]:
     if transform_context is None:
         transform_context = QgsProject.instance().transformContext()
-    assert isinstance(extent, QgsRectangle)
+
+    if not (isinstance(extent, QgsRectangle) and extent.isFinite()):
+        return False, 'Invalid spatial extent'
+
     ext = QgsRectangle(extent)
 
     error = None
@@ -44,7 +47,9 @@ def hasValidPixel(source: str,
 
         if ds_crs != crs:
             transform = QgsCoordinateTransform(crs, ds_crs, transform_context)
-            assert transform.isValid()
+            if not transform.isValid():
+                return False, (f'Unable to get coordinate transformation from {crs.description()} '
+                               f'to {ds_crs.description()}: {source}')
             ext = transform.transformBoundingBox(ext)
 
         inter = ext.intersect(ds_extent.boundingBox())
@@ -158,7 +163,7 @@ class TimeSeriesFindOverlapSubTask(QgsTask):
             b, err = hasValidPixel(source, self.crs, self.extent, use_gdal=True)
 
             intersections[source] = b
-            if err:
+            if err not in ['', None]:
                 self.errors.append(err)
 
             if (i > 0 and i % 20 == 0) or i >= n_total - 1:

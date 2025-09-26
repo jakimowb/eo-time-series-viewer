@@ -1,22 +1,25 @@
 import enum
+import logging
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Union
-
-from qgis.PyQt.QtCore import QMimeData, QSize
-from qgis.PyQt.QtGui import QColor, QFont, QPen
-from qgis.core import QgsSettings, QgsTextBufferSettings, QgsTextFormat, QgsUnitTypes
 
 from eotimeseriesviewer import __version__, TITLE
 from eotimeseriesviewer.dateparser import DateTimePrecision
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
 from eotimeseriesviewer.sensors import SensorInstrument, SensorMatching
+from qgis.PyQt.QtCore import QMimeData, QSize
+from qgis.PyQt.QtGui import QColor, QFont, QPen
+from qgis.core import QgsSettings, QgsTextBufferSettings, QgsTextFormat, QgsUnitTypes
+
+logger = logging.getLogger(__name__)
 
 
 class EOTSVSettings(object):
     """
     Class with all EOTSV Settings
     """
+    __setting_errors = []
 
     def __init__(self):
 
@@ -103,50 +106,68 @@ class EOTSVSettings(object):
         return d
 
     def updateFromMap(self, d: dict):
+        """
+        Takes value form a dictionary to update the settings variables.
+        Types are mapped automatically (if not, we cannot store the value).
+        """
         assert isinstance(d, dict)
 
         for k in self.keys():
             if k not in d:
                 continue
-            newValue = d[k]
+            nv = newValue = d[k]
+
+            if newValue is None:
+                continue
 
             defaultValue = getattr(self, k)
 
-            # Convert provided values into values used by EOTSVSettings class = same type as defined by defaults
-            if type(newValue) is not type(defaultValue):
+            if isinstance(defaultValue, enum.Enum):
+                try:
+                    newValue = defaultValue.__class__(newValue)
+                except Exception as ex:
+                    newValue = defaultValue.__class__(int(newValue))
+            elif isinstance(defaultValue, str):
+                newValue = str(newValue)
 
-                if isinstance(defaultValue, Path):
-                    newValue = Path(newValue)
-                elif isinstance(defaultValue, PlotStyle):
-                    if isinstance(newValue, str):
-                        newValue = PlotStyle.fromJSON(newValue)
-                    elif isinstance(newValue, dict):
-                        newValue = PlotStyle.fromMap(newValue)
-                elif isinstance(defaultValue, QgsTextFormat):
-                    md = QMimeData()
-                    md.setText(newValue)
-                    fmt, success = QgsTextFormat.fromMimeData(md)
-                    if success:
-                        newValue = fmt
-                elif isinstance(defaultValue, DateTimePrecision):
-                    if isinstance(newValue, str):
-                        for p in DateTimePrecision:
-                            if p.value == newValue:
-                                newValue = p
-                                break
-                    assert isinstance(newValue, DateTimePrecision)
-                elif isinstance(defaultValue, SensorMatching):
-                    if isinstance(newValue, int):
-                        for flag in SensorMatching:
-                            if flag.value == newValue:
-                                newValue = flag
+            elif isinstance(defaultValue, QColor):
+                newValue = QColor(newValue)
+
+            if isinstance(defaultValue, bool):
+                newValue = newValue not in [False, 'False', 'false', '0', 0]
+
+            elif isinstance(defaultValue, Path):
+                newValue = Path(newValue)
+
+            elif isinstance(defaultValue, int):
+                newValue = int(newValue)
+
+            elif isinstance(defaultValue, float):
+                newValue = float(newValue)
+
+            elif isinstance(defaultValue, PlotStyle):
+                if isinstance(newValue, str):
+                    newValue = PlotStyle.fromJSON(newValue)
+                elif isinstance(newValue, dict):
+                    newValue = PlotStyle.fromMap(newValue)
+
+            elif isinstance(defaultValue, QgsTextFormat):
+                md = QMimeData()
+                md.setText(newValue)
+                fmt, success = QgsTextFormat.fromMimeData(md)
+                if success:
+                    newValue = fmt
+                else:
+                    newValue = None
 
             if type(newValue) is type(defaultValue) or defaultValue is None:
                 setattr(self, k, newValue)
             else:
-                print(f'Unable to update setting property {k} from:\n'
-                      f'type: {type(newValue)} value: {newValue}\n'
-                      f'default: {type(defaultValue)} value {defaultValue}', file=sys.stderr)
+                error = f'Unable to update "{k}" from value "{nv}"'
+                if error not in EOTSVSettings.__setting_errors:
+                    EOTSVSettings.__setting_errors.append(error)
+                    print(error, file=sys.stderr)
+                    logger.error(error)
 
 
 class EOTSVSettingsManager(object):
@@ -171,7 +192,6 @@ class EOTSVSettingsManager(object):
             updatedValues[k] = u
 
         settings.endGroup()
-
         defaultSettings.updateFromMap(updatedValues)
         return defaultSettings
 

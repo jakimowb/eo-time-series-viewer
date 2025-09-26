@@ -28,6 +28,11 @@ from threading import Lock
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 import qgis.utils
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.timeseries.source import TimeSeriesDate
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
+from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, index_window, layerStyleString, \
+    setFontButtonPreviewBackgroundColor, setLayerStyleString
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QDateTime, QMimeData, QModelIndex, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
 from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
@@ -40,12 +45,6 @@ from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsExpressio
 from qgis.core import QgsLayerTreeNode
 from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
     QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
-
-from eotimeseriesviewer import debugLog, DIR_UI
-from eotimeseriesviewer.timeseries.source import TimeSeriesDate
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries
-from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, index_window, layerStyleString, \
-    setFontButtonPreviewBackgroundColor, setLayerStyleString
 from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem, STYLE_CATEGORIES
 from .maplayerproject import EOTimeSeriesViewerProject
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairMapCanvasItem, CrosshairStyle, getCrosshairStyle
@@ -170,6 +169,7 @@ class MapView(QFrame):
     sigTitleChanged = pyqtSignal(str)
     sigCurrentLayerChanged = pyqtSignal(QgsMapLayer)
     sigShowProfiles = pyqtSignal(SpatialPoint, MapCanvas, str)
+    layersRemoved = pyqtSignal()
 
     def __init__(self, name='Map View', parent=None):
         super(MapView, self).__init__(parent)
@@ -220,6 +220,7 @@ class MapView(QFrame):
         self.mDummyCanvas.setVisible(False)
 
         self.mLayerTree = QgsLayerTree()
+        self.mLayerTree.removedChildren.connect(self.onRemovedChildren)
         self.mLayerTreeMapCanvasBridge = QgsLayerTreeMapCanvasBridge(self.mLayerTree, self.mDummyCanvas)
 
         # self.mLayerTreeModel = QgsLayerTreeModel(self.mLayerTree)
@@ -420,6 +421,9 @@ class MapView(QFrame):
             self.sigCanvasAppearanceChanged.emit()
         return self.mMapBackgroundColor
 
+    def onRemovedChildren(self, *args, **kwargs):
+        self.layersRemoved.emit()
+
     def onAddMapLayer(self, filter: QgsMapLayerProxyModel.Filter = QgsMapLayerProxyModel.All):
         """
         Slot that opens a SelectMapLayersDialog for any kind of layer
@@ -444,20 +448,23 @@ class MapView(QFrame):
             for lyr in d.mapLayers():
                 self.addLayer(lyr)
 
-    def setCurrentLayer(self, layer: QgsMapLayer):
+    def setCurrentLayer(self, layer: Optional[QgsMapLayer]):
         """
         Sets the QgsMapCanvas.currentLayer() that is used by some QgsMapTools
         :param layer: QgsMapLayer | None
         :return:
         """
-        assert layer is None or isinstance(layer, QgsMapLayer)
         if layer in self.layers():
             self.mLayerTreeView.setCurrentLayer(layer)
+        else:
+            self.mLayerTreeView.setCurrentLayer(None)
 
-            if layer not in self.mSensorLayerList:
-                for c in self.mapCanvases():
-                    c.setCurrentLayer(layer)
-            return True
+        for c in self.mapCanvases():
+            if layer in c.layers():
+                c.setCurrentLayer(layer)
+            else:
+                c.setCurrentLayer(None)
+        return True
 
     def addSpectralProfileLayers(self):
         """Adds the EOTSV Spectral Profile Layers"""
@@ -901,7 +908,8 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         selected = self.layerTreeView().selectedLayers()
         for lyr in selected:
             if not has_sensor_id(lyr):
-                self.mapView().mLayerTree.removeLayer(lyr)
+                mv = self.mapView()
+                mv.layerTree().removeLayer(lyr)
 
     def onSetCanvasCRS(self):
         s = ""
@@ -1294,6 +1302,29 @@ class MapWidget(QFrame):
 
         self.mBlockExtentChange: bool = False
 
+    def removeUnrequiredProjectLayers(self):
+        """
+        Removes map layers from the project that are not needed for any map canvas
+        """
+        legend_layer_ids = set([l.id() for l in self.layers()])
+
+        to_remove = []
+        for lyr in self.project().mapLayers().values():
+            if lyr.id() in legend_layer_ids:
+                continue
+
+            # sensor layer from map canvas, not listed in the legend tree
+            # where it is represented by a proxy layer
+            if SensorInstrument.PROPERTY_KEY in lyr.customPropertyKeys():
+                continue
+
+            # it seems this layer can be removed from the project
+            to_remove.append(lyr.id())
+
+        if len(to_remove) > 0:
+            self.project().removeMapLayers(to_remove)
+            s = ""
+
     def close(self):
 
         # for c in self.mapCanvases():
@@ -1303,7 +1334,7 @@ class MapWidget(QFrame):
         while len(self.mapViews()) > 0:
 
             mapView: MapView = self.mapViews()[0]
-            debugLog(f'Remove map view {mapView}')
+            logger.debug(f'Remove map view {mapView}')
             sensors = list(mapView.sensors())
             for s in sensors:
                 mapView.removeSensor(s)
@@ -1348,7 +1379,6 @@ class MapWidget(QFrame):
         return self.mMessageBar
 
     def refresh(self):
-        debugLog()
         canvases = self.mapCanvases()
         for c in canvases:
             c.refresh()
@@ -1437,7 +1467,7 @@ class MapWidget(QFrame):
 
             with BlockExtentChange(self) as blocker:
                 self.mSpatialExtent = ext
-                debugLog(f'new extent: {self.mSpatialExtent}')
+                logger.debug(f'new extent: {self.mSpatialExtent}')
                 for c in self.mapCanvases():
                     assert isinstance(c, MapCanvas)
                     c.setSpatialExtent(ext)
@@ -1462,7 +1492,6 @@ class MapWidget(QFrame):
             if centerNew != centerOld and isinstance(centerNew, SpatialPoint):
                 extent = extent.__copy__()
                 extent.setCenter(centerNew)
-                debugLog()
                 self.setSpatialExtent(extent)
 
     def spatialCenter(self) -> SpatialPoint:
@@ -2188,6 +2217,7 @@ QSlider::add-page {{
         mapView.sigCanvasAppearanceChanged.connect(self._updateCanvasAppearance)
         mapView.sigCrosshairChanged.connect(self._updateCrosshair)
         mapView.sigCurrentLayerChanged.connect(self.onCurrentMapViewLayerChanged)
+        mapView.layersRemoved.connect(self.removeUnrequiredProjectLayers)
         self._updateGrid()
         self._updateCrosshair(mapView=mapView)
         self.sigMapViewsChanged.emit()
@@ -2227,7 +2257,7 @@ QSlider::add-page {{
             self.sigMapViewRemoved.emit(mapView)
         return mapView
 
-    def mapLayerStore(self) -> EOTimeSeriesViewerProject:
+    def project(self) -> EOTimeSeriesViewerProject:
         return self.mProject
 
     def mapViews(self) -> List[MapView]:

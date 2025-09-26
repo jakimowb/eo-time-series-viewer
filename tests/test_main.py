@@ -69,7 +69,7 @@ class TestMain(EOTSVTestCase):
 
         TSV.close()
         assert len(QgsProject.instance().mapLayers()) == 0
-        assert len(TSV.mapLayerStore().mapLayers()) == 0
+        assert len(TSV.project().mapLayers()) == 0
         # QgsProject.instance().removeAllMapLayers()
         s = ""
 
@@ -99,7 +99,7 @@ class TestMain(EOTSVTestCase):
 
         self.taskManagerProcessEvents()
         TSV = EOTimeSeriesViewer()
-
+        TSV.mapWidget().setMapsPerMapView(1, 1)
         TSV.loadExampleTimeSeries(loadAsync=True)
         self.taskManagerProcessEvents()
 

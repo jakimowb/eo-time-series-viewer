@@ -36,7 +36,7 @@ regDecimalYear = re.compile(r'(?P<year>(19|20)\d\d)\.(?P<datefraction>\d\d\d)')
 
 class DateTimePrecision(enum.Enum):
     """
-    Describes the precision to pares DateTimeStamps.
+    Describes the precision to create DateTimeStamps.
     """
 
     Year = 'Y'

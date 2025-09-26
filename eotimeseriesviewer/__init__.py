@@ -20,7 +20,7 @@
 """
 import inspect
 import os
-import pathlib
+from pathlib import Path
 
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import PlotDataItem
 from qgis.PyQt.QtGui import QIcon
@@ -45,7 +45,7 @@ QGIS_MIN_VERSION = '3.38'
 
 DEBUG: bool = str(os.environ.get('DEBUG', '1')).lower() in ['true', '1', 'yes']
 
-DIR = pathlib.Path(__file__).parent
+DIR = Path(__file__).parent
 DIR_REPO = DIR.parent
 DIR_UI = DIR / 'ui'
 DIR_DOCS = DIR_REPO / 'doc'
@@ -99,9 +99,9 @@ def initResources():
     Loads (or reloads) required Qt resources
     :return:
     """
-    debugLog('initResources')
+    # debugLog('initResources')
     from eotimeseriesviewer.qgispluginsupport.qps.resources import initQtResources
-    initQtResources(pathlib.Path(__file__).parent)
+    initQtResources(Path(__file__).parent)
 
 
 def initAll():

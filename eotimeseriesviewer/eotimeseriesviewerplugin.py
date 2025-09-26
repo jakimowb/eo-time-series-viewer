@@ -18,15 +18,18 @@
  *                                                                         *
  ***************************************************************************/
 """
+import logging
 import os
-import sys
 import site
+import sys
 from typing import List
 
+from eotimeseriesviewer import TITLE
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QAction, QApplication
 from qgis.gui import QgisInterface
-from eotimeseriesviewer import TITLE
+
+logger = logging.getLogger(__name__)
 
 
 class EOTimeSeriesViewerPlugin:
@@ -39,12 +42,12 @@ class EOTimeSeriesViewerPlugin:
         site.addsitedir(dirPlugin)
 
         import eotimeseriesviewer
-        eotimeseriesviewer.debugLog('initial Dependency Check')
+        logger.debug('initial Dependency Check')
         # run a dependency check
         self.initialDependencyCheck()
 
         # initialize required settings
-        eotimeseriesviewer.debugLog('init all')
+        logger.debug('init all')
 
         eotimeseriesviewer.initAll()
 

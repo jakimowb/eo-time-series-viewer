@@ -3,17 +3,6 @@ import json
 import logging
 from typing import Any, Dict, List, Optional, Union
 
-from qgis.PyQt.QtCore import QObject
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
-from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, \
-    QPixmap, QStandardItem, QStandardItemModel
-from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QHeaderView, QMenu, QStyle, QStyledItemDelegate, \
-    QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
-from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
-    QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsGeometry, QgsProject, QgsProperty, \
-    QgsPropertyDefinition, QgsVectorLayer
-from qgis.gui import QgsFieldExpressionWidget
-
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, \
     PlotStyleDialog, PlotStyleWidget
@@ -27,6 +16,16 @@ from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
 from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileLayerFieldComboBox, TemporalProfileUtils
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
+from qgis.PyQt.QtCore import QObject
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
+from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, \
+    QPixmap, QStandardItem, QStandardItemModel
+from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QHeaderView, QMenu, QStyle, QStyledItemDelegate, \
+    QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
+from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
+    QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsGeometry, QgsProject, QgsProperty, \
+    QgsPropertyDefinition, QgsVectorLayer
+from qgis.gui import QgsFieldExpressionWidget
 
 logger = logging.getLogger(__name__)
 
@@ -955,7 +954,7 @@ class PlotSettingsTreeModel(QStandardItemModel):
             self.insertRow(n, v)
 
         if len(vis) > 0:
-            self.layersChanged.emit()
+            self.itemChanged.emit(vis[0])
 
     def removeAllVisualizations(self):
         self.removeVisualizations(self.visualizations())
@@ -963,13 +962,13 @@ class PlotSettingsTreeModel(QStandardItemModel):
     def removeVisualizations(self, vis: Union[TPVisGroup, List[TPVisGroup]]):
         if isinstance(vis, TPVisGroup):
             vis = [vis]
-        for v in vis:
-            assert isinstance(v, TPVisGroup)
+
+        to_remove = [v for v in vis if isinstance(v, TPVisGroup) and v in self.mVisualizations]
+        for v in to_remove:
             idx: QModelIndex = self.indexFromItem(v)
-            if v in self.mVisualizations:
-                self.mVisualizations.remove(v)
+            self.mVisualizations.remove(v)
             if idx.isValid():
-                self.removeRow(idx.row(), idx.parent())
+                self.takeRow(idx.row())
         self.layersChanged.emit()
 
     def setData(self, index, value, role=None) -> bool:
