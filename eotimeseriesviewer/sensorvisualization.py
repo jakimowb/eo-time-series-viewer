@@ -18,15 +18,16 @@
  *                                                                         *
  ***************************************************************************/
 """
-from qgis.PyQt.QtCore import QAbstractListModel, QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Qt
-from qgis.PyQt.QtWidgets import QHeaderView
-from qgis.gui import QgsDockWidget
+from typing import Optional
 
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi
 from eotimeseriesviewer.sensors import SensorInstrument
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
+from qgis.PyQt.QtCore import QAbstractListModel, QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Qt
+from qgis.PyQt.QtWidgets import QHeaderView
+from qgis.gui import QgsDockWidget
 
 
 class SensorDockUI(QgsDockWidget):
@@ -48,21 +49,27 @@ class SensorDockUI(QgsDockWidget):
 
 
 class SensorTableModel(QAbstractTableModel):
+    cName = 0
+    cBands = 1
+    cDates = 2
+    cImages = 3
+    cWL = 4
+    cSID = 5
+
     def __init__(self, timeSeries: TimeSeries, parent=None, *args):
 
         super(SensorTableModel, self).__init__()
         assert isinstance(timeSeries, TimeSeries)
 
         # define column names
-        self.mCN_Name = "Name"
-        self.mCN_Band = "Band"
-        self.mCN_Dates = "Dates"
-        self.mCN_Images = "Images"
-        self.mCN_WL = "Wavelength"
-        self.mCN_ID = "ID"
-
-        self.mColumNames = [self.mCN_Name, self.mCN_Band, self.mCN_Dates, self.mCN_Images,
-                            self.mCN_WL, self.mCN_ID]
+        self.mColumNames = {
+            self.cName: "Name",
+            self.cBands: "Bands",
+            self.cDates: "Dates",
+            self.cImages: "Images",
+            self.cWL: "Wavelengths",
+            self.cSID: "Sensor ID"
+        }
 
         self.TS = timeSeries
 
@@ -131,7 +138,7 @@ class SensorTableModel(QAbstractTableModel):
     def getIndexFromSensor(self, sensor) -> QModelIndex:
         return self.createIndex(self.mSensors.index(sensor), 0)
 
-    def getSensorFromIndex(self, index) -> SensorInstrument:
+    def getSensorFromIndex(self, index) -> Optional[SensorInstrument]:
         if index.isValid():
             return self.mSensors[index.row()]
         return None
@@ -144,33 +151,33 @@ class SensorTableModel(QAbstractTableModel):
             return None
 
         value = None
-        columnName = self.mColumNames[index.column()]
+        c = index.column()
 
         sensor = self.getSensorFromIndex(index)
         assert isinstance(sensor, SensorInstrument)
 
         if role in [Qt.DisplayRole, Qt.EditRole]:
 
-            if columnName == self.mCN_Name:
+            if c == self.cName:
                 value = sensor.name()
 
-            elif columnName == self.mCN_Band:
+            elif c == self.cBands:
                 value = str(sensor.nb)
 
-            elif columnName == self.mCN_Images:
+            elif c == self.cImages:
                 n = 0
                 for tsd in self.TS.tsds(sensor=sensor):
                     assert isinstance(tsd, TimeSeriesDate)
                     n += len(tsd.sources())
                 value = n
 
-            elif columnName == self.mCN_Dates:
+            elif c == self.cDates:
                 value = len(self.TS.tsds(sensor=sensor))
 
-            elif columnName == self.mCN_ID:
+            elif c == self.cSID:
                 value = sensor.id()
 
-            elif columnName == self.mCN_WL:
+            elif c == self.cWL:
                 if sensor.wl is None or len(sensor.wl) == 0:
                     value = 'undefined'
                 else:
@@ -179,7 +186,7 @@ class SensorTableModel(QAbstractTableModel):
                         value += '[{}]'.format(sensor.wlu)
 
         elif role == Qt.CheckStateRole:
-            if columnName == self.mCN_Name:
+            if c == self.cName:
                 value = None
 
         elif role == Qt.UserRole:
@@ -191,12 +198,12 @@ class SensorTableModel(QAbstractTableModel):
         if role is None or not index.isValid():
             return None
 
-        columnName = self.mColumNames[index.column()]
+        c = index.column()
 
         sensor = self.getSensorFromIndex(index)
         assert isinstance(sensor, SensorInstrument)
         b = False
-        if role == Qt.EditRole and columnName == self.mCN_Name:
+        if role == Qt.EditRole and c == self.cName:
             if len(value) == 0:  # do not accept empty strings
                 b = False
             else:
@@ -212,9 +219,8 @@ class SensorTableModel(QAbstractTableModel):
 
     def flags(self, index):
         if index.isValid():
-            columnName = self.mColumNames[index.column()]
             flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
-            if columnName in [self.mCN_Name]:  # allow check state
+            if index.column() in [self.cName]:  # allow check state
                 flags = flags | Qt.ItemIsUserCheckable | Qt.ItemIsEditable
             return flags
             # return item.qt_flags(index.column())
