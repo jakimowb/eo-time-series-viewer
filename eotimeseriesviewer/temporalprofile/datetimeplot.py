@@ -661,28 +661,6 @@ class DateTimePlotWidget(pg.PlotWidget):
             # print(f'#update: {date.toString(Qt.ISODate)}')
             vb.updateCurrentDate(date)
 
-            infoText = f'<info text>'
-
-            # infoText = []
-            # for k, pointValues in self.mHoveredPositions.items():
-            #     for (dataItem, spotItem) in pointValues:
-            #         dataItem: DateTimePlotDataItem
-            #
-            #         spotItem: SpotItem
-            #         spotDate = ImageDateUtils.datetime(spotItem.pos().x())
-            #         spotValue = spotItem.pos().y()
-            #         spotDoy = ImageDateUtils.doiFromDateTime(spotDate)
-            #
-            #         info = [f'{spotValue}',
-            #                 f'{spotDate.date().toString(Qt.ISODate)}',
-            #                 f'DOY: {spotDoy}',
-            #                 dataItem.name()]
-            #
-            #         infoText.append('\n'.join([v for v in info if v not in [None, '']]))
-            #
-            # infoText = '\n'.join(infoText)
-            # self.mInfoLabelCursor.setText(infoText, color=self.mInfoColor)
-
             s = self.size()
             pos = QPointF(s.width(), 0)
             self.mInfoLabelCursor.setVisible(vb.mActionShowCursorValues.isChecked())
