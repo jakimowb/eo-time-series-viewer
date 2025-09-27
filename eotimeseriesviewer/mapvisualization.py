@@ -46,6 +46,7 @@ from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsExpressio
 from qgis.core import QgsLayerTreeNode
 from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
     QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
+from .dateparser import ImageDateUtils
 from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem, STYLE_CATEGORIES
 from .maplayerproject import EOTimeSeriesViewerProject
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairMapCanvasItem, CrosshairStyle, getCrosshairStyle
@@ -1903,6 +1904,7 @@ class MapWidget(QFrame):
         visible_dates = self.visibleTSDs()
         dateS = self.sliderDate()
         # css = self.mTimeSlider.styleSheet()
+
         px_width = self.mTimeSlider.width()
         n = len(self.timeSeries())
         if self.mTimeSlider.maximum() <= 0 or len(visible_dates) == 0 or not isinstance(dateS, TimeSeriesDate):
@@ -1963,10 +1965,11 @@ QSlider::add-page {{
     def _updateSliderDate(self, i=None):
         tsd = self.sliderDate(i)
         if isinstance(tsd, TimeSeriesDate):
-            dtgString = tsd.dtg().toString(Qt.ISODate)
-            dtgString = dtgString.replace('T00:00:00', '')
+            dtgString = ImageDateUtils.shortISODateString(tsd.dtg())
             self.tbSliderDate.setText('{}({:03})'.format(dtgString, tsd.doy()))
             # self.tbSliderDate.setToolTip(''{}({:03})'.format(tsd.date(), tsd.doy())')
+        else:
+            self.tbSliderDate.setText('')
 
     def onSliderValueChanged(self):
         tsd = self.sliderDate()

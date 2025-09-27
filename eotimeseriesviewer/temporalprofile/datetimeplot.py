@@ -6,12 +6,6 @@ from datetime import datetime
 from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
-from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QMimeData, QPointF, Qt
-from qgis.PyQt.QtGui import QAction, QClipboard, QColor
-from qgis.PyQt.QtGui import QPen
-from qgis.PyQt.QtWidgets import QDateTimeEdit, QFrame, QGraphicsItem, QGridLayout, QMenu, QRadioButton, QWidget, \
-    QWidgetAction
-from qgis.core import QgsApplication, QgsVectorLayer
 
 from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.derivedplotdataitems.dpdicontroller import DPDIControllerModel
@@ -25,6 +19,12 @@ from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.graphicsItems.
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
 from eotimeseriesviewer.temporalprofile.plotitems import MapDateRangeItem
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
+from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QMimeData, QPointF, Qt
+from qgis.PyQt.QtGui import QAction, QClipboard, QColor
+from qgis.PyQt.QtGui import QPen
+from qgis.PyQt.QtWidgets import QDateTimeEdit, QFrame, QGraphicsItem, QGridLayout, QMenu, QRadioButton, QWidget, \
+    QWidgetAction
+from qgis.core import QgsApplication, QgsVectorLayer
 
 
 class DateTimePlotDataItem(pg.PlotDataItem):
@@ -322,7 +322,7 @@ def copyProfiles(pdis: List[DateTimePlotDataItem], mode: str):
     text = None
     if mode == 'tp_json':
         profiles = [pdi.mTemporalProfile for pdi in pdis if isinstance(pdi.mTemporalProfile, dict)]
-        text = json.dumps(profiles, ensure_ascii=False)
+        text = json.dumps(profiles, ensure_ascii=False, indent=4)
     elif mode == 'json':
 
         data = []
@@ -331,9 +331,12 @@ def copyProfiles(pdis: List[DateTimePlotDataItem], mode: str):
             d['name'] = pdi.name()
             d['x'] = pdi.xData.tolist()
             d['y'] = pdi.yData.tolist()
-            d['dates'] = [datetime.fromtimestamp(d).isoformat() for d in pdi.xData]
+
+            # remove trailing zeros to keep the json short
+            dates = [datetime.fromtimestamp(d).isoformat() for d in pdi.xData]
+            d['dates'] = [ImageDateUtils.shortISODateString(d) for d in dates]
             data.append(d)
-        text = json.dumps(data, ensure_ascii=False)
+        text = json.dumps(data, ensure_ascii=False, indent=4)
 
     elif mode == 'csv':
         cols = 1 + len(pdis)
@@ -437,9 +440,16 @@ class DateTimePlotWidget(pg.PlotWidget):
 
         self.mInfoLabelCursor = pg.TextItem(text='<cursor position>', fill=c, anchor=(1.0, 0.0))
         self.mInfoLabelCursor.setColor(QColor('yellow'))
-
+        self.mInfoHover = pg.TextItem(text='', anchor=QPointF(0.0, 0.0))
+        self.mInfoHover.setZValue(9999999)
+        self.mHoverHTML: Dict[SpotItem, str] = dict()
         self.scene().addItem(self.mInfoLabelCursor)
-        self.mInfoLabelCursor.setParentItem(self.getPlotItem())
+        self.scene().addItem(self.mInfoHover)
+        pi = self.getPlotItem()
+        self.mInfoLabelCursor.setParentItem(pi)
+        self.mInfoHover.setParentItem(pi)
+        self.mInfoHover.setPos(50, 0)
+
         # self.plot2DLabel.setAnchor()
         # self.plot2DLabel.anchor(itemPos=(0, 0), parentPos=(0, 0), offset=(0, 0))
         pi.addItem(self.mCrosshairLineV, ignoreBounds=True)
@@ -462,33 +472,43 @@ class DateTimePlotWidget(pg.PlotWidget):
     def resetViewBox(self):
         self.plotItem.getViewBox().autoRange()
 
-    def onPointsHovered(self, item: ScatterPlotItem, array: np.ndarray, event: HoverEvent):
+    def onPointsHovered(self, item: ScatterPlotItem, points: List[SpotItem], event: HoverEvent, **kwarg):
+        s = ""
+        # print(item)
+        # print(event)
+        # info = f'{event.enter} {event.exit} {len(points)}'
+        # self.mPlotWidget.mInfoHover.setHtml(info)
+        # return
 
-        if isinstance(item, ScatterPlotItem):
-            if isinstance(item.parentItem(), DateTimePlotDataItem):
-                if len(array) == 0:
-                    s = ""
-                dataItem: DateTimePlotDataItem = item.parentItem()
-                try:
-                    k = str(event.pos())
-                    # k = item.pos()
-                except AttributeError:
-                    k = None
+        if event.isExit():
+            self.mHoverHTML.clear()
+            self.mInfoHover.setHtml('')
+        else:
+            parent = item.parentItem()
+            if isinstance(parent, DateTimePlotDataItem):
+                if len(points) > 0:
+                    for spot in points:
+                        pos = spot.pos()
+                        x = pos.x()
+                        y = pos.y()
 
-                if isinstance(k, str):
-                    if k not in self.mHoveredPositions:
-                        self.mHoveredPositions.clear()
-                        self.mHoveredPositions[k] = []
+                        dtg = datetime.fromtimestamp(x).isoformat()
+                        dtg = ImageDateUtils.shortISODateString(dtg)
+                        txt = f'<i>{parent.name()}</i><br>[{spot.index()}] {dtg}, {y}'
+                        self.mHoverHTML[parent] = txt
+                else:
+                    if parent in self.mHoverHTML:
+                        self.mHoverHTML.pop(parent)
 
-                    for spotItem in array.tolist():
-                        self.mHoveredPositions[k].append((dataItem, spotItem))
-
-                    if len(self.mHoveredPositions[k]) > 1:
-                        s = ""
+        n_max = 5
+        html = []
+        for i, txt in enumerate(self.mHoverHTML.values()):
+            if i == n_max:
+                html.append('...')
+                break
             else:
-                s = ""
-        # print(self.mHoveredPositions)
-        return True
+                html.append(txt)
+        self.mInfoLabelCursor.setHtml('<br>'.join(html))
 
     def hoveredPointItems(self) -> Iterable[Tuple[DateTimePlotDataItem, SpotItem]]:
         for values in self.mHoveredPositions.values():
@@ -637,25 +657,27 @@ class DateTimePlotWidget(pg.PlotWidget):
             # print(f'#update: {date.toString(Qt.ISODate)}')
             vb.updateCurrentDate(date)
 
-            infoText = []
-            for k, pointValues in self.mHoveredPositions.items():
-                for (dataItem, spotItem) in pointValues:
-                    dataItem: DateTimePlotDataItem
+            infoText = f'<info text>'
 
-                    spotItem: SpotItem
-                    spotDate = ImageDateUtils.datetime(spotItem.pos().x())
-                    spotValue = spotItem.pos().y()
-                    spotDoy = ImageDateUtils.doiFromDateTime(spotDate)
-
-                    info = [f'{spotValue}',
-                            f'{spotDate.date().toString(Qt.ISODate)}',
-                            f'DOY: {spotDoy}',
-                            dataItem.name()]
-
-                    infoText.append('\n'.join([v for v in info if v not in [None, '']]))
-
-            infoText = '\n'.join(infoText)
-            self.mInfoLabelCursor.setText(infoText, color=self.mInfoColor)
+            # infoText = []
+            # for k, pointValues in self.mHoveredPositions.items():
+            #     for (dataItem, spotItem) in pointValues:
+            #         dataItem: DateTimePlotDataItem
+            #
+            #         spotItem: SpotItem
+            #         spotDate = ImageDateUtils.datetime(spotItem.pos().x())
+            #         spotValue = spotItem.pos().y()
+            #         spotDoy = ImageDateUtils.doiFromDateTime(spotDate)
+            #
+            #         info = [f'{spotValue}',
+            #                 f'{spotDate.date().toString(Qt.ISODate)}',
+            #                 f'DOY: {spotDoy}',
+            #                 dataItem.name()]
+            #
+            #         infoText.append('\n'.join([v for v in info if v not in [None, '']]))
+            #
+            # infoText = '\n'.join(infoText)
+            # self.mInfoLabelCursor.setText(infoText, color=self.mInfoColor)
 
             s = self.size()
             pos = QPointF(s.width(), 0)

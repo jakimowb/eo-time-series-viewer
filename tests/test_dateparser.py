@@ -3,12 +3,12 @@ import unittest
 
 import numpy as np
 from osgeo import gdal, gdal_array
-from qgis.PyQt.QtCore import QDate, QDateTime, Qt, QTime
-from qgis.core import QgsDateTimeRange, QgsRasterLayer
 
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from example import exampleLandsat8, exampleNoDataImage, exampleRapidEye
+from qgis.PyQt.QtCore import QDate, QDateTime, Qt, QTime
+from qgis.core import QgsDateTimeRange, QgsRasterLayer
 
 start_app()
 
@@ -27,6 +27,19 @@ class TestDateParser(EOTSVTestCase):
         for input in inputs:
             ts = ImageDateUtils.timestamp(input)
             self.assertIsInstance(ts, float)
+
+    def test_short_iso_date_string(self):
+
+        in_out = [
+            ('2012-12-12T00:00:00.000Z', '2012-12-12'),
+            ('2012-12-12T00:00:00.000', '2012-12-12'),
+            ('2012-12-12T00:00:00', '2012-12-12'),
+            ('2012-12-12T00:00', '2012-12-12'),
+        ]
+
+        for (s1, s2) in in_out:
+            self.assertEqual(s2, ImageDateUtils.shortISODateString(s1),
+                             msg=f'Did not convert {s1} to {s2}')
 
     def test_imagedate_utils(self):
 

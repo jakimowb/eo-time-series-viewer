@@ -3,7 +3,7 @@ import os
 import re
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 from numpy import datetime64, int16, timedelta64
 from osgeo import gdal
@@ -653,10 +653,64 @@ class ImageDateUtils(object):
 
         return result
 
+    rx_trailing_zeros = re.compile(r'T00:00(:00(\.000[A-Z]?)?)?')
+
+    @classmethod
+    def shortISODateString(cls, dtg: Any) -> str:
+        """
+        Converts a given datetime input to a short date string in ISO format.
+        Trailing zeroes are removed. E.g., 2012-12-12T00:00:00.000Z becomes 2012-12-12
+
+        This method takes a datetime input and returns it as a string formatted
+        in ISO date format. If the input is already a string, it will return it
+        unchanged. If the input is None, it will return an empty string. The
+        method also removes time information if it's equivalent to midnight.
+
+        Parameters:
+            dtg: Union[str, None, QDateTime, datetime]
+                The input datetime which can be a string, None, QDateTime, or
+                datetime object.
+
+        Returns:
+            str
+                The formatted short date string in ISO format or an empty string.
+        """
+        if dtg is None:
+            return ''
+        elif not isinstance(dtg, str):
+            try:
+                dtg = cls.datetime(dtg).toString(Qt.ISODate)
+            except Exception as ex:
+                dtg = ''
+
+        return cls.rx_trailing_zeros.sub('', dtg)
+
     @classmethod
     def dateString(cls,
                    dtg: QDateTime,
                    precision: DateTimePrecision = DateTimePrecision.Day) -> str:
+        """
+        Converts a QDateTime to a formatted string representation based on the
+        specified precision. Different precisions determine how much of the
+        date and time information is included in the returned string. The
+        method handles various levels of precision ranging from milliseconds
+        to years or weeks.
+
+        Parameters:
+            dtg (QDateTime): A QDateTime object whose formatted string
+                representation is to be returned.
+            precision (DateTimePrecision): Specifies the level of precision
+                for formatting. Defaults to Day.
+
+        Returns:
+            str: A string representation of the QDateTime at the specified
+                precision level. Returns an empty string if the provided
+                QDateTime is not valid.
+
+        Raises:
+            NotImplementedError: If the specified precision level is not
+                supported.
+        """
         if not dtg.isValid():
             return ''
         if precision == DateTimePrecision.Millisecond:

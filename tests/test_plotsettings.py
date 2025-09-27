@@ -5,12 +5,6 @@ import unittest
 from typing import List
 
 import numpy as np
-from qgis.PyQt.QtCore import QSize, Qt
-from qgis.PyQt.QtGui import QAction, QIcon, QPen, QStandardItemModel, QColor
-from qgis.PyQt.QtWidgets import QApplication
-from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QPushButton, QSplitter, QTreeView, QVBoxLayout, QWidget
-from qgis.core import QgsApplication, QgsProject, QgsVectorLayer
-from qgis.gui import QgsMapCanvas
 
 from eotimeseriesviewer import initResources
 from eotimeseriesviewer.dateparser import ImageDateUtils
@@ -27,6 +21,12 @@ from eotimeseriesviewer.temporalprofile.plotsettings import PlotSettingsTreeView
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileEditorWidgetFactory, TemporalProfileUtils
 from eotimeseriesviewer.temporalprofile.visualization import TemporalProfileDock, TemporalProfileVisualization
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
+from qgis.PyQt.QtCore import QSize, Qt
+from qgis.PyQt.QtGui import QAction, QIcon, QPen, QStandardItemModel, QColor
+from qgis.PyQt.QtWidgets import QApplication
+from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QPushButton, QSplitter, QTreeView, QVBoxLayout, QWidget
+from qgis.core import QgsApplication, QgsProject, QgsVectorLayer
+from qgis.gui import QgsMapCanvas
 
 start_app()
 initResources()
@@ -41,11 +41,17 @@ class PlotSettingsTests(EOTSVTestCase):
         widget = DateTimePlotWidget()
         sensorDock = SensorDockUI()
 
+        project = QgsProject()
         tpVis = TemporalProfileVisualization(view, widget)
+        tpVis.setProject(project)
 
         ts = TestObjects.createTimeSeries()
         tpVis.setTimeSeries(ts)
         sensorDock.setTimeSeries(ts)
+
+        tpl = TestObjects.createProfileLayer(ts)
+        project.addMapLayer(tpl)
+        tpl.selectAll()
 
         btnAddVis = QPushButton('Add Vis')
         btnAddVis.clicked.connect(tpVis.createVisualization)
@@ -64,6 +70,7 @@ class PlotSettingsTests(EOTSVTestCase):
 
         w = QWidget()
         w.setLayout(v)
+        tpVis.updatePlotIfChanged()
         self.showGui(w)
         ts.clear()
 
