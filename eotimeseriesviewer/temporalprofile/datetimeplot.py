@@ -431,6 +431,7 @@ class DateTimePlotWidget(pg.PlotWidget):
         # self.plotItem.legend = self.mLegendItem1
 
         self.mMapDateRangeItem = MapDateRangeItem()
+        self.mMapDateRangeItem.setVisible(False)  # will be enabled with setMapDateRange
         self.mMapDateRangeItem.sigMapDateRequest.connect(self.sigMapDateRequest.emit)
         viewBox.mActionShowMapViewRange.toggled.connect(self.mMapDateRangeItem.setVisible)
 
@@ -438,7 +439,7 @@ class DateTimePlotWidget(pg.PlotWidget):
         c = b.color()
         c.setAlpha(125)
 
-        self.mInfoLabelCursor = pg.TextItem(text='<cursor position>', fill=c, anchor=(1.0, 0.0))
+        self.mInfoLabelCursor = pg.TextItem(text='', fill=c, anchor=(1.0, 0.0))
         self.mInfoLabelCursor.setColor(QColor('yellow'))
         self.mInfoHover = pg.TextItem(text='', anchor=QPointF(0.0, 0.0))
         self.mInfoHover.setZValue(9999999)
@@ -557,7 +558,10 @@ class DateTimePlotWidget(pg.PlotWidget):
         # print(f'# {parent}:\n\t {",".join([str(p.index()) for p in parent.selectedPoints()])}')
 
     def setMapDateRange(self, date0: QDateTime, date1: QDateTime):
-        self.mMapDateRangeItem.setMapDateRange(date0, date1)
+        showItem = self.mDateTimeViewBox.mActionShowMapViewRange.isChecked()
+        self.mMapDateRangeItem.setVisible(showItem)
+        if showItem:
+            self.mMapDateRangeItem.setMapDateRange(date0, date1)
 
     def onPopulateContextMenu(self, menu: QMenu):
         menu.setToolTipsVisible(True)
