@@ -766,7 +766,7 @@ class TemporalProfileVisualization(QObject):
                         SENSOR_SPECS[sid] = spec
 
                         # check if the same sensor is already known,
-                        # e.g. with different name from the sensor panels
+                        # e.g., with different name from the sensor panels
                         match = self.timeSeries().findMatchingSensor(sid)
                         if isinstance(match, SensorInstrument):
                             if match.id() not in SENSOR_SPECS:
@@ -794,12 +794,12 @@ class TemporalProfileVisualization(QObject):
 
                                 requires_new_sensor_vis = False
 
-                        # no sensor visualization (e.g. plot styles etc.) found for this sensor?
+                        # no sensor visualization (e.g., plot styles etc.) found for this sensor?
                         if requires_new_sensor_vis:
                             missing_sensor_settings.append(sid)
 
                 if len(missing_sensor_settings) > 0:
-                    # stop here, add sensors to plot settings model and update again
+                    # stop here, add sensors to a plot settings model and update again
                     missing_sensors = [SensorInstrument(s) for s in missing_sensor_settings]
                     self.mModel.addSensors(missing_sensors)
                     return
@@ -821,7 +821,7 @@ class TemporalProfileVisualization(QObject):
                 all_symbol_brushes = np.empty(n, dtype=object)
                 all_symbol_sizes = np.empty(n, dtype=int)
 
-                # set the sensor-specific style vor the data values
+                # set the sensor-specific style for the data values
                 for sid, is_sensor in results['sensor_indices'].items():
                     vis_sensor = SENSOR_VISUALS[sid]
                     if vis_sensor['show'] or is_candidate:
