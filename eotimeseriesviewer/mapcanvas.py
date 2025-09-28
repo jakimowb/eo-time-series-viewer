@@ -28,7 +28,7 @@ import time
 import warnings
 from pathlib import Path
 from threading import Lock
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Any
 
 import qgis.utils
 from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QDir, QMimeData, QObject, QPoint, QPointF, QRect, QRectF, QSize, Qt, \
@@ -44,7 +44,6 @@ from qgis.core import Qgis, QgsContrastEnhancement, QgsCoordinateReferenceSystem
 from qgis.core import QgsApplication
 from qgis.gui import QgisInterface, QgsAdvancedDigitizingDockWidget, QgsFloatingWidget, QgsGeometryRubberBand, \
     QgsMapCanvas, QgsMapCanvasItem, QgsMapTool, QgsMapToolCapture, QgsMapToolPan, QgsMapToolZoom, QgsUserInputWidget
-
 from .labeling.quicklabeling import addQuickLabelMenu
 from .mapvis.tasks import LoadMapCanvasLayers
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairDialog, CrosshairMapCanvasItem, CrosshairStyle
@@ -133,7 +132,7 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         super(MapCanvasInfoItem, self).__init__(mapCanvas)
         self.mCanvas = mapCanvas
 
-        self.mInfoText: Dict[int, QgsExpression] = dict()
+        self.mInfoText: Dict[Qt.Alignment, Optional[str]] = dict()
         self.mWrapChar = '\n'
         self.mTextFormat = QgsTextFormat()
         self.mTextFormat.setSizeUnit(QgsUnitTypes.RenderPixels)
@@ -152,16 +151,15 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
     def wrapChar(self) -> str:
         return self.mWrapChar
 
-    def setInfoText(self, text: str, alignment: Qt.Alignment = Qt.AlignTop | Qt.AlignHCenter):
+    def setInfoText(self, text: Optional[Any], alignment: Qt.Alignment = Qt.AlignTop | Qt.AlignHCenter):
         if text in [None, '']:
             self.mInfoText[alignment] = None
         else:
-            assert isinstance(text, str)
-            self.mInfoText[alignment] = text
+            self.mInfoText[alignment] = str(text)
 
-    def setTextFormat(self, format: QgsTextFormat):
-        assert isinstance(format, QgsTextFormat)
-        self.mTextFormat = format
+    def setTextFormat(self, fmt: QgsTextFormat):
+        assert isinstance(fmt, QgsTextFormat)
+        self.mTextFormat = fmt
         self.updateCanvas()
 
     def textFormat(self) -> QgsTextFormat:
@@ -813,6 +811,7 @@ class MapCanvas(QgsMapCanvas):
                                                    'legend_layer': legend_lyr.id(),
                                                    'loadDefaultStyle': use_as_masterstyle,
                                                    'providerType': tss.provider(),
+                                                   'name': tss.name(),
                                                    'customProperties': {
                                                        SensorInstrument.PROPERTY_KEY: sid
                                                    }}

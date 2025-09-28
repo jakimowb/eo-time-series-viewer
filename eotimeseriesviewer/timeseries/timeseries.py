@@ -28,14 +28,6 @@ from typing import Any, Iterator, List, Optional, Set, Union, Dict
 
 import numpy as np
 from osgeo import gdal
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QModelIndex, Qt
-from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import QTreeView
-from qgis.PyQt.QtXml import QDomDocument
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDateTimeRange, \
-    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsRasterLayer, QgsRectangle, QgsTask, \
-    QgsTaskManager
-from qgis.core import QgsSpatialIndex
 
 from eotimeseriesviewer import messageLog
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
@@ -45,6 +37,14 @@ from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.timeseries.tasks import TimeSeriesFindOverlapTask, TimeSeriesLoadingTask
 from eotimeseriesviewer.utils import findNearestDateIndex
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QDateTime, QModelIndex, Qt
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QTreeView
+from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDateTimeRange, \
+    QgsRasterLayer, QgsRectangle, QgsTask, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, \
+    QgsTaskManager
+from qgis.core import QgsSpatialIndex
 
 logger = logging.getLogger(__name__)
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
@@ -366,13 +366,19 @@ class TimeSeries(QAbstractItemModel):
 
             with open(path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
+                sensors = data.get('sensors', {})
+                # convert json str keys ('0') to int (0)
+                sensors = {int(k): v for k, v in sensors.items()}
+
                 for source in data.get('sources', []):
 
                     path = Path(source['source'])
                     if not path.is_absolute():
                         path = (refDir / path).resolve()
                         source['source'] = str(path)
-                    tss = TimeSeriesSource.fromMap(source)
+                    i_sensor = source.get('sensor', None)
+                    sid = sensors.get(i_sensor, None)
+                    tss = TimeSeriesSource.fromMap(source, sid=sid)
                     if isinstance(tss, TimeSeriesSource):
                         images.append(tss)
 
@@ -1031,12 +1037,19 @@ class TimeSeries(QAbstractItemModel):
 
     def asMap(self) -> dict:
 
-        d = {}
+        results = {}
         sources = []
+        sensors = {}
         for tss in self.timeSeriesSources():
-            sources.append(tss.asMap())
-        d['sources'] = sources
-        return d
+            d = tss.asMap()
+            sid = tss.sid()
+            d[TimeSeriesSource.MKeySensor] = sensors.setdefault(sid, len(sensors))
+            sources.append(d)
+
+        results['sensors'] = {i: sid if isinstance(sid, dict) else json.loads(sid)
+                              for sid, i in sensors.items()}
+        results['sources'] = sources
+        return results
 
     def fromMap(self, data: dict, feedback: QgsProcessingFeedback = QgsProcessingFeedback()):
 
@@ -1098,7 +1111,7 @@ class TimeSeries(QAbstractItemModel):
                 if c == self.cDate:
                     dateStr = tss.dtg().toString(Qt.ISODate)
                     if role == Qt.DisplayRole:
-                        return re.sub(r'T00(:00)*$', '', dateStr)
+                        return ImageDateUtils.shortISODateString(dateStr)
                     else:
                         return dateStr
                 if c == self.cImages:
@@ -1120,7 +1133,7 @@ class TimeSeries(QAbstractItemModel):
                 if c == self.cDate:
                     dateStr = tss.dtg().toString(Qt.ISODate)
                     if role == Qt.DisplayRole:
-                        dateStr = re.sub(r'T00(:00)*$', '', dateStr)
+                        dateStr = ImageDateUtils.shortISODateString(dateStr)
                     tt.append(dateStr)
                 if c == self.cCRS:
                     tt.append(tss.crs().description())

@@ -44,7 +44,7 @@ If none of the described options works, it is often easiest to add an
 `ISO 8601 <https://en.wikipedia.org/wiki/ISO_8601>`_ timestamp either (i) to the
 file- or folder name, or use a small script like the following to add it to the GDAL metadata.
 1. *Time Series Sources*, i.e. raster images. They need to be readable by QGIS_ / GDAL_
-   and each source needs to provide a timestamp - the observation data - , e.g in the filename or GDAL metadata.
+and each source needs to provide a timestamp - the observation data - , e.g. in the filename or GDAL metadata.
 
 .. code-block:: python
 

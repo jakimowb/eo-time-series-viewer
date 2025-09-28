@@ -29,8 +29,13 @@ from threading import Lock
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 import qgis.utils
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.timeseries.source import TimeSeriesDate
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
+from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, index_window, layerStyleString, \
+    setFontButtonPreviewBackgroundColor, setLayerStyleString
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QDateTime, QMimeData, QModelIndex, QSize, Qt, QTimer
-from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
+from qgis.PyQt.QtGui import QColor, QIcon, QKeySequence, QMouseEvent
 from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
     QWidget
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsExpression, QgsExpressionContext, \
@@ -41,12 +46,7 @@ from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsExpressio
 from qgis.core import QgsLayerTreeNode
 from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
     QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
-
-from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer.timeseries.source import TimeSeriesDate
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries
-from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, index_window, layerStyleString, \
-    setFontButtonPreviewBackgroundColor, setLayerStyleString
+from .dateparser import ImageDateUtils
 from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem, STYLE_CATEGORIES
 from .maplayerproject import EOTimeSeriesViewerProject
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairMapCanvasItem, CrosshairStyle, getCrosshairStyle
@@ -1896,10 +1896,15 @@ class MapWidget(QFrame):
         self._updateSliderDate()
         self._updateSliderCss()
 
+    # def resizeEvent(self, *args, **kwds):
+    #    super().resizeEvent(*args, **kwds)
+    #    self._updateSliderCss()
+
     def _updateSliderCss(self):
         visible_dates = self.visibleTSDs()
         dateS = self.sliderDate()
         # css = self.mTimeSlider.styleSheet()
+
         px_width = self.mTimeSlider.width()
         n = len(self.timeSeries())
         if self.mTimeSlider.maximum() <= 0 or len(visible_dates) == 0 or not isinstance(dateS, TimeSeriesDate):
@@ -1942,14 +1947,14 @@ QSlider::sub-page {{
     border: 1px solid lightgrey;
     border-right: none;
     background: yellow;
-    margin: 0px 0 0 {};
+    margin: 0 0 0 {};
 }}
 
 QSlider::add-page {{
     border: 1px solid lightgrey;
     border-left: none;
     background: yellow;
-    margin: 0px {} 0 0;
+    margin: 0 {} 0 0;
 }}
         """.format(px_start_left, px_start_right)
         self.mTimeSlider.setStyleSheet(css)
@@ -1960,10 +1965,11 @@ QSlider::add-page {{
     def _updateSliderDate(self, i=None):
         tsd = self.sliderDate(i)
         if isinstance(tsd, TimeSeriesDate):
-            dtgString = tsd.dtg().toString(Qt.ISODate)
-            dtgString = dtgString.replace('T00:00:00', '')
+            dtgString = ImageDateUtils.shortISODateString(tsd.dtg())
             self.tbSliderDate.setText('{}({:03})'.format(dtgString, tsd.doy()))
             # self.tbSliderDate.setToolTip(''{}({:03})'.format(tsd.date(), tsd.doy())')
+        else:
+            self.tbSliderDate.setText('')
 
     def onSliderValueChanged(self):
         tsd = self.sliderDate()
@@ -2017,6 +2023,7 @@ QSlider::add-page {{
             self._updateGrid()
             self.timeSlider().setPageStep(max(1, cols * rows))
             self.sigMapsPerMapViewChanged.emit(self.mMapViewColumns, self.mMapViewRows)
+            self._updateSliderRange()
         return self.mapsPerMapView()
 
     def mapsPerMapView(self) -> Tuple[int, int]:
@@ -2038,7 +2045,6 @@ QSlider::add-page {{
                 canvas.setFixedSize(size)
 
             self.mMapSize = size
-            self._updateWidgetSize()
             self.sigMapSizeChanged.emit(size)
 
         return self.mMapSize
@@ -2453,28 +2459,6 @@ QSlider::add-page {{
         self._updateSliderCss()
         self.mGrid.parentWidget().setVisible(True)
         self.mMapRefreshTimer.start()
-
-    def _updateWidgetSize(self):
-
-        # self.mGrid.update()
-        # self.resize(self.sizeHint())
-        # self.setMaximumSize(self.sizeHint())
-        # self.setFixedSize(self.sizeHint())
-        # if False and self.parentWidget():
-        if False:
-            w = self
-            assert isinstance(w, QWidget)
-
-            rect = QGuiApplication.primaryScreen().geometry()
-
-            maxw, maxh = 0.66 * rect.width(), 0.66 * rect.height()
-            hint = self.sizeHint()
-            minw, minh = min(hint.width(), maxw), min(hint.height(), maxh)
-
-            w.setMinimumSize(minw, minh)
-            # w.setFixedSize(self.sizeHint())
-            w.layout().update()
-            w.update()
 
     def _updateLayerCache(self) -> List[MapCanvas]:
         canvases = self.findChildren(MapCanvas)

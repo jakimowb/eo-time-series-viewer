@@ -21,12 +21,12 @@ def update_md(source: Path, target: Path):
     if target.exists():
         # extract header with rst specific content
 
-        with open(target) as f:
+        with open(target, 'r', encoding='utf8') as f:
             match = rx_yaml_block.match(f.read())
             if match:
                 yml_block = match.group()
 
-    with open(source) as f:
+    with open(source, 'r', encoding='utf8') as f:
         data = f.read()
         data = yml_block + data
 
