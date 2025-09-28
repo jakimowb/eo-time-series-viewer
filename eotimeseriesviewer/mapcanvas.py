@@ -811,6 +811,7 @@ class MapCanvas(QgsMapCanvas):
                                                    'legend_layer': legend_lyr.id(),
                                                    'loadDefaultStyle': use_as_masterstyle,
                                                    'providerType': tss.provider(),
+                                                   'name': tss.name(),
                                                    'customProperties': {
                                                        SensorInstrument.PROPERTY_KEY: sid
                                                    }}

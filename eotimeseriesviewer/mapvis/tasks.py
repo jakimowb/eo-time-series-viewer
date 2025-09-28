@@ -1,10 +1,9 @@
 from pathlib import Path
 from typing import Union, Optional, Tuple, Type, List, Dict
 
+from eotimeseriesviewer.tasks import EOTSVTask
 from qgis.core import QgsRasterLayer, QgsMapLayer, QgsVectorTileLayer, QgsVectorLayer, Qgis, QgsRasterFileWriter, \
     QgsVectorFileWriter
-
-from eotimeseriesviewer.tasks import EOTSVTask
 
 LAYER_CLASSES = dict()
 for l in [QgsRasterLayer, QgsVectorLayer, QgsVectorTileLayer]:
@@ -99,8 +98,11 @@ class LoadMapCanvasLayers(EOTSVTask):
         if not lyr.isValid():
             return None, f'Unable to load {uri} as QgsMapLayer: {lyr.error()}'
 
-        if 'layer_name' in info:
-            lyr.setName(info['layer_name'])
+        if 'name' in info:
+            name = info['name']
+        else:
+            name = Path(uri).stem
+        lyr.setName(name)
 
         for k, v in customProperties.items():
             lyr.setCustomProperty(k, v)

@@ -267,7 +267,7 @@ class TimeSeriesSource(object):
         self.mCrs: QgsCoordinateReferenceSystem = crs
         self.mSource: str = source
         self.mSourceExtent: Optional[SpatialExtent] = SpatialExtent(crs, QgsRectangle.fromWkt(extent.asWkt()))
-        self.mName: str = name
+        self.mName: Optional[str] = name
         self.mProvider: str = provider
         self.mSid: str = sid
         self.mDims = dims
@@ -323,7 +323,7 @@ class TimeSeriesSource(object):
         d = {self.MKeySource: self.mSource,
              self.MKeyName: self.mName,
              self.MKeyProvider: self.mProvider,
-             # self.MKeySensor: json.loads(self.mSid),
+             self.MKeySensor: json.loads(self.mSid),
              self.MKeyDateTime: self.mDTG.toString(Qt.ISODate),
              self.MKeyExtent: self.mFeature.geometry().asWkt(),
              self.MKeyDimensions: self.mDims,
@@ -340,7 +340,7 @@ class TimeSeriesSource(object):
         """
         return json.dumps(self.asMap(), ensure_ascii=False)
 
-    def name(self) -> str:
+    def name(self) -> Optional[str]:
         """
         Returns a name for this data source
         :return:

@@ -42,7 +42,7 @@ from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QTreeView
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDateTimeRange, \
-    QgsRasterLayer, QgsRectangle, QgsTask, \
+    QgsRasterLayer, QgsRectangle, QgsTask, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, \
     QgsTaskManager
 from qgis.core import QgsSpatialIndex
 
@@ -1050,6 +1050,37 @@ class TimeSeries(QAbstractItemModel):
                               for sid, i in sensors.items()}
         results['sources'] = sources
         return results
+
+    def fromMap(self, data: dict, feedback: QgsProcessingFeedback = QgsProcessingFeedback()):
+
+        multistep = QgsProcessingMultiStepFeedback(4, feedback)
+        multistep.setCurrentStep(1)
+        multistep.setProgressText('Clean')
+        self.clear()
+
+        uri_vis = dict()
+
+        multistep.setCurrentStep(2)
+        multistep.setProgressText('Read Sources')
+        sources = []
+
+        for d in data.get('sources', []):
+            src = d.get('source')
+
+            if src:
+                tss = TimeSeriesSource.create(src)
+                uri_vis[tss.source()] = d.get('visible', True)
+                if isinstance(tss, TimeSeriesSource):
+                    sources.append(tss)
+
+        multistep.setCurrentStep(3)
+        multistep.setProgressText('Add Sources')
+
+        if len(sources) > 0:
+            self.addTimeSeriesSources(sources)
+
+        for tss in self.timeSeriesSources():
+            tss.setIsVisible(uri_vis.get(tss.source(), tss.isVisible()))
 
     def data(self, index: QModelIndex, role: Qt.DisplayRole):
         """
