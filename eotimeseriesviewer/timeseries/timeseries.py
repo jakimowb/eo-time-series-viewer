@@ -42,7 +42,7 @@ from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QTreeView
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDateTimeRange, \
-    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsRasterLayer, QgsRectangle, QgsTask, \
+    QgsRasterLayer, QgsRectangle, QgsTask, \
     QgsTaskManager
 from qgis.core import QgsSpatialIndex
 
@@ -366,13 +366,19 @@ class TimeSeries(QAbstractItemModel):
 
             with open(path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
+                sensors = data.get('sensors', {})
+                # convert json str keys ('0') to int (0)
+                sensors = {int(k): v for k, v in sensors.items()}
+
                 for source in data.get('sources', []):
 
                     path = Path(source['source'])
                     if not path.is_absolute():
                         path = (refDir / path).resolve()
                         source['source'] = str(path)
-                    tss = TimeSeriesSource.fromMap(source)
+                    i_sensor = source.get('sensor', None)
+                    sid = sensors.get(i_sensor, None)
+                    tss = TimeSeriesSource.fromMap(source, sid=sid)
                     if isinstance(tss, TimeSeriesSource):
                         images.append(tss)
 
@@ -1031,43 +1037,19 @@ class TimeSeries(QAbstractItemModel):
 
     def asMap(self) -> dict:
 
-        d = {}
+        results = {}
         sources = []
+        sensors = {}
         for tss in self.timeSeriesSources():
-            sources.append(tss.asMap())
-        d['sources'] = sources
-        return d
+            d = tss.asMap()
+            sid = tss.sid()
+            d[TimeSeriesSource.MKeySensor] = sensors.setdefault(sid, len(sensors))
+            sources.append(d)
 
-    def fromMap(self, data: dict, feedback: QgsProcessingFeedback = QgsProcessingFeedback()):
-
-        multistep = QgsProcessingMultiStepFeedback(4, feedback)
-        multistep.setCurrentStep(1)
-        multistep.setProgressText('Clean')
-        self.clear()
-
-        uri_vis = dict()
-
-        multistep.setCurrentStep(2)
-        multistep.setProgressText('Read Sources')
-        sources = []
-
-        for d in data.get('sources', []):
-            src = d.get('source')
-
-            if src:
-                tss = TimeSeriesSource.create(src)
-                uri_vis[tss.source()] = d.get('visible', True)
-                if isinstance(tss, TimeSeriesSource):
-                    sources.append(tss)
-
-        multistep.setCurrentStep(3)
-        multistep.setProgressText('Add Sources')
-
-        if len(sources) > 0:
-            self.addTimeSeriesSources(sources)
-
-        for tss in self.timeSeriesSources():
-            tss.setIsVisible(uri_vis.get(tss.source(), tss.isVisible()))
+        results['sensors'] = {i: sid if isinstance(sid, dict) else json.loads(sid)
+                              for sid, i in sensors.items()}
+        results['sources'] = sources
+        return results
 
     def data(self, index: QModelIndex, role: Qt.DisplayRole):
         """

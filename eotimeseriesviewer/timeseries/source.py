@@ -3,15 +3,15 @@ from pathlib import Path
 from typing import Iterator, List, Optional, Tuple, Union
 
 from osgeo import gdal
+
+from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
+from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent, px2geo
+from eotimeseriesviewer.sensors import create_sensor_id, SensorInstrument
 from qgis.PyQt.QtCore import QMetaType, QPoint
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractTableModel, QDate, QDateTime, QMimeData, QModelIndex, Qt
 from qgis.core import QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, \
     QgsMimeDataUtils, QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRectangle
 from qgis.core import QgsFeature, QgsFields, QgsField, QgsCoordinateTransform, QgsProject, Qgis
-
-from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
-from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent, px2geo
-from eotimeseriesviewer.sensors import create_sensor_id, SensorInstrument
 
 
 class TimeSeriesException(Exception):
@@ -45,7 +45,7 @@ class TimeSeriesSource(object):
     MKeySource = 'source'
     MKeyProvider = 'provider'
     MKeyName = 'name'
-    MKeySensor = 'sid'
+    MKeySensor = 'sensor'
     MKeyDimensions = 'dims'
     MKeyCrs = 'crs'
     MKeyExtent = 'extent'
@@ -78,11 +78,18 @@ class TimeSeriesSource(object):
         return cls.fromMap(data)
 
     @classmethod
-    def fromMap(cls, d: dict) -> 'TimeSeriesSource':
+    def fromMap(cls, d: dict, sid: Union[None, str, dict] = None) -> 'TimeSeriesSource':
         provider = d[TimeSeriesSource.MKeyProvider]
         source = d[TimeSeriesSource.MKeySource]
         name = d.get(TimeSeriesSource.MKeyName, '')
-        sid = d[TimeSeriesSource.MKeySensor]
+
+        if sid is None:
+            sid = d.get(TimeSeriesSource.MKeySensor)
+
+        assert isinstance(sid, (str, dict))
+        if isinstance(sid, dict):
+            sid = json.dumps(sid, ensure_ascii=False)
+
         dtg = d[TimeSeriesSource.MKeyDateTime]
         crs = d[TimeSeriesSource.MKeyCrs]
         extent = d[TimeSeriesSource.MKeyExtent]
@@ -232,6 +239,7 @@ class TimeSeriesSource(object):
         if isinstance(extent, str):
             extent = QgsGeometry.fromWkt(extent)
 
+        assert isinstance(sid, str)
         assert isinstance(source, str) and len(source) > 0
         assert isinstance(dtg, QDateTime) and dtg.isValid()
         assert isinstance(crs, QgsCoordinateReferenceSystem) and crs.isValid()
@@ -315,7 +323,7 @@ class TimeSeriesSource(object):
         d = {self.MKeySource: self.mSource,
              self.MKeyName: self.mName,
              self.MKeyProvider: self.mProvider,
-             self.MKeySensor: self.mSid,
+             # self.MKeySensor: json.loads(self.mSid),
              self.MKeyDateTime: self.mDTG.toString(Qt.ISODate),
              self.MKeyExtent: self.mFeature.geometry().asWkt(),
              self.MKeyDimensions: self.mDims,
