@@ -24,7 +24,7 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Any, Iterator, List, Optional, Set, Union, Dict
+from typing import Any, Iterator, List, Optional, Set, Union, Dict, Tuple, Generator
 
 import numpy as np
 from osgeo import gdal
@@ -148,19 +148,20 @@ class TimeSeries(QAbstractItemModel):
     def __init__(self, imageFiles=None):
         super(TimeSeries, self).__init__()
 
-        self.mLUT_TSD: Dict[str, TimeSeriesDate] = {}
-        self.mLUT_TSS: Dict[str, TimeSeriesSource] = {}
+        self.mTSS: Dict[str, TimeSeriesSource] = {}
+        self.mTSS2TSD: Dict[TimeSeriesSource, TimeSeriesDate] = {}
+        self.mTSDs: Dict[Tuple[QDateTime, SensorInstrument], TimeSeriesDate] = {}
+        self.mTSS2Sensor: Dict[TimeSeriesSource, SensorInstrument] = {}
 
-        self.mTSDs: List[TimeSeriesDate] = list()
+        # self.mTSDs: List[TimeSeriesDate] = list()
         self.mSensors: List[SensorInstrument] = []
         self.mShape = None
-        self.mTreeView: QTreeView = None
+        self.mTreeView: Optional[QTreeView] = None
         self.mDateTimePrecision = DateTimePrecision.Day
         self.mSensorMatchingFlags = SensorMatching.PX_DIMS
 
         self.mSpatialIndex: QgsSpatialIndex = QgsSpatialIndex()
 
-        self.mLUT_Path2TSD = {}
         self.mVisibleDates: Set[TimeSeriesDate] = set()
 
         self.mColumnNames = {
@@ -185,7 +186,7 @@ class TimeSeries(QAbstractItemModel):
         self.mTasks = dict()
 
         if imageFiles is not None:
-            self.addSources(imageFiles)
+            self.addSourceInputs(imageFiles)
 
     def focusVisibility(self,
                         ext: SpatialExtent,
@@ -341,7 +342,7 @@ class TimeSeries(QAbstractItemModel):
             n_max = min([len(images), n_max])
             images = images[0:n_max]
 
-        self.addSources(images, runAsync=runAsync)
+        self.addSourceInputs(images, runAsync=runAsync)
 
     @classmethod
     def sourcesFromFile(cls, path: Union[str, Path]) -> List[str]:
@@ -454,23 +455,7 @@ class TimeSeries(QAbstractItemModel):
 
         return extent
 
-    def getTSD(self, pathOfInterest):
-        """
-        Returns the TimeSeriesDate related to an image source
-        :param pathOfInterest: str, image source uri
-        :return: TimeSeriesDate
-        """
-        tsd = self.mLUT_Path2TSD.get(pathOfInterest)
-        if isinstance(tsd, TimeSeriesDate):
-            return tsd
-        else:
-            for tsd in self.mTSDs:
-                assert isinstance(tsd, TimeSeriesDate)
-                if pathOfInterest in tsd.sourceUris():
-                    return tsd
-        return None
-
-    def tsd(self, dtr: QgsDateTimeRange, sensor: Union[None, SensorInstrument, str]) -> Optional[TimeSeriesDate]:
+    def __depr_tsd(self, dtr: QgsDateTimeRange, sensor: Union[None, SensorInstrument, str]) -> Optional[TimeSeriesDate]:
         """
         Returns the TimeSeriesDate identified by date-time-range and sensorID
         :param dtr: QgsDateTimeRange
@@ -621,11 +606,20 @@ class TimeSeries(QAbstractItemModel):
             tsds = [tsd for tsd in tsds if tsd.sensor() == sensor]
         return tsds
 
+    def _clear(self):
+
+        self.mTSS.clear()
+        self.mTSS.clear()
+        self.mTSS2TSD.clear()
+        self.mTSS2Sensor.clear()
+
     def clear(self):
         """
         Removes all data sources from the TimeSeries (which will be empty after calling this routine).
         """
-        self.removeTSDs(self[:])
+        self.beginResetModel()
+        self._clear()
+        self.endResetModel()
 
     def addSensors(self, sensors: Union[SensorInstrument, List[SensorInstrument]]) -> List[SensorInstrument]:
         """
@@ -686,37 +680,10 @@ class TimeSeries(QAbstractItemModel):
             return sensor
         return None
 
-    def addTimeSeriesSources(self, sources: List[TimeSeriesSource]):
-        """
-        Adds a list of TimeSeriesSource to the time series
-        :param sources:  list-of-TimeSeriesSources
-        """
-        assert isinstance(sources, list)
-        n = len(sources)
-        if n > 0:
-            # print(f'Add {len(sources)} sources...', flush=True)
-
-            addedDates = []
-            t0 = datetime.datetime.now()
-            for i, source in enumerate(sources):
-                assert isinstance(source, TimeSeriesSource)
-                newTSD = self.addTimeSeriesSource(source)
-                if isinstance(newTSD, TimeSeriesDate):
-                    addedDates.append(newTSD)
-            t1 = datetime.datetime.now()
-
-            if len(addedDates) > 0:
-                self.sigTimeSeriesDatesAdded.emit(addedDates)
-            t2 = datetime.datetime.now()
-            dt1 = (t1 - t0).total_seconds()
-            dt2 = (t2 - t1).total_seconds()
-
-            logger.debug(f'# added {n} sources: t_avg: {dt1 / n: 0.3f}s t_total: {dt1} s, signals: {dt2: 0.3f}s')
-
-    def addSources(self,
-                   sources: List[Union[str, Path, TimeSeriesSource, gdal.Dataset, QgsRasterLayer]],
-                   runAsync: bool = None,
-                   n_threads: Optional[int] = None):
+    def addSourceInputs(self,
+                        sources: List[Union[str, Path, TimeSeriesSource, gdal.Dataset, QgsRasterLayer]],
+                        runAsync: bool = None,
+                        n_threads: Optional[int] = None):
         """
         Adds source images to the TimeSeries
         :param sources: list of source images, e.g., a list of file paths
@@ -744,7 +711,7 @@ class TimeSeries(QAbstractItemModel):
                 source_paths.append(path)
 
         if len(ts_sources) > 0:
-            self.addTimeSeriesSources(ts_sources)
+            self.addSources(ts_sources)
 
         if len(source_paths) > 0:
             if n_threads is None:
@@ -754,7 +721,7 @@ class TimeSeries(QAbstractItemModel):
                                             description=f'Load {len(source_paths)} images',
                                             n_threads=n_threads)
 
-            qgsTask.imagesLoaded.connect(self.addTimeSeriesSources)
+            qgsTask.imagesLoaded.connect(self.addSources)
             qgsTask.progressChanged.connect(self.sigProgress.emit)
             qgsTask.executed.connect(self.onTaskFinished)
 
@@ -794,42 +761,54 @@ class TimeSeries(QAbstractItemModel):
             self.sigFindOverlapTaskFinished.emit()
         self.onRemoveTask(task)
 
-    def addTimeSeriesSource(self, tss: TimeSeriesSource) -> TimeSeriesDate:
+    def addSources(self, tss: Union[TimeSeriesSource, List[TimeSeriesSource]]):
         """
         :param tss:
         :return: TimeSeriesDate (if new created)
         """
-        assert isinstance(tss, TimeSeriesSource)
+        if isinstance(tss, TimeSeriesSource):
+            tss = [tss]
+        else:
+            assert isinstance(tss, list)
 
-        newTSD = None
+        tss = sorted(set(tss))
 
-        tsr: QgsDateTimeRange = ImageDateUtils.dateRange(tss.dtg(), self.mDateTimePrecision)
+        new_uri2tss = dict()
+        new_tss2tsd = dict()
+        new_tss2sensor = dict()
+        new_dateSensor2tsd = dict()
 
-        sid = tss.sid()
-        sensor = self.findMatchingSensor(sid)
+        self.beginResetModel()
+        for t in tss:
+            uri = t.source()
+            if uri in self.mTSS:
+                continue
 
-        # if necessary, add a new sensor instance
-        if not isinstance(sensor, SensorInstrument):
-            sensor = SensorInstrument(sid)
-            assert sensor in self.addSensors(sensor)
-        assert isinstance(sensor, SensorInstrument)
-        tsd = self.tsd(tsr, sensor)
+            new_uri2tss[uri] = t
+            dtr = ImageDateUtils.dateRange(t.dtg(), self.mDateTimePrecision)
+            sid = t.sid()
+            sensor = self.findMatchingSensor(sid)
+            if not isinstance(sensor, SensorInstrument):
+                sensor = SensorInstrument(sid)
+                new_tss2sensor[uri] = sensor
 
-        # if necessary, add a new TimeSeriesDate instance
-        if not isinstance(tsd, TimeSeriesDate):
-            tsd = TimeSeriesDate(tsr, sensor)
-            tsd.mTimeSeries = self
-            newTSD = self.insertTSD(tsd)
-            assert tsd == newTSD
-            # addedDates.append(tsd)
-        assert isinstance(tsd, TimeSeriesDate)
+            # do we already have an TSD for this drt and sensor?
+            k = (dtr.begin(), sensor)
+            tsd = self.mTSDs.get(k)
+            if tsd is None:
+                tsd = TimeSeriesDate(dtr, sensor)
+                tsd.mTimeSeries = self
+                new_tss2tsd[uri] = tsd
+                new_dateSensor2tsd[k] = tsd
+            tsd.addSources(t)
+            self.mSpatialIndex.addFeature(t.feature())
 
-        # add the source
+        self.mTSS2TSD.update(new_tss2tsd)
+        self.mTSS2TSD.update(new_tss2tsd)
+        self.mTSS2Sensor.update(new_tss2sensor)
+        self.mTSDs.update(new_dateSensor2tsd)
 
-        tsd.addSource(tss)
-        self.mSpatialIndex.addFeature(tss.feature())
-        self.mLUT_Path2TSD[tss.source()] = tsd
-        return newTSD
+        self.endResetModel()
 
     def dateTimePrecision(self) -> DateTimePrecision:
         return self.mDateTimePrecision
@@ -841,11 +820,13 @@ class TimeSeries(QAbstractItemModel):
         :return:
         """
         assert isinstance(mode, DateTimePrecision)
-        all_sources = list(self.timeSeriesSources())
+        all_sources = list(self.mTSS.values())
         self.beginResetModel()
-        self.clear()
+        self._clear()
         self.mDateTimePrecision = mode
-        self.addTimeSeriesSources(all_sources)
+        self.endResetModel()
+        self.beginResetModel()
+        self.addSources(all_sources)
         self.endResetModel()
         # do we like to update existing sources?
 
@@ -859,15 +840,13 @@ class TimeSeries(QAbstractItemModel):
         assert bool(flags & SensorMatching.PX_DIMS), 'SensorMatching flags PX_DIMS needs to be set'
         self.mSensorMatchingFlags = flags
 
-    def sources(self) -> List[TimeSeriesSource]:
+    def sources(self) -> Generator[TimeSeriesSource, Any, None]:
         """
         Returns the input sources
         :return: iterator over [list-of-TimeSeriesSources]
         """
-
-        for tsd in self:
-            for source in tsd:
-                yield source
+        for tss in self.mTSS.values():
+            yield tss
 
     def sourceUris(self) -> List[str]:
         """
@@ -884,23 +863,21 @@ class TimeSeries(QAbstractItemModel):
         return len(self.mTSDs)
 
     def __iter__(self) -> Iterator[TimeSeriesDate]:
-        return iter(self.mTSDs)
+        return iter(self.mTSDs.items())
 
     def __getitem__(self, slice):
-        return self.mTSDs[slice]
+        return list(self.mTSDs.items())[slice]
 
-    def __delitem__(self, slice):
-        self.removeTSDs(slice)
+    # def __delitem__(self, slice):
+    #    self.removeTSDs(slice)
 
     def __contains__(self, item):
-        return item in self.mTSDs
+        return item in self.mTSDs.items()
 
     def __repr__(self):
-        info = []
-        info.append('TimeSeries:')
-        l = len(self)
-        info.append('  Scenes: {}'.format(l))
-
+        info = ['TimeSeries:',
+                '\t{} Images',
+                '\t{} Observation dates']
         return '\n'.join(info)
 
     def headerData(self, section, orientation, role):
@@ -952,6 +929,8 @@ class TimeSeries(QAbstractItemModel):
 
         if isinstance(node, TimeSeriesSource):
             return 0
+
+        return 0
 
     def columnCount(self, index: QModelIndex = None) -> int:
         """
@@ -1077,7 +1056,7 @@ class TimeSeries(QAbstractItemModel):
         multistep.setProgressText('Add Sources')
 
         if len(sources) > 0:
-            self.addTimeSeriesSources(sources)
+            self.addSources(sources)
 
         for tss in self.timeSeriesSources():
             tss.setIsVisible(uri_vis.get(tss.source(), tss.isVisible()))

@@ -27,22 +27,9 @@ import webbrowser
 from pathlib import Path
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
-import qgis.utils
-from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
-from qgis.PyQt.QtGui import QCloseEvent, QIcon
-from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
-    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
-from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
-from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, \
-    QgsExpressionContext, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, \
-    QgsPointXY, QgsProcessingContext, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProcessingRegistry, \
-    QgsProcessingUtils, QgsProject, QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, \
-    QgsTask, QgsTaskManager, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
-from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsLayerTreeView, QgsMapCanvas, QgsMessageBar, \
-    QgsMessageViewer, QgsStatusBar, QgsTaskManagerWidget
-
 import eotimeseriesviewer
 import eotimeseriesviewer.labeling
+import qgis.utils
 from eotimeseriesviewer import DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG
 from eotimeseriesviewer.about import AboutDialogUI
 from eotimeseriesviewer.dateparser import DateTimePrecision
@@ -77,6 +64,18 @@ from eotimeseriesviewer.timeseries.timeseries import TimeSeries, \
 from eotimeseriesviewer.timeseries.widgets import TimeSeriesDock, TimeSeriesTreeView, TimeSeriesWidget
 from eotimeseriesviewer.utils import fixMenuButtons
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
+from qgis.PyQt.QtGui import QCloseEvent, QIcon
+from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
+    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
+from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
+from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, \
+    QgsExpressionContext, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, \
+    QgsPointXY, QgsProcessingContext, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProcessingRegistry, \
+    QgsProcessingUtils, QgsProject, QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, \
+    QgsTask, QgsTaskManager, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
+from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsLayerTreeView, QgsMapCanvas, QgsMessageBar, \
+    QgsMessageViewer, QgsStatusBar, QgsTaskManagerWidget
 
 logger = logging.getLogger(__name__)
 
@@ -434,7 +433,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         # self.mapLayerStore().addMapLayer(self.ui.dockSpectralLibrary.speclib())
 
-        self.mPostDataLoadingArgs: dict = dict()
+        # self.mPostDataLoadingArgs: dict = dict()
 
         self.mVectorLayerTools: EOTSVVectorLayerTools = EOTSVVectorLayerTools()
         self.mVectorLayerTools.sigMessage.connect(lambda msg, level: self.logMessage(msg, LOG_MESSAGE_TAG, level))
@@ -877,10 +876,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         Handles actions that can be applied on a filled time series only, i.e. after sigLoadingTaskFinished was called.
         """
         if 'mapDate' in self.mPostDataLoadingArgs.keys():
-            mapDate = self.mPostDataLoadingArgs.pop('mapDate')
-            tsd = self.timeSeries().tsd(mapDate, None)
-            if isinstance(tsd, TimeSeriesDate):
-                self.setCurrentDate(tsd)
+            s = ""
+            # mapDate = self.mPostDataLoadingArgs.pop('mapDate')
+            # tsd = self.timeSeries().tsd(mapDate, None)
+            # if isinstance(tsd, TimeSeriesDate):
+            # self.setCurrentDate(tsd)
 
         self.timeSeries().sigLoadingTaskFinished.disconnect(self.onPostDataLoading)
 
@@ -2143,7 +2143,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 EOTSVSettingsManager.saveSettings(settings)
 
         if image_sources:
-            self.mTimeSeries.addSources(image_sources, runAsync=loadAsync)
+            self.mTimeSeries.addSourceInputs(image_sources, runAsync=loadAsync)
 
     def clearTimeSeries(self):
 
