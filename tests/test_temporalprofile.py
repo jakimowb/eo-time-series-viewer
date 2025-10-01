@@ -7,22 +7,54 @@ __copyright__ = 'Copyright 2024, Benjamin Jakimow'
 import datetime
 import unittest
 
-from qgis.PyQt.QtWidgets import QComboBox
-from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsFeature, QgsField, QgsFields, QgsProject, \
-    QgsRasterLayer, QgsTaskManager, QgsVectorLayer
-
 from eotimeseriesviewer.force import FORCEUtils
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, \
     TemporalProfileLayerFieldComboBox, TemporalProfileLayerProxyModel, TemporalProfileUtils
+from eotimeseriesviewer.temporalprofile.visualization import TemporalProfileVisualization
 from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app, TestObjects
+from qgis.PyQt.QtWidgets import QComboBox
+from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsFeature, QgsField, QgsFields, QgsProject, \
+    QgsRasterLayer, QgsTaskManager, QgsVectorLayer
 
 start_app()
 
 
 class TestTemporalProfilesV2(EOTSVTestCase):
     """Test temporal profiles"""
+
+    def test_load_profiles_only(self):
+
+        TSV = EOTimeSeriesViewer()
+
+        from example import exampleProfiles as path_vector
+
+        vl = QgsVectorLayer(path_vector.as_posix(), 'Profiles', 'ogr')
+        self.assertTrue(vl.isValid())
+        assert vl.featureCount() > 0
+        assert TemporalProfileUtils.isProfileLayer(vl)
+
+        pfield = TemporalProfileUtils.profileFields(vl).field(0)
+
+        for f in vl.getFeatures():
+            data = f.attribute(pfield.name())
+            if isinstance(data, str):
+                data = TemporalProfileUtils.profileDictFromJson(data)
+
+            assert isinstance(data, dict)
+            sensors = TemporalProfileUtils.profileSensors(data)
+            s = ""
+            break
+
+        TSV.project().addMapLayers([vl])
+        vis: TemporalProfileVisualization = TSV.profileDock.mVis
+        vis.createVisualization()
+        vis.updatePlot()
+        self.showGui(TSV.ui)
+
+        TSV.close()
+        QgsProject.instance().removeAllMapLayers()
 
     def test_load_timeseries_profiledata_tm(self):
         files = self.exampleRasterFiles()[1:]

@@ -373,9 +373,11 @@ class TemporalProfileUtils(object):
     @classmethod
     def sensorSpecs(cls, sid: str) -> dict:
         """
-        Returns the sensor specifications for the given sensor id
+        Returns the sensor specifications for a sensor id
         :param sid: sensor id string
-        :return: sensor specifications as dict
+        :return: sensor specifications as dict. Includes
+            'sid' = sensor id
+            'band_lookup' = dict to map wavelenght to bands
         """
         SI_ACRONYMS = spectral_index_acronyms()
 
@@ -793,7 +795,7 @@ class LoadTemporalProfileSubTask(QgsTask):
 
             srs_raster = ds.GetSpatialRef()
             if not srs.IsSame(srs_raster):
-                trans = osr.CoordinateTransformation(srs, srs_raster)
+                trans: osr.CoordinateTransformation = osr.CoordinateTransformation(srs, srs_raster)
                 pts2 = trans.TransformPoints(points)
             else:
                 pts2 = points
@@ -1066,8 +1068,8 @@ class LoadTemporalProfileTask(EOTSVTask):
         # keep only profile dictionaries for which we have at least one values
         self.mProfiles = temporal_profiles
         self.mErrors = errors
-        self.executed.emit(True, temporal_profiles)
         self.setProgress(100)
+        self.executed.emit(True, temporal_profiles)
 
         return True
 
