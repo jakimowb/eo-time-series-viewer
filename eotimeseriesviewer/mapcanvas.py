@@ -449,6 +449,8 @@ class MapCanvas(QgsMapCanvas):
         self.mRefreshStartTime = time.time()
         self.mNeedsRefresh = False
 
+        self.mSourcesInLoading: Dict[str, datetime.datetime] = dict()
+
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         bg = EOTSVSettingsManager.settings().mapBackgroundColor
         self.setCanvasColor(bg)
@@ -665,7 +667,31 @@ class MapCanvas(QgsMapCanvas):
                 print('Unsupported argument: {} {}'.format(type(a), str(a)), file=sys.stderr)
 
     # def onSourceLayerLoaded(self, success: bool, task: LoadMapCanvasLayers):
+    def onTaskEnded(self, *args):
+        task = self.sender()
+        if isinstance(task, LoadMapCanvasLayers):
+            self.updateSourcesInLoading(task)
+
+    def updateSourcesInLoading(self, task: LoadMapCanvasLayers):
+        """
+        Updates the source-in-loading dict by removes these uris, which are not use in a loading task any more.
+        After that, calling a timedRefresh for this uri will load them into the LoadMapCanvasLayers task again.
+        :param task:
+        :return:
+        """
+        loading_done = [s['uri'] for s in task.mSources]
+        now = datetime.datetime.now()
+        timeout = 60  # seconds
+        for uri in list(self.mSourcesInLoading.keys()):
+            t = self.mSourcesInLoading[uri]
+            dt = now - t
+            if uri in loading_done or dt.total_seconds() > timeout:
+                del self.mSourcesInLoading[uri]
+
     def onSourceLayerLoaded(self, success, task: LoadMapCanvasLayers):
+
+        if isinstance(task, LoadMapCanvasLayers):
+            self.updateSourcesInLoading(task)
 
         if success:
             layers_old = self.layers()
@@ -793,10 +819,14 @@ class MapCanvas(QgsMapCanvas):
 
                             for tss in self.tsd():
                                 tss: TimeSeriesSource
-                                sourceID = tss.source()
+                                uri = tss.source()
+
+                                if uri in self.mSourcesInLoading:
+                                    continue
+
                                 if tss.isVisible():
                                     # do we already have this layer?
-                                    if lyr := canvas_layers_by_source.get(sourceID, None):
+                                    if lyr := canvas_layers_by_source.get(uri, None):
                                         canvas_layer_new.append(lyr)
                                     else:
                                         # load asynchronously, because layer instantiation takes time
@@ -833,11 +863,14 @@ class MapCanvas(QgsMapCanvas):
             if n1 != n2:
                 s = ""
             if len(source_requests) > 0:
+
                 task = LoadMapCanvasLayers(source_requests)
+                now = datetime.datetime.now()
+                for s in source_requests:
+                    self.mSourcesInLoading[s['uri']] = now
                 task.setCallback(self.onSourceLayerLoaded)
-                # task.mCallback = self.onSourceLayerLoaded
                 task.setDescription(f'Load {self.tsd().dtgString()}')
-                # task.taskCompleted.connect(self.onSourceLayerLoaded)
+                task.taskTerminated.connect(self.onTaskEnded)
 
                 if load_async:
                     LoadMapCanvasLayers.addTask(task)

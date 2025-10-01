@@ -31,7 +31,7 @@ for dt in Qgis.DataType:
 
 def create_sensor_id(source: Union[QgsRasterLayer, gdal.Dataset]) -> Optional[str]:
     """
-    Creates a unique sensor_id
+    Creates a unique sensor id
     :param source:
     :return: str
     """
@@ -114,14 +114,14 @@ def sensorID(nb: int,
         assert isinstance(name, str)
 
     jsonDict = {'nb': nb,
-                'px_size_x': px_size_x,
-                'px_size_y': px_size_y,
+                'px_size_x': float(px_size_x),
+                'px_size_y': float(px_size_y),
                 'dt': int(dt),
                 'wl': wl,
                 'wlu': wlu,
                 'name': name
                 }
-    return json.dumps(jsonDict, ensure_ascii=False)
+    return json.dumps(jsonDict, ensure_ascii=False, sort_keys=True)
 
 
 def sensorIDtoProperties(idString: str) -> tuple:

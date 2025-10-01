@@ -24,7 +24,7 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Any, Iterator, List, Optional, Set, Union, Dict
+from typing import Any, Iterator, List, Optional, Set, Union, Dict, Generator
 
 import numpy as np
 from osgeo import gdal
@@ -859,7 +859,7 @@ class TimeSeries(QAbstractItemModel):
         assert bool(flags & SensorMatching.PX_DIMS), 'SensorMatching flags PX_DIMS needs to be set'
         self.mSensorMatchingFlags = flags
 
-    def sources(self) -> List[TimeSeriesSource]:
+    def sources(self) -> Generator[TimeSeriesSource, Any, None]:
         """
         Returns the input sources
         :return: iterator over [list-of-TimeSeriesSources]
