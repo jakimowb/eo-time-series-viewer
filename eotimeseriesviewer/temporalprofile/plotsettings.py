@@ -587,6 +587,10 @@ class TPVisGroup(PropertyItemGroup):
             self.project().addMapLayer(layer)
 
             self.mLayerID = layer.id()
+
+            model = self.model()
+            if isinstance(model, PlotSettingsTreeModel):
+                model.updateLayerRequest.emit()
             return
 
     def layer(self) -> Optional[QgsVectorLayer]:
