@@ -2018,7 +2018,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 layer = results.get(alg.OUTPUT)
                 if isinstance(layer, str):
                     layer = QgsProcessingUtils.mapLayerFromString(layer, d.processingContext())
-            d.close()
+            # d.close()
 
         d.algorithmFinished.connect(onExecuted)
         d.exec_()
@@ -2056,10 +2056,13 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             def onExecuted(success, results):
                 nonlocal layer
                 if success and alg.OUTPUT in results:
-                    layer = results[alg.OUTPUT]
-                    if isinstance(layer, str):
-                        layer = context.project().mapLayer(layer)
-                d.close()
+                    lyr = results[alg.OUTPUT]
+                    if isinstance(lyr, str):
+                        lyr = QgsProcessingUtils.mapLayerFromString(results[alg.OUTPUT], context)
+
+                    layer = lyr
+                    s = ""
+                # d.close()
 
             d.algorithmFinished.connect(onExecuted)
             d.exec_()

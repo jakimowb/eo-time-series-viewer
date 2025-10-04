@@ -26,7 +26,7 @@ from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import PlotDat
 from qgis.PyQt.QtGui import QIcon
 from qgis.core import Qgis, QgsApplication
 
-__version__ = '2.2.0'
+__version__ = '2.2.1'
 
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
