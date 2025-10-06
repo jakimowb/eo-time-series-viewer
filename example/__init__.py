@@ -10,7 +10,7 @@ exampleTimeSeries = thisDir / 'ExampleTimeSeries.csv'
 exampleNoDataImage = thisDir / '20140108_no_data.tif'
 exampleRapidEye = images / 're_2014-06-25.tif'
 exampleLandsat8 = images / '2014-01-15_LC82270652014015LGN00_BOA.tif'
-exampleProfiles = thisDir / 'example_profiles.gpkg'
+exampleProfiles = thisDir / 'example_profiles.geojson'
 dir_images = images
 
 del thisDir, images

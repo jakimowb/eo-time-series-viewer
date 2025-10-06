@@ -273,7 +273,8 @@ class TemporalProfileVisualization(QObject):
         for lid in old_lids:
             if lid not in new_lids:
                 self.removeLayerConnection(lid)
-        s = ""
+        if old_lids != new_lids:
+            self.updatePlotIfChanged()
 
     def setShowSelectedOnly(self, show: bool):
         update = self.mShowSelectedOnly != show
