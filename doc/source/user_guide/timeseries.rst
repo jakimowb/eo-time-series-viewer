@@ -19,9 +19,9 @@ to control the visibility of single sources or entire time series date in the ma
 Time Series Sources
 ===================
 
-A *Time Series Source* can be any raster images that (i) is readable by QGIS/GDAL and
-(ii) provides a timestamp. To find a timestamp, the |eotsv| searches
-the following locations:
+A *Time Series Source* can be any raster source that (i) is readable by QGIS/GDAL and (ii) provides a timestamp.
+
+To find a timestamp, the |eotsv| searches in following locations:
 
 .. list-table:: Time stamp locations searched by EO Time Series Viewer
     :header-rows: 1
@@ -40,11 +40,10 @@ the following locations:
       - Temporal properties, *Fixed time range > Start date*, see `QGIS Raster Layer Properties <https://docs.qgis.org/latest/en/docs/user_manual/working_with_raster/raster_properties.html#temporal-properties>`_
 
 
-If none of the described options works, it is often easiest to add an
-`ISO 8601 <https://en.wikipedia.org/wiki/ISO_8601>`_ timestamp either (i) to the
-file- or folder name, or use a small script like the following to add it to the GDAL metadata.
-1. *Time Series Sources*, i.e. raster images. They need to be readable by QGIS_ / GDAL_
-and each source needs to provide a timestamp - the observation data - , e.g. in the filename or GDAL metadata.
+If none of the locations described above returns works, an
+`ISO 8601 <https://en.wikipedia.org/wiki/ISO_8601>`_ timestamp may be added
+(i) to the datasourc uri, e.g. including it into the name of the source file or its parent folder, or
+(ii) adding it to the GDAL metadata:
 
 .. code-block:: python
 
