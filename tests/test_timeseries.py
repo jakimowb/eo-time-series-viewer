@@ -69,9 +69,10 @@ class TestTimeSeries(EOTSVTestCase):
         t0 = datetime.now()
 
         sources = [TimeSeriesSource.fromMap(d) for d in data['sources']]
+        # sources = sources[0:10]
         n = len(sources)
         dt0 = dt(f'loading {n} TimeSeriesSources from json')
-        TS.addSources(sources[0:2])
+        TS.addSources(sources)
         dt2 = dt(f'adding {n} TimeSeriesSource to TimeSeries')
 
         self.showGui(TSV.ui)
