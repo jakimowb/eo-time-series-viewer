@@ -3,7 +3,7 @@ import pathlib
 import re
 from typing import List
 
-WIfrom eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi, SpatialExtent
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries

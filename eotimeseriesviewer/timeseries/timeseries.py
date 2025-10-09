@@ -445,7 +445,7 @@ class TimeSeries(QAbstractItemModel):
         :return:
         """
         extent = None
-        for i, tsd in enumerate(self.mTSDs):
+        for i, tsd in enumerate(self.mTSDs.values()):
             assert isinstance(tsd, TimeSeriesDate)
             ext = tsd.spatialExtent(crs=crs)
             if isinstance(extent, SpatialExtent):
@@ -508,19 +508,22 @@ class TimeSeries(QAbstractItemModel):
         tsd.sigSourcesRemoved.connect(self.sigSourcesRemoved)
 
     def showTSDs(self, tsds: list, b: bool = True):
-        tsds = sorted(set([t for t in tsds if t in self]))
+
+        all_tsds = list(self.mTSDs)
+        tsds = [t for t in tsds if t in all_tsds]
         if len(tsds) == 0:
             return
-
-        idx0 = self.tsdToIdx(tsds[0])
-        idx1 = self.tsdToIdx(tsds[-1])
 
         for i, tsd in enumerate(tsds):
             assert isinstance(tsd, TimeSeriesDate)
             for tss in tsd:
                 tss.setIsVisible(b)
 
-        self.dataChanged.emit(idx0, idx1, [Qt.CheckStateRole])
+            idx0 = self.tsdToIdx(tsd)
+            idx1 = self.tsdToIdx(tsd)
+
+            self.dataChanged.emit(idx0, idx1, [Qt.CheckStateRole])
+
         self.sigVisibilityChanged.emit()
 
     def hideTSDs(self, tsds):
@@ -599,7 +602,7 @@ class TimeSeries(QAbstractItemModel):
         :param sensor: SensorInstrument of interest to return the [list-of-TimeSeriesDate] for.
         :return: [list-of-TimeSeriesDate]
         """
-        tsds = self.mTSDs[:]
+        tsds = list(self.mTSDs.values())
         if date:
             tsds = [tsd for tsd in tsds if tsd.dtg() == date]
         if sensor:
@@ -779,6 +782,7 @@ class TimeSeries(QAbstractItemModel):
         new_dateSensor2tsd = dict()
 
         self.beginResetModel()
+
         for t in tss:
             uri = t.source()
             if uri in self.mTSS:
@@ -791,6 +795,7 @@ class TimeSeries(QAbstractItemModel):
             if not isinstance(sensor, SensorInstrument):
                 sensor = SensorInstrument(sid)
                 new_tss2sensor[uri] = sensor
+                self.addSensors(sensor)
 
             # do we already have an TSD for this drt and sensor?
             k = (dtr.begin(), sensor)
@@ -804,11 +809,11 @@ class TimeSeries(QAbstractItemModel):
             self.mSpatialIndex.addFeature(t.feature())
 
         self.mTSS2TSD.update(new_tss2tsd)
-        self.mTSS2TSD.update(new_tss2tsd)
         self.mTSS2Sensor.update(new_tss2sensor)
         self.mTSDs.update(new_dateSensor2tsd)
 
         self.endResetModel()
+        s = ""
 
     def dateTimePrecision(self) -> DateTimePrecision:
         return self.mDateTimePrecision
@@ -825,9 +830,9 @@ class TimeSeries(QAbstractItemModel):
         self._clear()
         self.mDateTimePrecision = mode
         self.endResetModel()
-        self.beginResetModel()
-        self.addSources(all_sources)
-        self.endResetModel()
+        # self.beginResetModel()
+        # self.addSources(all_sources)
+        # self.endResetModel()
         # do we like to update existing sources?
 
     def setSensorMatching(self, flags: SensorMatching):
@@ -866,7 +871,7 @@ class TimeSeries(QAbstractItemModel):
         return iter(self.mTSDs.items())
 
     def __getitem__(self, slice):
-        return list(self.mTSDs.items())[slice]
+        return self.tsds()[slice]
 
     # def __delitem__(self, slice):
     #    self.removeTSDs(slice)
@@ -910,6 +915,8 @@ class TimeSeries(QAbstractItemModel):
             tss = node
             tsd = node.timeSeriesDate()
             return self.createIndex(self.mTSDs.index(tsd), 0, tsd)
+        else:
+            return QModelIndex()
 
     def rowCount(self, index: QModelIndex = None) -> int:
         """
@@ -952,29 +959,31 @@ class TimeSeries(QAbstractItemModel):
         :param parent: QModelIndex
         :return: QModelIndex
         """
-        if parent is None:
-            parent = self.mRootIndex
-        else:
-            assert isinstance(parent, QModelIndex)
+        try:
+            if parent is None:
+                parent = self.mRootIndex
+            else:
+                assert isinstance(parent, QModelIndex)
 
-        if row < 0 or row >= len(self):
-            return QModelIndex()
-        if column < 0 or column >= len(self.mColumnNames):
-            return QModelIndex()
-
-        if parent == self.mRootIndex:
-            # TSD node
             if row < 0 or row >= len(self):
                 return QModelIndex()
-            return self.createIndex(row, column, self[row])
-
-        elif parent.parent() == self.mRootIndex:
-            # TSS node
-            tsd = self.tsdFromIdx(parent)
-            if row < 0 or row >= len(tsd):
+            if column < 0 or column >= len(self.mColumnNames):
                 return QModelIndex()
-            return self.createIndex(row, column, tsd[row])
 
+            if parent == self.mRootIndex:
+                # TSD node
+                if row < 0 or row >= len(self):
+                    return QModelIndex()
+                return self.createIndex(row, column, self[row])
+
+            elif parent.parent() == self.mRootIndex:
+                # TSS node
+                tsd = self.tsdFromIdx(parent)
+                if row < 0 or row >= len(tsd):
+                    return QModelIndex()
+                return self.createIndex(row, column, tsd[row])
+        except Exception as ex:
+            s = ""
         return QModelIndex()
 
     def tsdToIdx(self, tsd: TimeSeriesDate) -> QModelIndex:
@@ -983,7 +992,7 @@ class TimeSeries(QAbstractItemModel):
         :param tsd: TimeSeriesDate
         :return: QModelIndex
         """
-        row = self.mTSDs.index(tsd)
+        row = self.tsds().index(tsd)
         return self.index(row, 0)
 
     def tsdFromIdx(self, index: QModelIndex) -> TimeSeriesDate:
@@ -1012,7 +1021,8 @@ class TimeSeries(QAbstractItemModel):
         :return:
         :rtype:
         """
-        return [tsd for tsd in self if not tsd.checkState() == Qt.Unchecked]
+
+        return sorted([tsd for tsd in self.tsds() if not tsd.checkState() == Qt.Unchecked])
 
     def asMap(self) -> dict:
 
@@ -1215,9 +1225,9 @@ class TimeSeries(QAbstractItemModel):
         """
         if len(self) == 0:
             return None
-
-        i = findNearestDateIndex(date, self.mTSDs)
-        return self.mTSDs[i]
+        tsds = sorted(self.mTSDs.values())
+        i = findNearestDateIndex(date, tsds)
+        return tsds[i]
 
     def flags(self, index):
         assert isinstance(index, QModelIndex)

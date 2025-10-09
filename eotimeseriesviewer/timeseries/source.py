@@ -443,8 +443,8 @@ class TimeSeriesDate(QObject):
     """
     A container to store all source images related to a single observation date (range) and sensor.
     """
-    sigSourcesAdded = pyqtSignal(list)
-    sigSourcesRemoved = pyqtSignal(list)
+    # sigSourcesAdded = pyqtSignal(list)
+    # sigSourcesRemoved = pyqtSignal(list)
     sigRemoveMe = pyqtSignal()
 
     cnUri = 'Source'
@@ -475,13 +475,13 @@ class TimeSeriesDate(QObject):
 
     def removeSource(self, source: TimeSeriesSource):
 
-        removed = []
+        # removed = []
         if source in self.mSources:
             self.mSources.remove(source)
-            removed.append(source)
+            # removed.append(source)
 
-        if len(removed) > 0:
-            self.sigSourcesRemoved.emit(removed)
+        # if len(removed) > 0:
+        #    self.sigSourcesRemoved.emit(removed)
 
     def dateTimeRange(self) -> QgsDateTimeRange:
         return QgsDateTimeRange(self.mDTR.begin(), self.mDTR.end())
@@ -520,7 +520,7 @@ class TimeSeriesDate(QObject):
         if len(added) > 0:
             self.mSources.extend(added)
 
-            self.sigSourcesAdded.emit(added)
+            # self.sigSourcesAdded.emit(added)
         return added
 
     def checkState(self) -> Qt.CheckState:

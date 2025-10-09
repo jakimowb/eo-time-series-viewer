@@ -2081,17 +2081,26 @@ QSlider::add-page {{
 
     def moveToNextTSD(self):
 
-        for tsd in self.timeSeries()[:]:
-            assert isinstance(tsd, TimeSeriesDate)
-            if tsd > self.currentDate() and tsd.checkState():
-                self.setCurrentDate(tsd)
-                return
+        cd = self.currentDate()
+
+        tsds = sorted(self.timeSeries()[:])
+        if len(tsds) == 0:
+            return
+        if cd:
+            for tsd in tsds:
+                assert isinstance(tsd, TimeSeriesDate)
+                if tsd > cd and tsd.checkState():
+                    self.setCurrentDate(tsd)
+                    break
 
     def moveToPreviousTSD(self):
-        for tsd in reversed(self.timeSeries()[:]):
-            if tsd < self.currentDate() and tsd.checkState():
-                self.setCurrentDate(tsd)
-                return
+        tsds = reversed(sorted(self.timeSeries()[:]))
+        cd = self.currentDate()
+        if cd:
+            for tsd in tsds:
+                if tsd < cd and tsd.checkState():
+                    self.setCurrentDate(tsd)
+                    break
 
     def moveToNextTSDFast(self):
         visibleAll = self.timeSeries().visibleTSDs()
@@ -2178,7 +2187,7 @@ QSlider::add-page {{
     def timeSlider(self) -> QSlider:
         return self.mTimeSlider
 
-    def currentDate(self) -> TimeSeriesDate:
+    def currentDate(self) -> Optional[TimeSeriesDate]:
         """
         Returns the current TimeSeriesDate
         :return: TimeSeriesDate
