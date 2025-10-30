@@ -349,7 +349,7 @@ DATETIME_FORMATS = [
     ('%Y%m%d', re.compile(r'(?P<dtg>\d{8})_LEVEL\d_.+_(BOA|QAI|DST|HOT|VZN)')),
 ]
 
-rxDTGKey = re.compile(r'(acquisition|observation)[ _]*(time|date|datetime)', re.IGNORECASE)
+rxDTGKey = re.compile(r'(acquisition|observation|product_start)[ _]*(time|date|datetime)', re.IGNORECASE)
 rxDTG = re.compile(r'((acquisition|observation)[ _]*(time|date|datetime)=(?P<dtg>[^<]+))', re.IGNORECASE)
 
 GDAL_DATETIME_ITEMS = [
