@@ -27,22 +27,9 @@ import webbrowser
 from pathlib import Path
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
-import qgis.utils
-from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
-from qgis.PyQt.QtGui import QCloseEvent, QIcon
-from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
-    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
-from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
-from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, \
-    QgsExpressionContext, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, \
-    QgsPointXY, QgsProcessingContext, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProcessingRegistry, \
-    QgsProcessingUtils, QgsProject, QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, \
-    QgsTask, QgsTaskManager, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
-from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsLayerTreeView, QgsMapCanvas, QgsMessageBar, \
-    QgsMessageViewer, QgsStatusBar, QgsTaskManagerWidget
-
 import eotimeseriesviewer
 import eotimeseriesviewer.labeling
+import qgis.utils
 from eotimeseriesviewer import DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG
 from eotimeseriesviewer.about import AboutDialogUI
 from eotimeseriesviewer.dateparser import DateTimePrecision
@@ -58,8 +45,8 @@ from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import showLayerPr
     pasteStyleToClipboard
 from eotimeseriesviewer.qgispluginsupport.qps.maptools import MapTools
 from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_INT, QMETATYPE_QDATE, QMETATYPE_QSTRING
-from eotimeseriesviewer.qgispluginsupport.qps.speclib.core import create_profile_field, is_spectral_library, \
-    profile_field_list
+from eotimeseriesviewer.qgispluginsupport.qps.speclib.core import create_profile_field, profile_field_list, \
+    is_spectral_library
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.core.spectrallibrary import SpectralLibraryUtils
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.core.spectralprofile import encodeProfileValueDict
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryWidget
@@ -77,6 +64,18 @@ from eotimeseriesviewer.timeseries.timeseries import TimeSeries, \
 from eotimeseriesviewer.timeseries.widgets import TimeSeriesDock, TimeSeriesTreeView, TimeSeriesWidget
 from eotimeseriesviewer.utils import fixMenuButtons
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
+from qgis.PyQt.QtGui import QCloseEvent, QIcon
+from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
+    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
+from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
+from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, \
+    QgsExpressionContext, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, \
+    QgsPointXY, QgsProcessingContext, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProcessingRegistry, \
+    QgsProcessingUtils, QgsProject, QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, \
+    QgsTask, QgsTaskManager, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
+from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsLayerTreeView, QgsMapCanvas, QgsMessageBar, \
+    QgsMessageViewer, QgsStatusBar, QgsTaskManagerWidget
 
 logger = logging.getLogger(__name__)
 
@@ -574,7 +573,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         # see https://sentinel.esa.int/web/sentinel/user-guides/sentinel-2-msi/data-formats/xsd
         self.ui.actionAddSentinel2.triggered.connect(
             lambda: self.openAddSubdatasetsDialog(
-                title='Open Sentinel-2 Datasets', filter='MTD_MSIL*.xml'))
+                title='Open Sentinel-2 Datasets', filter='XML (*MTD_MSIL*.xml);;SAFE Format (*.SAFE.zip)'))
 
         self.ui.actionRemoveTSD.triggered.connect(
             lambda: self.mTimeSeries.removeTSDs(tswidget.selectedTimeSeriesDates()))
@@ -1028,22 +1027,21 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         Returns the SpectraLibrary that are opened as the SpectralLibrary dock
         :return: SpectraLibrary
         """
-        return [w.speclib() for w in self.spectralLibraryWidgets()]
+        return [lyr for lyr in self.project().mapLayers().values() if is_spectral_library(lyr)]
 
     def openAddSubdatasetsDialog(self, *args,
                                  title: str = 'Open Subdatasets',
                                  filter: str = '*.*'):
 
         from .qgispluginsupport.qps.subdatasets import SubDatasetSelectionDialog
-
-        d = SubDatasetSelectionDialog()
+        d = SubDatasetSelectionDialog(providers=['gdal'])
         d.setWindowTitle(title)
         d.setFileFilter(filter)
         d.exec_()
         if d.result() == QDialog.Accepted:
-            files = d.selectedSubDatasets()
-            if len(files) > 0:
-                self.addTimeSeriesImages(files)
+            details = d.selectedSublayerDetails()
+            if len(details) > 0:
+                self.addTimeSeriesImages(details)
 
     def beforeClose(self):
         self._stopTasks()
@@ -1933,31 +1931,21 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         # 1. check if this layer is already opened as dock widget
         docks: List[QgsDockWidget] = self.ui.findChildren(QgsDockWidget)
         vectorLayerDocks: List[QgsDockWidget] = [d for d in docks if
-                                                 isinstance(d, (LabelDockWidget, SpectralLibraryDockWidget))]
+                                                 isinstance(d, (LabelDockWidget,))]
 
         for d in vectorLayerDocks:
-            if isinstance(d, LabelDockWidget) and d.vectorLayer().id() == lyr.id() or \
-                    isinstance(d, SpectralLibraryDockWidget) and d.speclib().id() == lyr.id():
+            if isinstance(d, LabelDockWidget) and d.vectorLayer().id() == lyr.id():
                 d.show()
                 d.activateWindow()
                 d.raise_()
                 return d
 
         # 2. create dock widget
-
-        if is_spectral_library(lyr):
-            dock = SpectralLibraryDockWidget(speclib=lyr)
-            dock.setObjectName(f'SpectralLibraryDockWidget{id(dock)}')
-            dock.setVectorLayerTools(self.vectorLayerTools())
-            dock.SLW.actionSelectProfilesFromMap.setVisible(True)
-            dock.SLW.sigLoadFromMapRequest.connect(lambda *args: self.setMapTool(MapTools.SpectralProfile))
-            # dock.SLW.actionSelectProfilesFromMap.triggered.connect(self.activateIdentifySpectralProfileMapTool)
-        else:
-            dock = LabelDockWidget(lyr)
-            dock.mLabelWidget.sigMoveTo[QDateTime].connect(self.setCurrentDate)
-            dock.mLabelWidget.sigMoveTo[QDateTime, object].connect(self.moveTo)
-            dock.setObjectName(f'LabelDockWidget{id(dock)}')
-            dock.setVectorLayerTools(self.vectorLayerTools())
+        dock = LabelDockWidget(lyr)
+        dock.mLabelWidget.sigMoveTo[QDateTime].connect(self.setCurrentDate)
+        dock.mLabelWidget.sigMoveTo[QDateTime, object].connect(self.moveTo)
+        dock.setObjectName(f'LabelDockWidget{id(dock)}')
+        dock.setVectorLayerTools(self.vectorLayerTools())
 
         self.ui.addDockWidget(Qt.BottomDockWidgetArea, dock)
         self.ui.menuPanels.addAction(dock.toggleViewAction())
@@ -2071,7 +2059,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     def createSpectralLibrary(self) -> SpectralLibraryWidget:
         """
-        Create a spectral library
+        Creates a spectral library
         """
 
         speclib: QgsVectorLayer = SpectralLibraryUtils.createSpectralLibrary()
