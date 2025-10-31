@@ -28,26 +28,32 @@ Install QGIS & Python Dependencies
 
         OSGeo4W Network Installer
 
-      The OSGeo4W neotwork installer can be used to update QGIS and install different QGIS branches in parallel.
+      The OSGeo4W neotwork installer can be used to update QGIS and have
+      different QGIS releases installed in parallel.
 
+      3. If python-packages are missing:
+        *  try installing them using the OSGeo4W installer first.
+        *  If unavailable in the OSGeo4W installer, install them by running ``pip install <package>`` from the
+           OSGeo4W shell
 
    .. group-tab:: Linux
 
-     QGIS installation guided for different Linxu distribition can be found at
-     https://qgis.org/resources/installation-guide/#debian--ubuntu ,
+     QGIS installation guides for different Linux distribitions can be found at
+     https://qgis.org/resources/installation-guide/#debian--ubuntu.
 
-     To run different QGIS version in parallel, e.g. the LR and LTR versions,
-     it is recommended to install QGIS using conda (see *Conda* tab) or docker (see *Docker* tab).
+     Some standard repositories, e.g. that for Ubuntu, are known to deliver outdated QGIS versions.
+     Therefore it is recommended to install QGIS using Flatpak (https://flathub.org/en/apps/org.qgis.qgis),
+     conda (see *Conda* tab) or docker (see *Docker* tab).
+
 
    .. group-tab:: MacOS
 
-      **Install QGIS on MacOS**
-
       .. note::
 
-         As of June 2025, official QGIS releases for macOS use outdated Python and GDAL versions.
+         As of June 2025, official *QGIS installers for macOS are currently outdated and do not reflect
+         the latest QGIS versions* (see https://qgis.org/download/).
 
-         Therefore it is recommended to install QGIS and all python dependencies using
+         For macOS it is recommended to install QGIS and all python dependencies either using
          conda (see *Conda* tab) or docker (see *Docker* tab).
 
    .. group-tab:: Conda
@@ -77,15 +83,15 @@ Install QGIS & Python Dependencies
 
       2. Install QGIS + Python dependencies
 
-       Open a terminal where the conda executable is available to install a python environment with
-       QGIS:
+        Open a terminal with conda available and install a new python environment with
+        QGIS and all required python packages:
 
-       .. code-block:: bash
+        .. code-block:: bash
 
           conda install -n eotsv -f=https://raw.githubusercontent.com/jakimowb/eo-time-series-viewer/refs/heads/main/.conda/eotsv.yml
 
 
-        When done, you can activate the environment and start QGIS with
+        Now activate the environment and start QGIS
 
         .. code-block:: bash
 
@@ -96,24 +102,23 @@ Install QGIS & Python Dependencies
 
         1. Pull a QGIS image, e.g., `qgis/qgis:stable <https://hub.docker.com/layers/qgis/qgis/stable>`_
 
-        .. code-block:: bash
+          .. code-block:: bash
 
             docker pull qgis/qgis:stable
 
 
-        2. Download David Frantz' QGIS start
-           script `qgis.sh <https://github.com/davidfrantz/startup/blob/main/bash/qgis.sh>`_ into a
-           local folder and allow to execute it
+        2. Download the QGIS start script created by David Frantz from https://github.com/davidfrantz/startup/blob/main/bash/qgis.sh
+           into a local folder and allow executing it
 
-        .. code-block:: bash
+          .. code-block:: bash
 
             cd ~
             wget https://raw.githubusercontent.com/davidfrantz/startup/refs/heads/main/bash/qgis.sh
             chmod +x qgis.sh
 
-        3. Call the start script to run QGIS
+        3. Call the script to run QGIS from docker
 
-        .. code-block:: bash
+          .. code-block:: bash
 
             ./qgis.sh -v stable
 
