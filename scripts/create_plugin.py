@@ -185,7 +185,7 @@ def create_plugin(include_testdata: bool = False,
     # copy license
     shutil.copy(PLUGIN_DIR / 'LICENSE.md', PLUGIN_DIR / 'LICENSE')
 
-    # Copy to other deploy directory
+    # Copy to another deploy directory
     if copy_to_profile:
 
         if 'QGIS_PROFILE_FOLDER' in os.environ:

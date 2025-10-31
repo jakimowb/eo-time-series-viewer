@@ -180,7 +180,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="../../../QGIS/images/images.qrc">
+        <iconset>
          <normaloff>:/images/themes/default/mActionDoubleArrowLeft.svg</normaloff>:/images/themes/default/mActionDoubleArrowLeft.svg</iconset>
        </property>
        <property name="autoRaise">
@@ -194,7 +194,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="../../../QGIS/images/images.qrc">
+        <iconset>
          <normaloff>:/images/themes/default/mActionArrowLeft.svg</normaloff>:/images/themes/default/mActionArrowLeft.svg</iconset>
        </property>
        <property name="autoRaise">
@@ -205,7 +205,7 @@
      <item>
       <widget class="QLabel" name="tbSliderDate">
        <property name="toolTip">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Date/Time (Day-of-Year) corresponding to the slider button.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Date-Time (Day-of-Year) of slider button position.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
        <property name="text">
         <string>0000-00-00</string>
@@ -273,7 +273,7 @@ QSlider::add-page {
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="../../../QGIS/images/images.qrc">
+        <iconset>
          <normaloff>:/images/themes/default/mActionArrowRight.svg</normaloff>:/images/themes/default/mActionArrowRight.svg</iconset>
        </property>
        <property name="autoRaise">
@@ -287,7 +287,7 @@ QSlider::add-page {
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="../../../QGIS/images/images.qrc">
+        <iconset>
          <normaloff>:/images/themes/default/mActionDoubleArrowRight.svg</normaloff>:/images/themes/default/mActionDoubleArrowRight.svg</iconset>
        </property>
        <property name="autoRaise">
@@ -314,7 +314,7 @@ QSlider::add-page {
   </layout>
   <action name="actionForward">
    <property name="icon">
-    <iconset resource="../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionArrowRight.svg</normaloff>:/images/themes/default/mActionArrowRight.svg</iconset>
    </property>
    <property name="text">
@@ -329,7 +329,7 @@ QSlider::add-page {
   </action>
   <action name="actionBackward">
    <property name="icon">
-    <iconset resource="../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionArrowLeft.svg</normaloff>:/images/themes/default/mActionArrowLeft.svg</iconset>
    </property>
    <property name="text">
@@ -368,7 +368,7 @@ QSlider::add-page {
   </action>
   <action name="actionForwardFast">
    <property name="icon">
-    <iconset resource="../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionDoubleArrowRight.svg</normaloff>:/images/themes/default/mActionDoubleArrowRight.svg</iconset>
    </property>
    <property name="text">
@@ -380,7 +380,7 @@ QSlider::add-page {
   </action>
   <action name="actionBackwardFast">
    <property name="icon">
-    <iconset resource="../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionDoubleArrowLeft.svg</normaloff>:/images/themes/default/mActionDoubleArrowLeft.svg</iconset>
    </property>
    <property name="text">

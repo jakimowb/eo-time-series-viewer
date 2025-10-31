@@ -8,9 +8,11 @@ from eotimeseriesviewer.processing.algorithmhelp import AlgorithmHelp
 from eotimeseriesviewer.qgispluginsupport.qps.fieldvalueconverter import GenericFieldValueConverter, \
     GenericPropertyTransformer
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
+from eotimeseriesviewer.timeseries.source import TimeSeriesSource
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from qgis.PyQt.QtCore import NULL, QMetaType, QVariant
 from qgis.PyQt.QtGui import QIcon
+from qgis.core import QgsCoordinateTransform, QgsRasterLayer, QgsProject
 from qgis.core import edit, Qgis, QgsApplication, QgsFeature, QgsFeatureSink, QgsField, QgsFields, QgsMapLayer, \
     QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext, QgsProcessingException, QgsProcessingFeedback, \
     QgsProcessingOutputVectorLayer, QgsProcessingParameterBoolean, QgsProcessingParameterCrs, \
@@ -345,12 +347,18 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
             feedback.reportError(f"Invalid input layer {parameters[self.INPUT]}", True)
             return False
 
+        crs = input_layer.crs()
+        if not crs.isValid():
+            feedback.reportError(f'Layer CRS is invalid: {parameters[self.INPUT]}\n{crs.description()}')
+            return False
+
         time_series = self.parameterAsFile(parameters, self.TIMESERIES, context)
         if time_series == '':
             time_series = self.parameterAsFileList(parameters, self.TIMESERIES, context)
             time_series = [t for t in time_series if t != '']
 
         if time_series in ['', [], None]:
+            # set to None and use from running EOTSV instance (see below)
             time_series = None
 
         profile_field = self.parameterAsStrings(parameters, self.FIELD_NAME, context)
@@ -381,15 +389,26 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
             sources = [str(l) for l in time_series]
         elif isinstance(time_series, str):
             sources = TimeSeries.sourcesFromFile(time_series)
+            sources = [s.source() if isinstance(s, TimeSeriesSource) else s for s in sources]
 
         if not (isinstance(sources, list) and len(sources) > 0):
             feedback.pushError("No time series sources defined. Define CSV file with sources or "
                                "open EO Time Series Viewer with source files.")
             return False
 
+        # test coordinate conversion on 1st raster
+        options = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
+        lyr1 = QgsRasterLayer(sources[0], options=options)
+        trans = QgsCoordinateTransform(crs, lyr1.crs(), QgsProject.instance())
+        if not trans.isValid():
+            feedback.reportError(f'Unable to transform vector CRS to raster CRS: {crs.description()}')
+            return False
+
         out_path = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
         if out_path.startswith('memory:'):
             out_driver = 'memory'
+        elif out_path.startswith('ogr:') and '.gpkg' in out_path.lower():
+            out_driver = 'GPKG'
         else:
             if os.path.isfile(out_path):
                 Path(out_path).unlink()
@@ -398,6 +417,7 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
             if out_driver in ['', None]:
                 feedback.reportError(f'Unable to identify vector driver for output path: "{out_path}"', True)
                 return False
+
         self._output_driver = out_driver
         self._n_threads = self.parameterAsInt(parameters, self.N_THREADS, context)
         self._field_name = profile_field
@@ -504,7 +524,7 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
         # lyr.setEditorWidgetSetup(self._field_id, TemporalProfileUtils.widgetSetup())
         # lyr.saveDefaultStyle(QgsMapLayer.StyleCategory.Forms)
         # assert TemporalProfileUtils.isProfileLayer(lyr)
-
+        context.feedback().setProgress(100)
         self._dest_id = dest_id
         return {self.OUTPUT: dest_id}
 

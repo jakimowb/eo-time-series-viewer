@@ -63,7 +63,8 @@ class FindFORCEProductsTask(EOTSVTask):
     taskInfo = pyqtSignal(str)
 
     def __init__(self,
-                 product: str, path,
+                 product: str,
+                 path: Union[str, Path],
                  *args,
                  tile_ids: List[str] = None,
                  dateMin: Union[None, QDate, str, datetime.datetime] = None,

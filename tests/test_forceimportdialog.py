@@ -136,9 +136,13 @@ class FORCEImportTestCases(EOTSVTestCase):
 
         task = FindFORCEProductsTask('BOA', FORCE_CUBE, tile_ids=[tile_id])
         task.run()
-        files = task.files()  # [0:20]
+        files = task.files()[0:10]
 
-        eotsv.addTimeSeriesImages(files)
+        eotsv.addTimeSeriesImages(files, loadAsync=False)
+        from example import exampleProfiles
+        from qgis.core import QgsVectorLayer
+        lyrV = QgsVectorLayer(exampleProfiles.as_posix(), exampleProfiles.stem)
+        eotsv.addMapLayers([lyrV])
 
         self.showGui(eotsv.ui)
         eotsv.close()

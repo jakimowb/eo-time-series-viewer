@@ -1,4 +1,6 @@
 import unittest
+from pathlib import Path
+from typing import Optional
 
 import processing.gui.ProcessingToolbox
 import qgis.utils
@@ -14,10 +16,11 @@ from example import examplePoints
 from processing import AlgorithmDialog
 from processing.gui.ProcessingToolbox import ProcessingToolbox
 from qgis.PyQt.QtCore import QMetaType
-from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsFeature, QgsField, QgsGeometry, \
-    QgsProcessingAlgorithm, QgsProcessingAlgRunnerTask, QgsProcessingParameterDefinition, QgsProcessingProvider, \
+from qgis.core import QgsRectangle
+from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsFeature, QgsField, QgsProcessingAlgorithm, \
+    QgsProcessingAlgRunnerTask, QgsProcessingParameterDefinition, QgsProcessingProvider, \
     QgsProcessingRegistry, QgsProcessingUtils, QgsProject, QgsRasterLayer, QgsTaskManager, QgsVectorLayer, \
-    QgsVectorLayerUtils
+    QgsMapLayer, QgsMapToPixel, QgsPointXY
 
 start_app()
 initAll()
@@ -207,7 +210,37 @@ class ProcessingAlgorithmTests(EOTSVTestCase):
 
         tsv.close()
 
-    @unittest.skipIf(FORCE_CUBE is None, 'Missing FORCE_CUBE')
+    def randomSampleLayer(self, path: Path, lyr: QgsMapLayer,
+                          extent: Optional[QgsRectangle] = None,
+                          n: int = 25,
+                          distance: float = 100) -> QgsVectorLayer:
+
+        if extent is None:
+            extent = lyr.extent()
+        # '13.847039328,14.093675662,52.429954232,52.666414474 [EPSG:4326]'
+        par = {'EXTENT': extent,
+               'POINTS_NUMBER': n, 'MIN_DISTANCE': distance,
+               'TARGET_CRS': lyr.crs(), 'MAX_ATTEMPTS': 200,
+               'OUTPUT': f'ogr:dbname=\'{path.as_posix()}\' table="output" (geom)'}
+
+        context, feedback = self.createProcessingContextFeedback()
+        project = QgsProject()
+        context.setProject(project)
+        alg = QgsApplication.processingRegistry().createAlgorithmById('native:randompointsinextent')
+        assert isinstance(alg, QgsProcessingAlgorithm)
+        results, success = alg.run(par, context=context, feedback=feedback)
+        self.assertTrue(success)
+
+        lyr = QgsVectorLayer(results['OUTPUT'])
+        lyr.setName(path.stem)
+        self.assertTrue(lyr.isValid())
+        self.assertEqual(lyr.featureCount(), n)
+        self.assertTrue(lyr.crs().isValid())
+        return lyr
+
+        s = ""
+
+    @unittest.skipIf(FORCE_CUBE is None, 'FORCE_CUBE is undefined')
     def test_read_temporal_profiles_force(self):
 
         task = FindFORCEProductsTask('BOA', FORCE_CUBE)
@@ -221,31 +254,85 @@ class ProcessingAlgorithmTests(EOTSVTestCase):
         lyr = QgsRasterLayer(sources[0])
         assert lyr.isValid()
 
-        crs = QgsCoordinateReferenceSystem('EPSG:4326')
-        points = {}
+        TEST_DIR = self.createTestOutputDirectory()
 
-        for x in range(-10, lyr.width() + 10, int(lyr.width() / 5)):
-            for y in range(-10, lyr.height() + 10, int(lyr.height() / 5)):
-                in_extent = 0 <= x < lyr.width() and 0 <= y < lyr.height()
-                pt = SpatialPoint.fromPixelPosition(lyr, x, y).toCrs(crs)
-                points[(x, y, in_extent)] = pt
+        if True:
+            path = TEST_DIR / 'testsample.gpkg'
+            ext = lyr.extent()
+            ext2 = ext.scaled(1.05, ext.center())
+            vLyr = self.randomSampleLayer(path, lyr, extent=ext2, n=25)
+        else:
 
-        uri = "point?crs=epsg:4326&field=id:integer"
-        vLyr = QgsVectorLayer(uri, "Scratch point layer", "memory")
+            crs = QgsCoordinateReferenceSystem('EPSG:4326')
+            points = {}
+
+            for x in range(-10, lyr.width() + 10, int(lyr.width() / 5)):
+                for y in range(-10, lyr.height() + 10, int(lyr.height() / 5)):
+                    in_extent = 0 <= x < lyr.width() and 0 <= y < lyr.height()
+                    pt = SpatialPoint.fromPixelPosition(lyr, x, y).toCrs(crs)
+                    points[(x, y, in_extent)] = pt
+
+            uri = "point?crs=epsg:4326&field=id:integer"
+            vLyr = QgsVectorLayer(uri, "Scratch point layer", "memory")
         with edit(vLyr):
             assert vLyr.addAttribute(QgsField('px_x', QMetaType.Int))
             assert vLyr.addAttribute(QgsField('px_y', QMetaType.Int))
             assert vLyr.addAttribute(QgsField('in_extent', QMetaType.Bool))
 
-            for (x, y, in_extent), pt in points.items():
-                f = QgsVectorLayerUtils.createFeature(vLyr)
-                f['px_x'] = x
-                f['px_y'] = y
-                f['in_extent'] = in_extent
-                f.setGeometry(QgsGeometry.fromPointXY(pt))
-                assert vLyr.addFeature(f)
+            mapUnitsPerPixel = lyr.rasterUnitsPerPixelX()
+            extent = lyr.extent()
+            center = extent.center()
+            rotation = 0
+            m2p = QgsMapToPixel(mapUnitsPerPixel,
+                                center.x(),
+                                center.y(),
+                                lyr.width(),
+                                lyr.height(),
+                                rotation)
 
-        self.assertEqual(len(points), vLyr.featureCount())
+            for f in vLyr.getFeatures():
+                g = f.geometry()
+                gPt = g.asPoint()
+                pxPt: QgsPointXY = m2p.transform(gPt)
+                f.setAttribute('px_x', int(pxPt.x()))
+                f.setAttribute('Px_y', int(pxPt.y()))
+                in_extent = extent.contains(gPt)
+                if in_extent is False:
+                    s = ""
+                assert vLyr.updateFeature(f)
+
+        path = TEST_DIR / 'testsample_ogr.gpkg'
+        if True:
+            alg = ReadTemporalProfiles()
+            context, feedback = self.createProcessingContextFeedback()
+            project = QgsProject()
+            context.setProject(project)
+            conf = {}
+            alg.initAlgorithm(conf)
+            parm = {alg.INPUT: vLyr,
+                    alg.TIMESERIES: sources,
+                    alg.FIELD_NAME: 'tp',
+                    alg.OUTPUT: f'ogr:dbname=\'{path.as_posix()}\' table="output" (geom)"'
+                    }
+
+            progress = None
+
+            def onProgressChanged(p: float):
+                nonlocal progress
+                progress = p
+
+            feedback.progressChanged.connect(onProgressChanged)
+
+            results, success = alg.run(parm, context, feedback)
+
+            self.assertTrue(success)
+            self.assertEqual(100, progress)
+
+            tpLyr = QgsProcessingUtils.mapLayerFromString(results[alg.OUTPUT], context)
+            self.assertIsInstance(tpLyr, QgsVectorLayer)
+            self.assertTrue(tpLyr.isValid())
+            field = tpLyr.fields().field('tp')
+            self.assertTrue(TemporalProfileUtils.isProfileField(field))
 
         if True:
             alg = ReadTemporalProfiles()

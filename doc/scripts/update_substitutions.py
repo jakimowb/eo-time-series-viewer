@@ -173,7 +173,7 @@ class SubstituteCollection(object):
         assert path_rst.is_file()
         assert path_rst.name.endswith('.rst')
 
-        with open(path_rst, 'r') as f:
+        with open(path_rst, 'r', encoding='utf8') as f:
             lines = f.read().strip()
             if MSG_DO_NOT_EDIT in lines:
                 lines = lines.split(MSG_DO_NOT_EDIT)[0].strip()

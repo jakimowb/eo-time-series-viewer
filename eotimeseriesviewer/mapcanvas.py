@@ -28,7 +28,7 @@ import time
 import warnings
 from pathlib import Path
 from threading import Lock
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Any
 
 import qgis.utils
 from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QDir, QMimeData, QObject, QPoint, QPointF, QRect, QRectF, QSize, Qt, \
@@ -44,7 +44,6 @@ from qgis.core import Qgis, QgsContrastEnhancement, QgsCoordinateReferenceSystem
 from qgis.core import QgsApplication
 from qgis.gui import QgisInterface, QgsAdvancedDigitizingDockWidget, QgsFloatingWidget, QgsGeometryRubberBand, \
     QgsMapCanvas, QgsMapCanvasItem, QgsMapTool, QgsMapToolCapture, QgsMapToolPan, QgsMapToolZoom, QgsUserInputWidget
-
 from .labeling.quicklabeling import addQuickLabelMenu
 from .mapvis.tasks import LoadMapCanvasLayers
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairDialog, CrosshairMapCanvasItem, CrosshairStyle
@@ -133,7 +132,7 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         super(MapCanvasInfoItem, self).__init__(mapCanvas)
         self.mCanvas = mapCanvas
 
-        self.mInfoText: Dict[int, QgsExpression] = dict()
+        self.mInfoText: Dict[Qt.Alignment, Optional[str]] = dict()
         self.mWrapChar = '\n'
         self.mTextFormat = QgsTextFormat()
         self.mTextFormat.setSizeUnit(QgsUnitTypes.RenderPixels)
@@ -152,16 +151,15 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
     def wrapChar(self) -> str:
         return self.mWrapChar
 
-    def setInfoText(self, text: str, alignment: Qt.Alignment = Qt.AlignTop | Qt.AlignHCenter):
+    def setInfoText(self, text: Optional[Any], alignment: Qt.Alignment = Qt.AlignTop | Qt.AlignHCenter):
         if text in [None, '']:
             self.mInfoText[alignment] = None
         else:
-            assert isinstance(text, str)
-            self.mInfoText[alignment] = text
+            self.mInfoText[alignment] = str(text)
 
-    def setTextFormat(self, format: QgsTextFormat):
-        assert isinstance(format, QgsTextFormat)
-        self.mTextFormat = format
+    def setTextFormat(self, fmt: QgsTextFormat):
+        assert isinstance(fmt, QgsTextFormat)
+        self.mTextFormat = fmt
         self.updateCanvas()
 
     def textFormat(self) -> QgsTextFormat:
@@ -451,6 +449,8 @@ class MapCanvas(QgsMapCanvas):
         self.mRefreshStartTime = time.time()
         self.mNeedsRefresh = False
 
+        self.mSourcesInLoading: Dict[str, datetime.datetime] = dict()
+
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         bg = EOTSVSettingsManager.settings().mapBackgroundColor
         self.setCanvasColor(bg)
@@ -667,7 +667,31 @@ class MapCanvas(QgsMapCanvas):
                 print('Unsupported argument: {} {}'.format(type(a), str(a)), file=sys.stderr)
 
     # def onSourceLayerLoaded(self, success: bool, task: LoadMapCanvasLayers):
+    def onTaskEnded(self, *args):
+        task = self.sender()
+        if isinstance(task, LoadMapCanvasLayers):
+            self.updateSourcesInLoading(task)
+
+    def updateSourcesInLoading(self, task: LoadMapCanvasLayers):
+        """
+        Updates the source-in-loading dict by removes these uris, which are not use in a loading task any more.
+        After that, calling a timedRefresh for this uri will load them into the LoadMapCanvasLayers task again.
+        :param task:
+        :return:
+        """
+        loading_done = [s['uri'] for s in task.mSources]
+        now = datetime.datetime.now()
+        timeout = 60  # seconds
+        for uri in list(self.mSourcesInLoading.keys()):
+            t = self.mSourcesInLoading[uri]
+            dt = now - t
+            if uri in loading_done or dt.total_seconds() > timeout:
+                del self.mSourcesInLoading[uri]
+
     def onSourceLayerLoaded(self, success, task: LoadMapCanvasLayers):
+
+        if isinstance(task, LoadMapCanvasLayers):
+            self.updateSourcesInLoading(task)
 
         if success:
             layers_old = self.layers()
@@ -795,10 +819,14 @@ class MapCanvas(QgsMapCanvas):
 
                             for tss in self.tsd():
                                 tss: TimeSeriesSource
-                                sourceID = tss.source()
+                                uri = tss.source()
+
+                                if uri in self.mSourcesInLoading:
+                                    continue
+
                                 if tss.isVisible():
                                     # do we already have this layer?
-                                    if lyr := canvas_layers_by_source.get(sourceID, None):
+                                    if lyr := canvas_layers_by_source.get(uri, None):
                                         canvas_layer_new.append(lyr)
                                     else:
                                         # load asynchronously, because layer instantiation takes time
@@ -813,6 +841,7 @@ class MapCanvas(QgsMapCanvas):
                                                    'legend_layer': legend_lyr.id(),
                                                    'loadDefaultStyle': use_as_masterstyle,
                                                    'providerType': tss.provider(),
+                                                   'name': tss.name(),
                                                    'customProperties': {
                                                        SensorInstrument.PROPERTY_KEY: sid
                                                    }}
@@ -834,11 +863,14 @@ class MapCanvas(QgsMapCanvas):
             if n1 != n2:
                 s = ""
             if len(source_requests) > 0:
+
                 task = LoadMapCanvasLayers(source_requests)
+                now = datetime.datetime.now()
+                for s in source_requests:
+                    self.mSourcesInLoading[s['uri']] = now
                 task.setCallback(self.onSourceLayerLoaded)
-                # task.mCallback = self.onSourceLayerLoaded
                 task.setDescription(f'Load {self.tsd().dtgString()}')
-                # task.taskCompleted.connect(self.onSourceLayerLoaded)
+                task.taskTerminated.connect(self.onTaskEnded)
 
                 if load_async:
                     LoadMapCanvasLayers.addTask(task)
