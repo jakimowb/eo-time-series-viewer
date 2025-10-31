@@ -1,15 +1,19 @@
 import os
 import re
 import unittest
+from pathlib import Path
 
 from osgeo import gdal
 
 from eotimeseriesviewer import DIR_EXAMPLES
+from eotimeseriesviewer.dateparser import ImageDateUtils
+from eotimeseriesviewer.qgispluginsupport.qps.subdatasets import subLayerDetails
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search
 from eotimeseriesviewer.sensors import SensorInstrument
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
+from qgis.PyQt.QtCore import QDateTime
 
 start_app()
 
@@ -18,6 +22,8 @@ DIR_PLEIADES = r'H:\Pleiades'
 DIR_RAPIDEYE = r'Y:\RapidEye\3A'
 DIR_LANDSAT = DIR_EXAMPLES / 'Images'
 DIR_VRT = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
+
+PATH_S2_SAFE = Path(os.getenv('EXAMPLE_S2_SAFE', ''))
 
 
 class TestFileFormatLoading(EOTSVTestCase):
@@ -58,6 +64,20 @@ class TestFileFormatLoading(EOTSVTestCase):
 
         self.assertEqual(len(files), len(self.TS))
         s = ""
+
+    @unittest.skipIf(not PATH_S2_SAFE.is_file(), "S2_SAFE not found")
+    def test_load_S2_SAFE(self):
+
+        details = subLayerDetails(PATH_S2_SAFE, providers=['gdal'])
+
+        for d in details:
+            ds = gdal.Open(d.uri())
+            self.assertIsInstance(ds, gdal.Dataset)
+
+            dtg = ImageDateUtils.dateTimeFromGDALDataset(ds)
+            self.assertIsInstance(dtg, QDateTime)
+        self.TS.addSources(details, runAsync=False)
+        self.assertEqual(len(self.TS), 4)
 
     def test_loadOSARIS_GRD(self):
 

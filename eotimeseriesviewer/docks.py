@@ -1,42 +1,31 @@
-from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QToolBar
-from qgis.core import QgsVectorLayer, QgsVectorLayerTools
-from qgis.gui import QgsDockWidget
+from typing import List, Optional
 
 from eotimeseriesviewer.labeling.attributetable import QuickLabelAttributeTableWidget
-from eotimeseriesviewer.utils import gotoFeature
-from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryPanel, \
-    SpectralLibraryWidget
+from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryWidget
+from qgis.core import QgsVectorLayer, QgsVectorLayerTools, QgsProject
+from qgis.gui import QgsDockWidget
 
 
-class SpectralLibraryDockWidget(SpectralLibraryPanel):
-    def __init__(self, speclib: QgsVectorLayer, *args, **kwds):
-        super().__init__(*args, speclib=speclib, **kwds)
-        assert isinstance(self.SLW, SpectralLibraryWidget)
-        self.mActionNextFeature = QAction('Next Feature', parent=self)
-        self.mActionNextFeature.setIcon(QIcon(':/images/themes/default/mActionAtlasNext.svg'))
-        self.mActionNextFeature.triggered.connect(self.onGotoNextFeature)
+class SpectralLibraryDockWidget(QgsDockWidget):
+    def __init__(self, *args,
+                 speclib: Optional[QgsVectorLayer] = None,
+                 project: Optional[QgsProject] = None,
+                 **kwds):
+        super().__init__(*args, **kwds)
 
-        self.mActionPreviousFeature = QAction('Previous Feature', parent=self)
-        self.mActionPreviousFeature.setIcon(QIcon(':/images/themes/default/mActionAtlasPrev.svg'))
-        self.mActionPreviousFeature.triggered.connect(self.onGotoPreviousFeature)
+        self.SLW = SpectralLibraryWidget(speclib=speclib, project=project, parent=self)
+        self.setWidget(self.SLW)
+        self.setWindowTitle(self.SLW.windowTitle())
+        self.SLW.windowTitleChanged.connect(self.setWindowTitle)
 
-        self.SLW.mToolbar: QToolBar
-        self.SLW.mToolbar.insertActions(self.SLW.mActionToggleEditing,
-                                        [self.mActionPreviousFeature, self.mActionNextFeature])
-        self.SLW.mToolbar.insertSeparator(self.SLW.mActionToggleEditing)
+    def spectralLibraries(self) -> List[QgsVectorLayer]:
+        return self.SLW.spectralLibraries()
 
-    def onGotoNextFeature(self, *arg):
-        gotoFeature(self.SLW, goDown=True)
-
-    def onGotoPreviousFeature(self, *args):
-        gotoFeature(self.SLW, goDown=False)
-
-    def setVectorLayerTools(self, tools: QgsVectorLayerTools):
-        self.SLW.setVectorLayerTools(tools)
-
-    def spectralLibrary(self) -> QgsVectorLayer:
-        return self.SLW.spectralLibrary()
+    def close(self):
+        m = self.SLW.plotModel()
+        vis = m.visualizations()
+        m.removePropertyItemGroups(vis)
+        super().close()
 
 
 class LabelDockWidget(QgsDockWidget):
@@ -51,7 +40,7 @@ class LabelDockWidget(QgsDockWidget):
     def setVectorLayerTools(self, tools: QgsVectorLayerTools):
         self.mLabelWidget.setVectorLayerTools(tools)
 
-    def vectorLayer(self) -> QgsVectorLayer:
+    def vectorLayer(self) -> Optional[QgsVectorLayer]:
         if isinstance(self.mLabelWidget.mLayer, QgsVectorLayer):
             return self.mLabelWidget.mLayer
         return None

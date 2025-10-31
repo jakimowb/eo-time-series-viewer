@@ -45,8 +45,8 @@ from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import showLayerPr
     pasteStyleToClipboard
 from eotimeseriesviewer.qgispluginsupport.qps.maptools import MapTools
 from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_INT, QMETATYPE_QDATE, QMETATYPE_QSTRING
-from eotimeseriesviewer.qgispluginsupport.qps.speclib.core import create_profile_field, is_spectral_library, \
-    profile_field_list
+from eotimeseriesviewer.qgispluginsupport.qps.speclib.core import create_profile_field, profile_field_list, \
+    is_spectral_library
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.core.spectrallibrary import SpectralLibraryUtils
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.core.spectralprofile import encodeProfileValueDict
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryWidget
@@ -64,7 +64,7 @@ from eotimeseriesviewer.timeseries.timeseries import TimeSeries, \
 from eotimeseriesviewer.timeseries.widgets import TimeSeriesDock, TimeSeriesTreeView, TimeSeriesWidget
 from eotimeseriesviewer.utils import fixMenuButtons
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
-from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QDateTime, QFile, QObject, QRect, QSize, Qt
 from qgis.PyQt.QtGui import QCloseEvent, QIcon
 from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
     QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
@@ -573,7 +573,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         # see https://sentinel.esa.int/web/sentinel/user-guides/sentinel-2-msi/data-formats/xsd
         self.ui.actionAddSentinel2.triggered.connect(
             lambda: self.openAddSubdatasetsDialog(
-                title='Open Sentinel-2 Datasets', filter='MTD_MSIL*.xml'))
+                title='Open Sentinel-2 Datasets', filter='XML (*MTD_MSIL*.xml);;SAFE Format (*.SAFE.zip)'))
 
         self.ui.actionRemoveTSD.triggered.connect(
             lambda: self.mTimeSeries.removeTSDs(tswidget.selectedTimeSeriesDates()))
@@ -1020,34 +1020,43 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if len(self.mapViews()) == 1:
             mapView.setMapInfoExpression("@map_date + '\n' + @map_sensor")
 
+    def attributeTableDockWidgets(self) -> List[LabelDockWidget]:
+        return self.ui.findChildren(LabelDockWidget)
+
+    def spectralLibraryDockWidgets(self) -> List[SpectralLibraryDockWidget]:
+        return self.ui.findChildren(SpectralLibraryDockWidget)
+
     def spectralLibraryWidgets(self) -> List[SpectralLibraryWidget]:
-        return [dw.spectralLibraryWidget() for dw in self.ui.findChildren(SpectralLibraryDockWidget)]
+        return [dw.spectralLibraryWidget() for dw in self.spectralLibraryDockWidgets()]
 
     def spectralLibraries(self) -> List[QgsVectorLayer]:
         """
-        Returns the SpectraLibrary that are opened as the SpectralLibrary dock
+        Returns existing spectral libraries
         :return: SpectraLibrary
         """
-        return [w.speclib() for w in self.spectralLibraryWidgets()]
+        return [lyr for lyr in self.project().mapLayers().values() if is_spectral_library(lyr)]
 
     def openAddSubdatasetsDialog(self, *args,
                                  title: str = 'Open Subdatasets',
                                  filter: str = '*.*'):
 
         from .qgispluginsupport.qps.subdatasets import SubDatasetSelectionDialog
-
-        d = SubDatasetSelectionDialog()
+        d = SubDatasetSelectionDialog(providers=['gdal'])
         d.setWindowTitle(title)
         d.setFileFilter(filter)
         d.exec_()
         if d.result() == QDialog.Accepted:
-            files = d.selectedSubDatasets()
-            if len(files) > 0:
-                self.addTimeSeriesImages(files)
+            details = d.selectedSublayerDetails()
+            if len(details) > 0:
+                self.addTimeSeriesImages(details)
 
     def beforeClose(self):
         self._stopTasks()
         self.mapWidget().close()
+        for d in self.ui.findChildren(SpectralLibraryDockWidget):
+            self.removeDockWidget(d)
+        for d in self.ui.findChildren(LabelDockWidget):
+            self.removeDockWidget(d)
         self.project().removeAllMapLayers()
         EOTimeSeriesViewer._instance = None
 
@@ -1249,8 +1258,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.mapWidget().setCrs(iface.mapCanvas().mapSettings().destinationCrs())
 
     def onShowLayerProperties(self,
-                              lyr: Optional[QgsMapLayer] = None,
+                              lyr: Union[None, str, QgsMapLayer] = None,
                               canvas: Optional[QgsMapCanvas] = None):
+
+        if isinstance(lyr, str):
+            lyr = self.project().mapLayer(lyr)
 
         if not isinstance(lyr, QgsMapLayer):
             lyr = self.currentLayer()
@@ -1470,71 +1482,85 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             if self.mCurrentMapSpectraLoading == 'TOP':
                 break
 
-        if len(profilesAndContext) > 0:
-            self.setCurrentSpectralProfiles(profilesAndContext)
+        self.setCurrentSpectralProfiles(profilesAndContext)
 
         return profilesAndContext
 
     def setCurrentSpectralProfiles(self, spectra: List[Tuple[Dict, QgsExpressionContext]]):
 
-        widgets: List[SpectralLibraryWidget] = self.spectralLibraryWidgets()
-        if len(widgets) == 0:
-            self.createSpectralLibrary()
-            widgets = self.spectralLibraryWidgets()
+        speclibs = self.spectralLibraries()
+        speclib = None
+        if is_spectral_library(self.currentLayer()):
+            speclib = self.currentLayer()
+        else:
+            for sl in speclibs:
+                if sl.dataProvider().name() == 'memory':
+                    speclib = sl
+                    break
 
-        style = EOTSVSettingsManager.settings().profileStyleCurrent
+        if speclib is None:
+            # create in-memory speclib and show
+            speclib = self.createSpectralLibrary()
 
-        for w in widgets:
+        assert is_spectral_library(speclib)
+        dock = self.showSpectralLibraryDock(speclib)
 
-            sl: QgsVectorLayer = w.speclib()
+        pfields = profile_field_list(speclib)
+        CANDIDATES = dict()
+        if len(pfields) > 0:
 
-            pfields = profile_field_list(sl)
-            if len(pfields) > 0:
+            feature_list: List[QgsFeature] = []
+            pfield: QgsField = pfields[0]
+            fid = 0
+            g: Optional[QgsGeometry] = None
+            for (profileDict, context) in spectra:
+                fid += 1
+                feature = QgsFeature(speclib.fields())
+                feature.setId(fid)
 
-                currentStyles = dict()
-                new_features: List[QgsFeature] = []
-                pfield: QgsField = pfields[0]
-                fid = 0
-                g: Optional[QgsGeometry] = None
-                for (profileDict, context) in spectra:
-                    fid += 1
+                # set spectral profile values
+                dump = encodeProfileValueDict(profileDict, encoding=pfield)
+                feature.setAttribute(pfield.name(), dump)
 
-                    feature = QgsFeature(sl.fields())
-                    feature.setId(fid)
+                if g is None and context.hasGeometry():
+                    # use the geometry related to the origin of the 1. profile field as
+                    # feature geometry
+                    _g = QgsGeometry(context.geometry())
+                    crs = context.variable('_source_crs')
+                    if speclib.crs().isValid() and isinstance(crs, QgsCoordinateReferenceSystem) and crs.isValid():
+                        trans = QgsCoordinateTransform()
+                        trans.setSourceCrs(crs)
+                        trans.setDestinationCrs(speclib.crs())
+                        if _g.transform(trans) == Qgis.GeometryOperationResult.Success:
+                            g = _g
 
-                    # set spectral profile values
-                    dump = encodeProfileValueDict(profileDict, encoding=pfield)
-                    feature.setAttribute(pfield.name(), dump)
+                    del crs
+                if isinstance(g, QgsGeometry):
+                    feature.setGeometry(QgsGeometry(g))
 
-                    if g is None and context.hasGeometry():
-                        # use the geometry related to the origin of the 1. profile field as
-                        # feature geometry
-                        _g = QgsGeometry(context.geometry())
-                        crs = context.variable('_source_crs')
-                        if sl.crs().isValid() and isinstance(crs, QgsCoordinateReferenceSystem) and crs.isValid():
-                            trans = QgsCoordinateTransform()
-                            trans.setSourceCrs(crs)
-                            trans.setDestinationCrs(sl.crs())
-                            if _g.transform(trans) == Qgis.GeometryOperationResult.Success:
-                                g = _g
+                varnames = [n for n in speclib.fields().names() if n in n in context.variableNames()]
+                for n in varnames:
+                    vfield: QgsField = speclib.fields()[n]
 
-                        del crs
-                    if isinstance(g, QgsGeometry):
-                        feature.setGeometry(QgsGeometry(g))
+                    try:
+                        newValue = vfield.convertCompatible(context.variable(n))
+                        feature.setAttribute(n, newValue)
+                    except ValueError as ex:
+                        print(ex, file=sys.stderr)
+                feature_list.append(feature)
+            CANDIDATES[speclib.id()] = feature_list
 
-                    varnames = [n for n in sl.fields().names() if n in n in context.variableNames()]
-                    for n in varnames:
-                        vfield: QgsField = sl.fields()[n]
+        for dw in self.spectralLibraryDockWidgets():
+            current_profiles = dict()
+            speclib_ids = [sl.id() for sl in dw.spectralLibraries()]
+            for lid in list(CANDIDATES.keys()):
+                if lid in speclib_ids:
+                    current_profiles[lid] = CANDIDATES.pop(lid)
 
-                        try:
-                            newValue = vfield.convertCompatible(context.variable(n))
-                            feature.setAttribute(n, newValue)
-                        except ValueError as ex:
-                            print(ex, file=sys.stderr)
-                    new_features.append(feature)
-                    currentStyles[(fid, pfield.name())] = style
+            dw.SLW.plotModel().addProfileCandidates(current_profiles)
 
-                w.plotModel().addProfileCandidates({sl.id(): new_features}, styles=currentStyles)
+            if len(CANDIDATES) == 0:
+                break
 
     @pyqtSlot(SpatialPoint)
     def loadCurrentTemporalProfile(self, spatialPoint: SpatialPoint):
@@ -1927,44 +1953,76 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             if isinstance(lyr, QgsVectorLayer):
                 self.showAttributeTable(lyr)
 
-    def showAttributeTable(self, lyr: QgsVectorLayer, filterExpression: str = "") -> QgsDockWidget:
+    def showSpectralLibraryDock(self, layer: QgsVectorLayer) -> SpectralLibraryDockWidget:
+
+        # 1. show the dock that already contains the layer
+
+        docks = self.spectralLibraryDockWidgets()
+        for dw in docks:
+            if layer in dw.spectralLibraries():
+                dw.show()
+                dw.activateWindow()
+                return dw
+
+        # add the layer to the 1st dock, if existing
+        for dw in docks:
+            dw.SLW.addSpeclib(layer)
+            return dw
+
+        # create a new dock widget to show the speclib
+        dock = SpectralLibraryDockWidget(speclib=layer, project=self.project())
+        dock.SLW.setDelegateOpenRequests(True)
+        dock.SLW.sigOpenLayerPropertiesRequest.connect(lambda lid: self.onShowLayerProperties(lyr=lid))
+        dock.SLW.sigOpenAttributeTableRequest.connect(lambda lid: self.showAttributeTable(lyr=lid))
+
+        self.ui.addDockWidget(Qt.BottomDockWidgetArea, dock)
+        self.ui.menuPanels.addAction(dock.toggleViewAction())
+        dock.closed.connect(lambda *args, d=dock: self.removeDockWidget(d))
+        dock.activateWindow()
+
+        return dock
+
+    def showAttributeTable(self,
+                           lyr: Union[str, QgsVectorLayer],
+                           filterExpression: str = "") -> QgsDockWidget:
+
+        if isinstance(lyr, str):
+            lyr = self.project().mapLayer(lyr)
+
         assert isinstance(lyr, QgsVectorLayer)
 
-        # 1. check if this layer is already opened as dock widget
-        docks: List[QgsDockWidget] = self.ui.findChildren(QgsDockWidget)
-        vectorLayerDocks: List[QgsDockWidget] = [d for d in docks if
-                                                 isinstance(d, (LabelDockWidget, SpectralLibraryDockWidget))]
-
-        for d in vectorLayerDocks:
-            if isinstance(d, LabelDockWidget) and d.vectorLayer().id() == lyr.id() or \
-                    isinstance(d, SpectralLibraryDockWidget) and d.speclib().id() == lyr.id():
+        # 1. check if this layer is already opened as dock widgets
+        for d in self.attributeTableDockWidgets():
+            vl = d.vectorLayer()
+            if isinstance(vl, QgsVectorLayer) and vl == lyr:
                 d.show()
                 d.activateWindow()
                 d.raise_()
                 return d
 
         # 2. create dock widget
-
-        if is_spectral_library(lyr):
-            dock = SpectralLibraryDockWidget(speclib=lyr)
-            dock.setObjectName(f'SpectralLibraryDockWidget{id(dock)}')
-            dock.setVectorLayerTools(self.vectorLayerTools())
-            dock.SLW.actionSelectProfilesFromMap.setVisible(True)
-            dock.SLW.sigLoadFromMapRequest.connect(lambda *args: self.setMapTool(MapTools.SpectralProfile))
-            # dock.SLW.actionSelectProfilesFromMap.triggered.connect(self.activateIdentifySpectralProfileMapTool)
-        else:
-            dock = LabelDockWidget(lyr)
-            dock.mLabelWidget.sigMoveTo[QDateTime].connect(self.setCurrentDate)
-            dock.mLabelWidget.sigMoveTo[QDateTime, object].connect(self.moveTo)
-            dock.setObjectName(f'LabelDockWidget{id(dock)}')
-            dock.setVectorLayerTools(self.vectorLayerTools())
+        dock = LabelDockWidget(lyr)
+        dock.mLabelWidget.sigMoveTo[QDateTime].connect(self.setCurrentDate)
+        dock.mLabelWidget.sigMoveTo[QDateTime, object].connect(self.moveTo)
+        dock.setObjectName(f'LabelDockWidget{id(dock)}')
+        dock.setVectorLayerTools(self.vectorLayerTools())
 
         self.ui.addDockWidget(Qt.BottomDockWidgetArea, dock)
         self.ui.menuPanels.addAction(dock.toggleViewAction())
+        dock.closed.connect(lambda *args, d=dock: self.removeDockWidget(d))
+
         # self.ui.tabifyDockWidget(self.ui.dockProfiles, dock)
         dock.activateWindow()
-        QTimer.singleShot(10, lambda d=dock: d.raise_())
         return dock
+
+    def removeDockWidget(self, dock: QgsDockWidget):
+
+        if dock in self.ui.findChildren(QgsDockWidget):
+            self.ui.removeDockWidget(dock)
+            self.ui.menuPanels.removeAction(dock.toggleViewAction())
+            dock.close()
+            dock.setParent(None)
+        s = ""
 
     def clearLayoutWidgets(self, L):
         if L is not None:
@@ -2018,7 +2076,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 layer = results.get(alg.OUTPUT)
                 if isinstance(layer, str):
                     layer = QgsProcessingUtils.mapLayerFromString(layer, d.processingContext())
-            # d.close()
+            d.close()
 
         d.algorithmFinished.connect(onExecuted)
         d.exec_()
@@ -2072,11 +2130,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             return layer
         return None
 
-    def createSpectralLibrary(self) -> SpectralLibraryWidget:
+    def createSpectralLibrary(self) -> QgsVectorLayer:
         """
-        Create a spectral library
+        Creates a spectral library and add it to a SpectralLibraryDockWidget
         """
-
         speclib: QgsVectorLayer = SpectralLibraryUtils.createSpectralLibrary()
         speclib.startEditing()
         for field in SPECTRA_PROFILE_FIELDS:
@@ -2084,9 +2141,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         assert speclib.commitChanges()
         # QgsProject.instance().addMapLayer(speclib)
         self.project().addMapLayer(speclib)
-        w = self.showAttributeTable(speclib)
+        # w = self.showAttributeTable(speclib)
         self.addMapLayers(speclib)
-        return w
+        return speclib
 
     def addVectorData(self, files=None) -> List[QgsVectorLayer]:
         """

@@ -43,8 +43,7 @@ from qgis.PyQt.QtWidgets import QTreeView
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDateTimeRange, \
     QgsRasterLayer, QgsRectangle, QgsTask, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, \
-    QgsTaskManager
-from qgis.core import QgsSpatialIndex
+    QgsTaskManager, QgsProviderSublayerDetails, QgsSpatialIndex
 
 logger = logging.getLogger(__name__)
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
@@ -708,6 +707,8 @@ class TimeSeries(QAbstractItemModel):
                 path = s.GetDescription()
             elif isinstance(s, QgsRasterLayer):
                 path = s.source()
+            elif isinstance(s, QgsProviderSublayerDetails):
+                path = s.uri()
             else:
                 path = str(s)
             if path:
