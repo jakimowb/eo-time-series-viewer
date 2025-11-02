@@ -27,8 +27,8 @@ class TestSpectralProfiles(EOTSVTestCase):
         self.assertTrue(not pt.isEmpty())
         self.assertTrue(pt.crs().isValid())
         # EOTSV.createSpectralLibrary()
-        EOTSV.mapWidget().timedRefresh()
-        self.taskManagerProcessEvents()
+        EOTSV.mapWidget().timedRefresh(load_async=False)
+        # self.taskManagerProcessEvents()
 
         sensorLayers = [lyr for lyr in c1.layers() if has_sensor_id(lyr)]
         self.assertTrue(len(sensorLayers) > 0)

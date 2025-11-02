@@ -1868,7 +1868,7 @@ class MapWidget(QFrame):
 
     def onSetInitialCurrentDate(self):
         if len(self.timeSeries()) > 0:
-            self.setCurrentDate(self.timeSeries()[0])
+            self.setCurrentDate(self.timeSeries().tsds(sort=True)[0])
             self.mTimeSeries.sigTimeSeriesDatesAdded.disconnect(self.onSetInitialCurrentDate)
 
     def _updateSliderRange(self):
@@ -1911,10 +1911,13 @@ class MapWidget(QFrame):
             px_start_left = 0
             px_start_right = 0
         else:
-
-            iS = self.timeSeries().mTSDs.index(dateS)
-            i0 = self.timeSeries().mTSDs.index(visible_dates[0])
-            i1 = self.timeSeries().mTSDs.index(visible_dates[-1])
+            sorted_tsds = self.timeSeries().tsds(sort=True)
+            # iS = sorted_tsds.index(dateS)
+            i0 = sorted_tsds.index(visible_dates[0])
+            i1 = sorted_tsds.index(visible_dates[-1])
+            # iS = self.timeSeries().mTSDs.index(dateS)
+            # i0 = self.timeSeries().mTSDs.index(visible_dates[0])
+            # i1 = self.timeSeries().mTSDs.index(visible_dates[-1])
 
             px_per_date = px_width / self.mTimeSlider.maximum()
             px_dateS = int(self.mTimeSlider.value() * px_per_date)
@@ -1976,20 +1979,22 @@ QSlider::add-page {{
         if isinstance(tsd, TimeSeriesDate):
             self.setCurrentDate(tsd)
 
-    def sliderDate(self, i: int = None) -> TimeSeriesDate:
+    def sliderDate(self, i: int = None) -> Optional[TimeSeriesDate]:
         """
         Returns the TimeSeriesDate related to slider value i
         :param i: slider value
         :return: TimeSeriesDate
         """
-        tsd = None
         if i is None:
             i = self.mTimeSlider.value()
-        if isinstance(self.mTimeSeries, TimeSeries) and len(self.mTimeSeries) > 0:
-            i = min(i, len(self.mTimeSeries) - 1)
+        if isinstance(self.mTimeSeries, TimeSeries):
+            visible_dates = self.mTimeSeries.visibleTSDs()
+            if len(visible_dates) == 0:
+                return None
+            i = min(i, len(visible_dates) - 1)
             i = max(i, 0)
-            tsd = self.mTimeSeries[i]
-        return tsd
+            return visible_dates[i]
+        return None
 
     def timeSeries(self) -> TimeSeries:
         return self.mTimeSeries
@@ -2083,22 +2088,22 @@ QSlider::add-page {{
 
         cd = self.currentDate()
 
-        tsds = sorted(self.timeSeries()[:])
+        tsds = self.timeSeries().visibleTSDs()
         if len(tsds) == 0:
             return
         if cd:
             for tsd in tsds:
                 assert isinstance(tsd, TimeSeriesDate)
-                if tsd > cd and tsd.checkState():
+                if tsd > cd:
                     self.setCurrentDate(tsd)
                     break
 
     def moveToPreviousTSD(self):
-        tsds = reversed(sorted(self.timeSeries()[:]))
+        tsds = reversed(self.timeSeries().visibleTSDs())
         cd = self.currentDate()
         if cd:
             for tsd in tsds:
-                if tsd < cd and tsd.checkState():
+                if tsd < cd:
                     self.setCurrentDate(tsd)
                     break
 
@@ -2123,14 +2128,14 @@ QSlider::add-page {{
             self.setCurrentDate(visibleAll[i])
 
     def moveToFirstTSD(self):
-        for tsd in self.timeSeries()[:]:
+        for tsd in self.timeSeries().tsds(sort=True):
             if tsd.checkState():
                 self.setCurrentDate(tsd)
                 return
         s = ""
 
     def moveToLastTSD(self):
-        for tsd in reversed(self.timeSeries()[:]):
+        for tsd in reversed(self.timeSeries().tsds(sort=True)):
             if tsd.checkState():
                 self.setCurrentDate(tsd)
                 return
@@ -2156,9 +2161,11 @@ QSlider::add-page {{
         self.mCurrentDate = tsd
         self.mCurrentDateMode = mode
 
+        visible_dates = self.timeSeries().visibleTSDs()
+
         if b:
             self._updateCanvasDates()
-            i = self.mTimeSeries[:].index(self.mCurrentDate)
+            i = visible_dates.index(self.mCurrentDate)
 
             if self.mTimeSlider.value() != i:
                 with SignalBlocker(self.mTimeSlider) as blocker:
@@ -2167,7 +2174,7 @@ QSlider::add-page {{
             self.sigCurrentDateChanged.emit(self.mCurrentDate)
 
         if isinstance(self.currentDate(), TimeSeriesDate):
-            i = self.timeSeries()[:].index(self.currentDate())
+            i = visible_dates.index(self.currentDate())
             canForward = i < len(self.mTimeSeries) - 1
             canBackward = i > 0
         else:

@@ -128,12 +128,12 @@ class TimeSeriesTreeView(QTreeView):
             menu.addSeparator()
         else:
             s = ""
-        a = menu.addAction('Set date(s) invisible')
-        a.setToolTip('Hides the selected time series dates from being shown in a map.')
-        a.triggered.connect(lambda *args, tsds=selectedTSDs: self.timeseries().showTSDs(tsds, False))
-        a = menu.addAction('Set date(s) visible')
+        a = menu.addAction('Set sources invisible')
+        a.setToolTip('Hides the selected time series sources from being shown in a map.')
+        a.triggered.connect(lambda *args, sources=selectedTSSs: self.timeseries().setSourceVisibility(sources, False))
+        a = menu.addAction('Set sources visible')
         a.setToolTip('Shows the selected time series dates in maps.')
-        a.triggered.connect(lambda *args, tsds=selectedTSDs: self.timeseries().showTSDs(tsds, True))
+        a.triggered.connect(lambda *args, sources=selectedTSSs: self.timeseries().setSourceVisibility(sources, True))
 
         menu.addSeparator()
 

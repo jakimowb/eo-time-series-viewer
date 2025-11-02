@@ -517,17 +517,18 @@ class TestTimeSeries(EOTSVTestCase):
         # TS.sigSourcesChanged.connect(lambda tsd: sourcesChanged.append(tsd))
         TS.sigSensorAdded.connect(lambda sensor: addedSensors.append(sensor))
         TS.sigSensorRemoved.connect(lambda sensor: removedSensors.append(sensor))
-        TS.addSources(files, runAsync=False)
+        TS.addSourceInputs(files, runAsync=False)
 
         counts = dict()
         for i, tsd in enumerate(TS):
             self.assertIsInstance(tsd, TimeSeriesDate)
             sensor = tsd.sensor()
-            if sensor not in counts.keys():
-                counts[sensor] = 0
-            counts[sensor] = counts[sensor] + 1
+            counts[sensor] = counts.get(sensor, 0) + 1
 
-        self.assertEqual(len(files), len(TS))
+        counts_total = sum(counts.values())
+        self.assertEqual(counts_total, len(files))
+
+        self.assertEqual(len(files), len(TS.sourceUris()))
         self.assertEqual(len(addedDates), len(TS))
 
         self.assertTrue(len(TS) > 0)
@@ -541,7 +542,7 @@ class TestTimeSeries(EOTSVTestCase):
 
         sensor = TS.sensors()[0]
         self.assertIsInstance(sensor, SensorInstrument)
-        self.assertTrue(sensor == TS.sensor(sensor.id()))
+        self.assertEqual(sensor, TS.sensor(sensor.id()))
         TS.removeSensor(sensor)
         self.assertEqual(counts[sensor], len(removedDates))
 
@@ -604,22 +605,43 @@ class TestTimeSeries(EOTSVTestCase):
 
     def test_TimeSeriesTreeModel(self):
 
-        TS = TimeSeries()
+        TS: TimeSeries = TimeSeries()
+        TS.setDateTimePrecision(DateTimePrecision.Day)
         self.assertIsInstance(TS, QAbstractItemModel)
         sources = TestObjects.createMultiSourceTimeSeries()
+        n_sources = len(sources)
 
-        # 1. and 2.nd image should have same date
+        s1 = sources[0]
+        s2 = sources[1]
+
+        ds1 = gdal.Open(s1)
+        ds2 = gdal.Open(s2)
+        dtg1 = ImageDateUtils.dateTimeFromGDALDataset(ds1)
+        dtg2 = ImageDateUtils.dateTimeFromGDALDataset(ds2)
+
+        self.assertNotEqual(dtg1, dtg2)
+        self.assertEqual(dtg1.date(), dtg2.date())
+
+        TS.addSourceInputs([s1, s2], runAsync=False)
+        self.assertEqual(len(TS), 1)
+        self.assertEqual(TS.rowCount(), 1)
+        self.assertEqual(TS.rowCount(TS.index(0, 0)), 2)
+        # 1. and 2.nd image should have the same date
         # -> 1 image group with 2 source images
-        TS.addSources(sources[0:1], runAsync=False)
-        self.assertTrue(len(TS) == 1)
-        TS.addSources(sources[1:2], runAsync=False)
-        self.assertTrue(len(TS) == 1)
-        self.assertTrue(len(TS[0]) == 2)
+        TS.addSourceInputs(sources[0:1], runAsync=False)
+        self.assertEqual(len(TS), 1)
+        TS.addSourceInputs(sources[1:2], runAsync=False)
+
+        self.assertEqual(len(TS), 1)
+        self.assertEqual(len(TS[0]), 2)
 
         self.assertTrue(len(TS) > 0)
         self.assertTrue(TS.rowCount(TS.index(0, 0)) == 2)
 
-        TS.addSources(sources[2:], runAsync=False)
+        TS.addSourceInputs(sources[2:], runAsync=False)
+
+        self.assertEqual(set(sources), set(TS.sourceUris()))
+
         self.assertEqual(len(TS), TS.rowCount())
         M = QSortFilterProxyModel()
         M.setSourceModel(TS)

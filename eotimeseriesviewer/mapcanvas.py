@@ -523,7 +523,7 @@ class MapCanvas(QgsMapCanvas):
 
         # self.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
 
-    def setTSD(self, tsd: TimeSeriesDate):
+    def setTSD(self, tsd: Optional[TimeSeriesDate]):
         """
         Sets the TimeSeriesDate this map-canvas is linked to
         :param tsd:

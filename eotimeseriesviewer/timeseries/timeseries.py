@@ -18,7 +18,6 @@
  *                                                                         *
  ***************************************************************************/
 """
-import bisect
 import datetime
 import json
 import logging
@@ -144,16 +143,17 @@ class TimeSeries(QAbstractItemModel):
     cCRS = 5
     cImages = 6
 
-    def __init__(self, imageFiles=None):
-        super(TimeSeries, self).__init__()
+    def __init__(self, imageFiles=None, parent=None):
+        super(TimeSeries, self).__init__(parent=parent)
 
-        self.mTSS: Dict[str, TimeSeriesSource] = {}
-        self.mTSS2TSD: Dict[TimeSeriesSource, TimeSeriesDate] = {}
         self.mTSDs: Dict[Tuple[QDateTime, SensorInstrument], TimeSeriesDate] = {}
-        self.mTSS2Sensor: Dict[TimeSeriesSource, SensorInstrument] = {}
+        self.mTSS: Dict[str, TimeSeriesSource] = {}
+        self.mTSS2TSD: Dict[str, TimeSeriesDate] = {}
+        self.mTSS2Sensor: Dict[str, SensorInstrument] = {}
+        self.mSensors: List[SensorInstrument] = []
 
         # self.mTSDs: List[TimeSeriesDate] = list()
-        self.mSensors: List[SensorInstrument] = []
+
         self.mShape = None
         self.mTreeView: Optional[QTreeView] = None
         self.mDateTimePrecision = DateTimePrecision.Day
@@ -261,13 +261,11 @@ class TimeSeries(QAbstractItemModel):
         """
         self.mVisibleDates.clear()
         self.mVisibleDates.update(tsds)
-        for tsd in tsds:
-            assert isinstance(tsd, TimeSeriesDate)
-            if tsd in self:
-                idx = self.tsdToIdx(tsd)
-                # force reset of background color
-                idx2 = self.index(idx.row(), self.columnCount() - 1)
-                self.dataChanged.emit(idx, idx2, [Qt.BackgroundColorRole])
+
+        idx1 = self.index(0, 0)
+        idx2 = self.index(self.rowCount() - 1, self.columnCount() - 1)
+        # force reset of background color
+        self.dataChanged.emit(idx1, idx2, [Qt.BackgroundColorRole])
 
     def findMatchingSensor(self, sensorID: Union[str, tuple, dict]) -> Optional[SensorInstrument]:
         if isinstance(sensorID, str):
@@ -454,83 +452,34 @@ class TimeSeries(QAbstractItemModel):
 
         return extent
 
-    def __depr_tsd(self, dtr: QgsDateTimeRange, sensor: Union[None, SensorInstrument, str]) -> Optional[TimeSeriesDate]:
+    def setSourceVisibility(self, sources: List[Union[str, TimeSeriesSource, TimeSeriesDate]], b: bool = True):
         """
-        Returns the TimeSeriesDate identified by date-time-range and sensorID
-        :param dtr: QgsDateTimeRange
-        :param sensor: SensorInstrument | str with sensor id
-        :return:
+        Sets the visibility of a list of TimeSeriesSources
         """
-        assert isinstance(dtr, QgsDateTimeRange)
-        if isinstance(sensor, str):
-            sensor = self.sensor(sensor)
+        for i, tsd in enumerate(sources):
+            if isinstance(tsd, TimeSeriesDate):
+                for tss in tsd:
+                    tss.setIsVisible(b)
+            elif isinstance(tsd, TimeSeriesSource):
+                tsd.setIsVisible(b)
+            elif isinstance(tsd, str):
+                if s := self.mTSS.get(tsd):
+                    s.setIsVisible(b)
+            # idx0 = self.tsdToIdx(tsd)
+            # idx1 = self.tsdToIdx(tsd)
 
-        if isinstance(sensor, SensorInstrument):
-            for tsd in self.mTSDs:
-                if tsd.dateTimeRange() == dtr and tsd.sensor() == sensor:
-                    return tsd
-        else:
-            for tsd in self.mTSDs:
-                if tsd.dateTimeRange() == dtr:
-                    return tsd
-        return None
-
-    def insertTSD(self, tsd: TimeSeriesDate) -> TimeSeriesDate:
-        """
-        Inserts a TimeSeriesDate
-        :param tsd: TimeSeriesDate
-        """
-        # insert sorted by time & sensor
-        assert tsd not in self.mTSDs
-        assert tsd.sensor() in self.mSensors
-
-        self._connectTSD(tsd)
-
-        row = bisect.bisect(self.mTSDs, tsd)
-        self.beginInsertRows(self.mRootIndex, row, row)
-        self.mTSDs.insert(row, tsd)
-        self.endInsertRows()
-        return tsd
-
-    def _connectTSD(self, tsd: TimeSeriesDate):
-        tsd.mTimeSeries = self
-        tsd.sigRemoveMe.connect(lambda t=tsd: self.removeTSDs([t]))
-
-        tsd.rowsAboutToBeRemoved.connect(
-            lambda p, first, last, t=tsd: self.beginRemoveRows(self.tsdToIdx(t), first, last))
-        tsd.rowsRemoved.connect(self.endRemoveRows)
-        tsd.rowsAboutToBeInserted.connect(
-            lambda p, first, last, t=tsd: self.beginInsertRows(self.tsdToIdx(t), first, last))
-        tsd.rowsInserted.connect(self.endInsertRows)
-
-        tsd.sigSourcesAdded.connect(self.sigSourcesAdded)
-        tsd.sigSourcesRemoved.connect(self.sigSourcesRemoved)
-
-    def showTSDs(self, tsds: list, b: bool = True):
-
-        all_tsds = list(self.mTSDs)
-        tsds = [t for t in tsds if t in all_tsds]
-        if len(tsds) == 0:
-            return
-
-        for i, tsd in enumerate(tsds):
-            assert isinstance(tsd, TimeSeriesDate)
-            for tss in tsd:
-                tss.setIsVisible(b)
-
-            idx0 = self.tsdToIdx(tsd)
-            idx1 = self.tsdToIdx(tsd)
-
-            self.dataChanged.emit(idx0, idx1, [Qt.CheckStateRole])
+        idx0 = self.index(0, 0)
+        idx1 = self.index(self.rowCount(), 0)
+        self.dataChanged.emit(idx0, idx1, [Qt.CheckStateRole])
 
         self.sigVisibilityChanged.emit()
 
     def hideTSDs(self, tsds):
-        self.showTSDs(tsds, False)
+        self.setSourceVisibility(tsds, False)
 
     def removeTSDs(self, tsds: List[TimeSeriesDate]):
         """
-        Removes a list of TimeSeriesDate
+        Removes a list of TimeSeriesDates
         :param tsds: [list-of-TimeSeriesDate]
         """
         removed = list()
@@ -540,37 +489,45 @@ class TimeSeries(QAbstractItemModel):
                 toRemove.add(t)
             if isinstance(t, TimeSeriesSource):
                 toRemove.add(t.timeSeriesDate())
-        toRemove = sorted(list(toRemove))
+
         removed = []
-        while len(toRemove) > 0:
-            block: List[TimeSeriesDate] = [toRemove.pop(0)]
 
-            r0 = r1 = self.tsdToIdx(block[0]).row()
-            while len(toRemove) > 0:
-                if self.index(r1 + 1, 0).data(Qt.UserRole) != toRemove[0]:
-                    break
-                else:
-                    block.append(toRemove.pop(0))
-                    r1 += 1
+        TO_REMOVE = dict()
 
-            self.beginRemoveRows(self.mRootIndex, r0, r1)
-            for tsd in block:
-                self.mTSDs.remove(tsd)
-                tsd.mTimeSeries = None
-                tsd.sigSourcesAdded.disconnect(self.sigSourcesAdded)
-                tsd.sigSourcesRemoved.disconnect(self.sigSourcesRemoved)
+        all_tsds = list(self.mTSDs.values())
+        all_dtg_sensors = list(self.mTSDs.keys())
+        for tsd in toRemove:
+            if tsd in all_tsds:
+                row = all_tsds.index(tsd)
+                TO_REMOVE[row] = (all_dtg_sensors[row], tsd)
+
+        if len(TO_REMOVE) > 20:
+            self.beginResetModel()
+            for row, (k, tsd) in TO_REMOVE.items():
+                for tss in tsd.sources():
+                    uri = tss.source()
+                    self.mTSS.pop(uri)
+                    self.mTSS2TSD.pop(uri)
+                    self.mTSS2Sensor.pop(uri)
+                self.mTSDs.pop(k)
+                removed.append(tsd)
+
+            self.endResetModel()
+
+        else:
+            for row, (k, tsd) in TO_REMOVE.items():
+                self.beginRemoveRows(self.mRootIndex, row, row)
 
                 for tss in tsd.sources():
-                    self.mSpatialIndex.deleteFeature(tss.feature())
-
+                    uri = tss.source()
+                    self.mTSS.pop(uri)
+                    self.mTSS2TSD.pop(uri)
+                    self.mTSS2Sensor.pop(uri)
+                self.mTSDs.pop(k)
                 removed.append(tsd)
-            self.endRemoveRows()
+                self.endRemoveRows()
 
         if len(removed) > 0:
-            pathsToRemove = [path for path, tsd in self.mLUT_Path2TSD.items() if tsd in removed]
-            for path in pathsToRemove:
-                self.mLUT_Path2TSD.pop(path)
-
             self.checkSensorList()
             self.sigTimeSeriesDatesRemoved.emit(removed)
 
@@ -593,12 +550,17 @@ class TimeSeries(QAbstractItemModel):
                     tss = tss.clone()
                 yield tss
 
-    def tsds(self, date: np.datetime64 = None, sensor: SensorInstrument = None) -> List[TimeSeriesDate]:
+    def tsds(self,
+             date: np.datetime64 = None,
+             sensor: SensorInstrument = None,
+             sort: bool = False) -> List[
+        TimeSeriesDate]:
 
         """
-        Returns a list of  TimeSeriesDate of the TimeSeries. By default all TimeSeriesDate will be returned.
+        Returns a list of TimeSeriesDate of the TimeSeries. By default, all TimeSeriesDate will be returned.
         :param date: numpy.datetime64 to return the TimeSeriesDate for
         :param sensor: SensorInstrument of interest to return the [list-of-TimeSeriesDate] for.
+        :param sort: bool to return the list of TimeSeriesDate sorted by time.
         :return: [list-of-TimeSeriesDate]
         """
         tsds = list(self.mTSDs.values())
@@ -606,14 +568,17 @@ class TimeSeries(QAbstractItemModel):
             tsds = [tsd for tsd in tsds if tsd.dtg() == date]
         if sensor:
             tsds = [tsd for tsd in tsds if tsd.sensor() == sensor]
+        if sort:
+            tsds = sorted(tsds)
         return tsds
 
     def _clear(self):
 
         self.mTSS.clear()
-        self.mTSS.clear()
         self.mTSS2TSD.clear()
         self.mTSS2Sensor.clear()
+        self.mTSDs.clear()
+        self.mSensors.clear()
 
     def clear(self):
         """
@@ -658,13 +623,30 @@ class TimeSeries(QAbstractItemModel):
         """
         Removes sensors without linked TSD / no data
         """
-        to_remove = []
-        for sensor in self.sensors():
-            tsds = [tsd for tsd in self.mTSDs if tsd.sensor() == sensor]
-            if len(tsds) == 0:
-                to_remove.append(sensor)
+        source_sensors = set({s for s in self.mTSS2Sensor.values()})
+        to_remove = [s for s in self.sensors() if s not in source_sensors]
         for sensor in to_remove:
             self.removeSensor(sensor)
+
+    def _removeTSS(self, uri: Union[str, TimeSeriesSource]):
+        if isinstance(uri, TimeSeriesSource):
+            uri = uri.source()
+
+        tss = self.mTSS.pop(uri)
+        if isinstance(tss, TimeSeriesSource):
+            self.mTSS2Sensor.pop(uri)
+            tsd = self.mTSS2TSD.pop(uri)
+            tsd.removeSource(tss)
+
+    def _removeEmptyTSDs(self) -> List[TimeSeriesDate]:
+        to_remove = []
+        removed_tsds = []
+        for k, tsd in self.mTSDs.items():
+            if len(tsd) == 0:
+                to_remove.append(k)
+        for k in to_remove:
+            removed_tsds.append(self.mTSDs.pop(k))
+        return removed_tsds
 
     def removeSensor(self, sensor: SensorInstrument) -> Optional[SensorInstrument]:
         """
@@ -674,17 +656,24 @@ class TimeSeries(QAbstractItemModel):
         """
         assert isinstance(sensor, SensorInstrument)
         if sensor in self.mSensors:
-            tsds = [tsd for tsd in self.mTSDs if tsd.sensor() == sensor]
-            self.removeTSDs(tsds)
-            if sensor in self.mSensors:
-                self.mSensors.remove(sensor)
+            uri_to_remove = [uri for uri, s in self.mTSS2Sensor.items() if sensor == s]
+            self.beginResetModel()
+
+            for uri in uri_to_remove:
+                self._removeTSS(uri)
+            removed_tsds = self._removeEmptyTSDs()
+            self.endResetModel()
+            self.mSensors.remove(sensor)
+
+            self.sigTimeSeriesDatesRemoved.emit(removed_tsds)
             self.sigSensorRemoved.emit(sensor)
+
             return sensor
         return None
 
     def addSourceInputs(self,
                         sources: List[Union[str, Path, TimeSeriesSource, gdal.Dataset, QgsRasterLayer]],
-                        runAsync: bool = None,
+                        runAsync: Optional[bool] = None,
                         n_threads: Optional[int] = None):
         """
         Adds source images to the TimeSeries
@@ -780,11 +769,12 @@ class TimeSeries(QAbstractItemModel):
         new_uri2tss = dict()
         new_tss2tsd = dict()
         new_tss2sensor = dict()
-        new_dateSensor2tsd = dict()
-
+        # new_dateSensor2tsd = dict()
+        new_tsds = list()
         self.beginResetModel()
 
         for t in tss:
+            assert isinstance(t, TimeSeriesSource)
             uri = t.source()
             if uri in self.mTSS:
                 continue
@@ -795,8 +785,9 @@ class TimeSeries(QAbstractItemModel):
             sensor = self.findMatchingSensor(sid)
             if not isinstance(sensor, SensorInstrument):
                 sensor = SensorInstrument(sid)
-                new_tss2sensor[uri] = sensor
                 self.addSensors(sensor)
+
+            new_tss2sensor[uri] = sensor
 
             # do we already have an TSD for this drt and sensor?
             k = (dtr.begin(), sensor)
@@ -804,17 +795,22 @@ class TimeSeries(QAbstractItemModel):
             if tsd is None:
                 tsd = TimeSeriesDate(dtr, sensor)
                 tsd.mTimeSeries = self
+                self.mTSDs[k] = tsd
                 new_tss2tsd[uri] = tsd
-                new_dateSensor2tsd[k] = tsd
+                new_tsds.append(tsd)
+                # new_dateSensor2tsd[k] = tsd
             tsd.addSources(t)
+            self.mTSS.update({uri: t})
             self.mSpatialIndex.addFeature(t.feature())
 
         self.mTSS2TSD.update(new_tss2tsd)
         self.mTSS2Sensor.update(new_tss2sensor)
-        self.mTSDs.update(new_dateSensor2tsd)
+        #  self.mTSDs.update(new_dateSensor2tsd)
 
         self.endResetModel()
-        s = ""
+
+        if len(new_tsds) > 0:
+            self.sigTimeSeriesDatesAdded.emit(new_tsds)
 
     def dateTimePrecision(self) -> DateTimePrecision:
         return self.mDateTimePrecision
@@ -865,11 +861,11 @@ class TimeSeries(QAbstractItemModel):
             uris.extend(tsd.sourceUris())
         return uris
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.mTSDs)
 
     def __iter__(self) -> Iterator[TimeSeriesDate]:
-        return iter(self.mTSDs.items())
+        return iter(self.tsds())
 
     def __getitem__(self, slice):
         return self.tsds()[slice]
@@ -915,7 +911,7 @@ class TimeSeries(QAbstractItemModel):
         elif isinstance(node, TimeSeriesSource):
             tss = node
             tsd = node.timeSeriesDate()
-            return self.createIndex(self.mTSDs.index(tsd), 0, tsd)
+            return self.createIndex(self.tsds().index(tsd), 0, tsd)
         else:
             return QModelIndex()
 
@@ -996,7 +992,7 @@ class TimeSeries(QAbstractItemModel):
         row = self.tsds().index(tsd)
         return self.index(row, 0)
 
-    def tsdFromIdx(self, index: QModelIndex) -> TimeSeriesDate:
+    def tsdFromIdx(self, index: QModelIndex) -> Optional[TimeSeriesDate]:
         """
         Returns the TimeSeriesDate related to an QModelIndex `index`.
         :param index: QModelIndex

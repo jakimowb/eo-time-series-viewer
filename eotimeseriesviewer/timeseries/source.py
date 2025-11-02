@@ -475,13 +475,8 @@ class TimeSeriesDate(QObject):
 
     def removeSource(self, source: TimeSeriesSource):
 
-        # removed = []
         if source in self.mSources:
             self.mSources.remove(source)
-            # removed.append(source)
-
-        # if len(removed) > 0:
-        #    self.sigSourcesRemoved.emit(removed)
 
     def dateTimeRange(self) -> QgsDateTimeRange:
         return QgsDateTimeRange(self.mDTR.begin(), self.mDTR.end())
@@ -503,15 +498,16 @@ class TimeSeriesDate(QObject):
     def addSources(self,
                    sources: Union[TimeSeriesSource, List[TimeSeriesSource]]) -> List[TimeSeriesSource]:
         """
-        Adds an time series source to this TimeSeriesDate
-        :param path: TimeSeriesSource or any argument accepted by TimeSeriesSource.create()
-        :return: TimeSeriesSource, if added
+        Adds a time series source to this TimeSeriesDate
+        :param sources: TimeSeriesSource or any argument accepted by TimeSeriesSource.create()
+        :return: list of added TimeSeriesSources
         """
         if not isinstance(sources, list):
             sources = [sources]
 
         added = []
         for s in sources:
+            assert isinstance(s, TimeSeriesSource)
             if s in self.mSources:
                 continue
 

@@ -1169,7 +1169,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         tsd = self.timeSeries().findDate(tsd)
         if isinstance(tsd, TimeSeriesDate):
             if show_if_hidden:
-                self.mTimeSeries.showTSDs([tsd], b=True)
+                self.mTimeSeries.setSourceVisibility([tsd], b=True)
             self.ui.mMapWidget.setCurrentDate(tsd, mode)
 
     def mapCanvases(self) -> List[MapCanvas]:
@@ -1865,7 +1865,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                         lyr.setRenderer(renderer)
                     s = ""
         if not loadAsync:
-            self.mapWidget().timedRefresh()
+            self.mapWidget().timedRefresh(load_async=False)
 
     def timeSeries(self) -> TimeSeries:
         """
