@@ -145,7 +145,7 @@
        </sizepolicy>
       </property>
       <property name="currentIndex">
-       <number>4</number>
+       <number>3</number>
       </property>
       <widget class="QWidget" name="pageGeneral">
        <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -174,8 +174,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>548</width>
-             <height>601</height>
+             <width>625</width>
+             <height>598</height>
             </rect>
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_5">
@@ -665,14 +665,14 @@
            <item row="0" column="0">
             <widget class="QLabel" name="label_15">
              <property name="text">
-              <string>Cursor profiles</string>
+              <string>Candidates</string>
              </property>
             </widget>
            </item>
            <item row="1" column="0">
             <widget class="QLabel" name="label_17">
              <property name="text">
-              <string>Added profiles</string>
+              <string>Added</string>
              </property>
             </widget>
            </item>

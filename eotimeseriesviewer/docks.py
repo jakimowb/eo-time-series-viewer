@@ -2,6 +2,7 @@ from typing import List, Optional
 
 from eotimeseriesviewer.labeling.attributetable import QuickLabelAttributeTableWidget
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryWidget
+from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
 from qgis.core import QgsVectorLayer, QgsVectorLayerTools, QgsProject
 from qgis.gui import QgsDockWidget
 
@@ -13,7 +14,11 @@ class SpectralLibraryDockWidget(QgsDockWidget):
                  **kwds):
         super().__init__(*args, **kwds)
 
-        self.SLW = SpectralLibraryWidget(speclib=speclib, project=project, parent=self)
+        settings = EOTSVSettingsManager.settings()
+        style_candidates = settings.profileStyleCurrent.clone()
+        self.SLW = SpectralLibraryWidget(speclib=speclib, project=project,
+                                         default_candidate_style=style_candidates,
+                                         parent=self)
         self.setWidget(self.SLW)
         self.setWindowTitle(self.SLW.windowTitle())
         self.SLW.windowTitleChanged.connect(self.setWindowTitle)

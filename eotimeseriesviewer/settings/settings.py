@@ -38,15 +38,17 @@ class EOTSVSettings(object):
         self.timeSeriesDefinitionFile: Path = Path.home() / 'eotsv_timeseries.json'
 
         # Profiles
-        stylec = PlotStyle()
-        stylec.setLinePen(QPen(QColor('green')))
-        stylec.setMarkerColor(QColor('green'))
+        style_candidate = PlotStyle()
+        style_candidate.setAntialias(True)
+        style_candidate.setLinePen(QPen(QColor('green')))
+        style_candidate.setMarkerColor(QColor('green'))
 
         style = PlotStyle()
+        style.setAntialias(True)
         style.setMarkerColor(QColor('grey'))
         style.setLinePen(QPen(QColor('grey')))
 
-        self.profileStyleCurrent = stylec.clone()
+        self.profileStyleCurrent = style_candidate.clone()
         self.profileStyleAdded = style.clone()
         self.profileStyleTemporal = style.clone()
 
