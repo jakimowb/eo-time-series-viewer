@@ -2,13 +2,13 @@ import json
 from pathlib import Path
 from typing import Iterator, List, Optional, Tuple, Union
 
-from PyQt5.QtCore import QObject
 from osgeo import gdal
 
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent, px2geo
 from eotimeseriesviewer.sensors import create_sensor_id, SensorInstrument
 from qgis.PyQt.QtCore import QMetaType, QPoint
+from qgis.PyQt.QtCore import QObject
 from qgis.PyQt.QtCore import pyqtSignal, QDate, QDateTime, QMimeData, Qt
 from qgis.core import QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, \
     QgsMimeDataUtils, QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRectangle
@@ -89,34 +89,17 @@ class TimeSeriesSource(object):
 
         assert isinstance(sid, (str, dict))
         if isinstance(sid, dict):
-            sid = json.dumps(sid, ensure_ascii=False)
+            sid = json.dumps(sid, ensure_ascii=False, sort_keys=True)
 
         dtg = d[TimeSeriesSource.MKeyDateTime]
         crs = d[TimeSeriesSource.MKeyCrs]
         extent = d[TimeSeriesSource.MKeyExtent]
         dims = d[TimeSeriesSource.MKeyDimensions]
+        visible = d.get(TimeSeriesSource.MKeyIsVisible, True)
 
-        #             source=ds.GetDescription(),
-        #             dtg=dtg,
-        #             sid=sid,
-        #             dims=dims,
-        #             crs=crs,
-        #             extent=extent,
-        #             provider='gdal',
-        #             name=name
-
-        return TimeSeriesSource(source, dtg, sid, dims, crs, extent, provider, name=name)
-
-        if provider == 'gdal':
-            ds = gdal.Open(d[TimeSeriesSource.MKeySource])
-            return TimeSeriesSource.fromGDALDataset(ds,
-                                                    name=d.get(TimeSeriesSource.MKeyName))
-        else:
-            layer = QgsRasterLayer(d[TimeSeriesSource.MKeySource],
-                                   name=d.get(TimeSeriesSource.MKeyName),
-                                   providerType=d.get(TimeSeriesSource.MKeyProvider))
-            dtg = QDateTime.fromString(d[TimeSeriesSource.MKeyDateTime], Qt.ISODateWithMs)
-            return TimeSeriesSource(layer, dtg)
+        tss = TimeSeriesSource(source, dtg, sid, dims, crs, extent, provider, name=name)
+        tss.setIsVisible(visible)
+        return tss
 
     def qgsMimeDataUtilsUri(self) -> QgsMimeDataUtils.Uri:
 

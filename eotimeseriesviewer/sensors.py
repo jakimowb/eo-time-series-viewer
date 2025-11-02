@@ -76,6 +76,16 @@ def create_sensor_id(source: Union[QgsRasterLayer, gdal.Dataset]) -> Optional[st
     return sensorID(nb, px_size_x, px_size_y, dt, wl, wlu, name)
 
 
+def sensorIDfromMap(d: dict) -> str:
+    """
+    Returns the sensor id from a dict
+    """
+    return sensorID(d['nb'], d['px_size_x'], d['px_size_y'], d['dt'],
+                    wl=d.get('wl'),
+                    wlu=d.get('wlu'),
+                    name=d.get('name'))
+
+
 def sensorID(nb: int,
              px_size_x: float,
              px_size_y: float,
@@ -95,7 +105,7 @@ def sensorID(nb: int,
     :return: str
     """
     assert dt in GDAL_DATATYPES.values()
-    assert isinstance(dt, Qgis.DataType)
+    assert isinstance(dt, (int, Qgis.DataType))
     assert isinstance(nb, int) and nb > 0
     assert isinstance(px_size_x, (int, float)) and px_size_x > 0
     assert isinstance(px_size_y, (int, float)) and px_size_y > 0
@@ -166,6 +176,14 @@ class SensorInstrument(QObject):
 
     PROPERTY_KEY = 'eotsv/sensor'
     PROPERTY_KEY_STYLE_INITIALIZED = 'eotsv/style_initialized'
+
+    @classmethod
+    def fromMap(cls, d: dict) -> 'SensorInstrument':
+        assert isinstance(d, dict)
+
+        band_names = d.get('band_names', None)
+        sid = sensorIDfromMap(d)
+        return cls(sid, band_names=band_names)
 
     def __init__(self, sid: str, band_names: list = None):
         super(SensorInstrument, self).__init__()
@@ -467,16 +485,16 @@ def sensorName(layer: Union[QgsRasterLayer, gdal.Dataset]) -> Optional[str]:
 
 
 def has_sensor_id(layer) -> bool:
-    return sensor_id(layer) is not None
+    return sensorIDFromLayer(layer) is not None
 
 
-def sensor_id(layer) -> Optional[str]:
+def sensorIDFromLayer(layer) -> Optional[str]:
     if isinstance(layer, QgsRasterLayer):
 
         if SensorInstrument.PROPERTY_KEY in layer.customPropertyKeys():
             return layer.customProperty(SensorInstrument.PROPERTY_KEY)
         else:
-            # retries key and add to layer:
+            # retries the key and add to layer:
             sid = create_sensor_id(layer)
             layer.setCustomProperty(SensorInstrument.PROPERTY_KEY, sid)
             return sid

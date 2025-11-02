@@ -135,13 +135,13 @@ class TestTimeSeries(EOTSVTestCase):
         tsRel = TimeSeries()
         tsRel.loadFromFile(pathTSFileRel, runAsync=False)
         self.assertTrue(len(tsRel) == len(files))
-        for tss in tsRel.timeSeriesSources():
+        for tss in tsRel.sources():
             self.assertTrue(Path(tss.source()).is_file())
 
         tsAbs = TimeSeries()
         tsAbs.loadFromFile(pathTSFileAbs, runAsync=False)
         self.assertTrue(len(tsAbs) == len(files))
-        for tss in tsAbs.timeSeriesSources():
+        for tss in tsAbs.sources():
             self.assertTrue(Path(tss.source()).is_file())
 
     def test_focus_visibility(self):
@@ -159,12 +159,12 @@ class TestTimeSeries(EOTSVTestCase):
         ts.focusVisibility(extent1, date_of_interest=doi)
         self.taskManagerProcessEvents()
 
-        for tss in ts.timeSeriesSources():
+        for tss in ts.sources():
             self.assertFalse(tss.isVisible())
 
         ts.focusVisibility(extent2)
         self.taskManagerProcessEvents()
-        for tss in ts.timeSeriesSources():
+        for tss in ts.sources():
             self.assertTrue(tss.isVisible())
 
         ts.clear()

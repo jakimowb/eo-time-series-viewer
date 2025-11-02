@@ -68,6 +68,7 @@ from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QDateTime, QFile, QObject, QR
 from qgis.PyQt.QtGui import QCloseEvent, QIcon
 from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
     QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
+from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
 from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, \
     QgsExpressionContext, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, \
@@ -702,7 +703,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         multistep = QgsProcessingMultiStepFeedback(2, feedback)
         multistep.setCurrentStep(1)
 
-        self.timeSeries().fromMap(map_data.get('TimeSeries'), feedback=multistep)
+        ts_data = map_data.get('TimeSeries', None)
+        if ts_data:
+            self.timeSeries().fromMap(ts_data, clear=True, feedback=multistep)
         multistep.setCurrentStep(2)
         self.mapWidget().fromMap(map_data.get('MapWidget'), feedback=multistep)
 
@@ -795,37 +798,51 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                     super().setProgressText(text)
                     self.textChanged.emit(text)
 
-            dialog = self._createProgressDialog(title='Load Project')
-            dialog.setMinimumDuration(1)
-            dialog.setWindowModality(Qt.WindowModal)
-            dialog.setRange(0, 100)
-            dialog.setValue(0)
+            # dialog = self._createProgressDialog(title='Load Project')
+            # dialog.setMinimumDuration(1)
+            # dialog.setWindowModality(Qt.WindowModal)
+            # dialog.setRange(0, 100)
+            # dialog.setValue(0)
             feedback = MyProgress()
 
             def onProgress(v):
-                dialog.setValue(int(v))
+                pass
+                # dialog.setValue(int(v))
 
             feedback.progressChanged.connect(onProgress)
-            feedback.textChanged.connect(dialog.setLabelText)
-            dialog.canceled.connect(feedback.cancel)
+            # feedback.textChanged.connect(dialog.setLabelText)
+            # dialog.canceled.connect(feedback.cancel)
 
             try:
-                self.timeSeries().clear()
 
                 mapviews = self.mapViews()
 
                 for mv in mapviews:
                     self.mapWidget().removeMapView(mv)
-                dialog.setValue(35)
+                # dialog.setValue(35)
                 jsonText = node.firstChildElement('jsonSettings').text()
-                self.fromJson(jsonText, feedback=feedback)
+
+                data = json.loads(jsonText)
+                ts_data = data.get('TimeSeries', None)
+                if ts_data:
+                    n_sen = len(ts_data.get('sensors', []))
+                    n_src = len(ts_data.get('sources', []))
+                    result = QMessageBox.question(self.ui, 'Read Project data',
+                                                  f'Load time series with<br>'
+                                                  f'{n_src} rasters <br>from {n_sen} sensors?')
+                    if result == QMessageBox.Yes:
+                        self.timeSeries().clear()
+                    else:
+                        data.pop('TimeSeries')
+                self.fromMap(data, feedback=feedback)
+                # self.fromJson(jsonText, feedback=feedback)
             except Exception as ex:
                 if True:
                     raise ex
                 print(ex, file=sys.stderr)
 
-            dialog.setValue(100)
-            dialog.close()
+            # dialog.setValue(100)
+            # dialog.close()
 
         return True
 
@@ -1052,7 +1069,16 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     def beforeClose(self):
         self._stopTasks()
+
+        try:
+            p = QgsProject.instance()
+            p.writeProject.disconnect(self.onWriteProject)
+            p.readProject.disconnect(self.onReadProject)
+        except Exception:
+            pass
+
         self.mapWidget().close()
+
         for d in self.ui.findChildren(SpectralLibraryDockWidget):
             self.removeDockWidget(d)
         for d in self.ui.findChildren(LabelDockWidget):

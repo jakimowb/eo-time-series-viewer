@@ -485,13 +485,14 @@ def callback(progress, msg, data):
     print(f'Progress: {progress}')
 
 
-def main(rasters, vector,
-         pattern='*.tif', threads=4,
-         layer_name: Optional[Union[int, str]] = None,
-         output_vector=None,
-         output_field: str = 'profiles',
-         output_format: str = 'GPKG',
-         recursive=False) -> Tuple[gdal.Dataset, dict[int, dict]]:
+def create_profile_layer(rasters, vector,
+                         pattern='*.tif',
+                         threads=4,
+                         layer_name: Optional[Union[int, str]] = None,
+                         output_vector=None,
+                         output_field: str = 'profiles',
+                         output_format: str = 'GPKG',
+                         recursive=False) -> Tuple[gdal.Dataset, dict[int, dict]]:
     if isinstance(rasters, (str, Path)):
         rasters = Path(rasters)
 
@@ -706,8 +707,8 @@ Examples:
         parser.error("No raster files found/provided")
 
     try:
-        # Run main function with parsed arguments
-        ds_out, profiles = main(
+        # Run the main function with parsed arguments
+        ds_out, profiles = create_profile_layer(
             rasters=raster_files,
             vector=args.vector,
             pattern=args.pattern,

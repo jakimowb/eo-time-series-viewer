@@ -53,7 +53,7 @@ from .qgispluginsupport.qps.crosshair.crosshair import CrosshairMapCanvasItem, C
 from .qgispluginsupport.qps.layerproperties import VectorLayerTools
 from .qgispluginsupport.qps.maptools import MapTools
 from .qgispluginsupport.qps.utils import loadUi, SignalBlocker, SpatialExtent, SpatialPoint
-from .sensors import has_sensor_id, sensor_id, SensorInstrument, SensorMockupDataProvider
+from .sensors import has_sensor_id, sensorIDFromLayer, SensorInstrument, SensorMockupDataProvider
 from .settings.settings import EOTSVSettingsManager
 
 logger = logging.getLogger(__name__)
@@ -695,7 +695,7 @@ class MapView(QFrame):
         :return: QgsMapLayer
         """
         cl = self.mLayerTreeView.currentLayer()
-        if sid := sensor_id(cl):
+        if sid := sensorIDFromLayer(cl):
             canvases = [c for c in self.mapCanvases()
                         if isinstance(c.tsd(), TimeSeriesDate) and c.tsd().sensor().id() == sid]
             canvases = sorted(canvases, key=lambda c: c is not self.currentMapCanvas())
@@ -800,7 +800,7 @@ class MapView(QFrame):
     def onMasterStyleChanged(self, masterLayer: QgsRasterLayer):
 
         assert has_sensor_id(masterLayer)
-        sid = sensor_id(masterLayer)
+        sid = sensorIDFromLayer(masterLayer)
 
         if isinstance(sid, str):
 
@@ -935,10 +935,10 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
             return
 
         current = self.mapView().currentLayer()
-        csid = sensor_id(current)
+        csid = sensorIDFromLayer(current)
         if csid:
             for lyr in canvas.layers():
-                sid = sensor_id(lyr)
+                sid = sensorIDFromLayer(lyr)
                 if sid == csid:
                     b = canvas.stretchToExtent(layer=lyr)
                     if not b:
@@ -960,7 +960,7 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         currentCanvas = self.mapView().currentMapCanvas()
         isSensorGroup = isinstance(currentGroup, QgsLayerTreeGroup) and currentGroup.customProperty(
             KEY_SENSOR_GROUP) in [True, 'true']
-        isSensorLayer = isinstance(sensor_id(currentLayer), str)
+        isSensorLayer = isinstance(sensorIDFromLayer(currentLayer), str)
         mv: MapView = self.mapView()
         mw: MapWidget = mv.mapWidget()
         mw.setCurrentMapView(mv)

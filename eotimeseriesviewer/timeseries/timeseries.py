@@ -22,6 +22,7 @@ import datetime
 import json
 import logging
 import re
+import sys
 from pathlib import Path
 from typing import Any, Iterator, List, Optional, Set, Union, Dict, Tuple, Generator
 
@@ -31,7 +32,7 @@ from osgeo import gdal
 from eotimeseriesviewer import messageLog
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import relativePath, SpatialExtent
-from eotimeseriesviewer.sensors import sensorIDtoProperties, SensorInstrument, SensorMatching
+from eotimeseriesviewer.sensors import sensorIDtoProperties, SensorInstrument, SensorMatching, sensorIDfromMap
 from eotimeseriesviewer.settings.settings import EOTSVSettingsManager
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.timeseries.tasks import TimeSeriesFindOverlapTask, TimeSeriesLoadingTask
@@ -198,7 +199,7 @@ class TimeSeries(QAbstractItemModel):
         """
         assert isinstance(ext, SpatialExtent)
 
-        sources = list(self.timeSeriesSources())
+        sources = list(self.sources())
 
         if len(sources) > 0:
             settings = EOTSVSettingsManager.settings()
@@ -342,11 +343,13 @@ class TimeSeries(QAbstractItemModel):
         self.addSourceInputs(images, runAsync=runAsync)
 
     @classmethod
-    def sourcesFromFile(cls, path: Union[str, Path]) -> List[str]:
+    def sourcesFromFile(cls, path: Union[str, Path]) -> List[Union[str, TimeSeriesSource]]:
         path = Path(path)
         refDir = Path(path).parent
         images = []
         masks = []
+
+        errors = dict()
 
         if path.suffix in ['.csv', '.txt']:
             with open(path, 'r') as f:
@@ -365,7 +368,7 @@ class TimeSeries(QAbstractItemModel):
             with open(path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 sensors = data.get('sensors', {})
-                # convert json str keys ('0') to int (0)
+                # convert JSON str keys ('0') to int (0)
                 sensors = {int(k): v for k, v in sensors.items()}
 
                 for source in data.get('sources', []):
@@ -376,10 +379,21 @@ class TimeSeries(QAbstractItemModel):
                         source['source'] = str(path)
                     i_sensor = source.get('sensor', None)
                     sid = sensors.get(i_sensor, None)
-                    tss = TimeSeriesSource.fromMap(source, sid=sid)
-                    if isinstance(tss, TimeSeriesSource):
-                        images.append(tss)
-
+                    try:
+                        tss = TimeSeriesSource.fromMap(source, sid=sid)
+                        if isinstance(tss, TimeSeriesSource):
+                            images.append(tss)
+                    except Exception as ex:
+                        errors[path.as_posix()] = str(ex)
+                        pass
+        if len(errors) > 0:
+            msg = f'Failed to load {len(errors)} source(s):\n'
+            for i, (path, ex) in enumerate(errors.items()):
+                msg += f'\n\t{i}: {path}\n\t {ex}'
+                if i >= 2:
+                    msg += '\n    ...'
+                    break
+            print(msg, file=sys.stderr)
         return images
 
     def saveToFile(self, path: Union[str, Path], relative_path: bool = True) -> Optional[Path]:
@@ -531,30 +545,33 @@ class TimeSeries(QAbstractItemModel):
             self.checkSensorList()
             self.sigTimeSeriesDatesRemoved.emit(removed)
 
-    def timeSeriesSources(self,
-                          copy: Optional[bool] = False,
-                          sensor: Optional[SensorInstrument] = None) -> List[TimeSeriesSource]:
+    def sources(self,
+                copy: Optional[bool] = False,
+                sensor: Optional[SensorInstrument] = None) -> Generator[TimeSeriesSource | Any, Any, None]:
         """
         Returns a flat list of all sources
         :param copy:
         :return:
         """
-        if isinstance(sensor, SensorInstrument):
-            tsds = self.tsds(None, sensor)
-        else:
-            tsds = self[:]
 
-        for tsd in tsds:
-            for tss in tsd:
-                if copy:
-                    tss = tss.clone()
-                yield tss
+        if isinstance(sensor, SensorInstrument):
+            sid = sensor.id
+        else:
+            sid = None
+
+        for tss in self.mTSS.values():
+            if sid and tss.sid() != sid:
+                continue
+
+            if copy:
+                tss = tss.clone()
+
+            yield tss
 
     def tsds(self,
              date: np.datetime64 = None,
              sensor: SensorInstrument = None,
-             sort: bool = False) -> List[
-        TimeSeriesDate]:
+             sort: bool = False) -> List[TimeSeriesDate]:
 
         """
         Returns a list of TimeSeriesDate of the TimeSeries. By default, all TimeSeriesDate will be returned.
@@ -842,14 +859,6 @@ class TimeSeries(QAbstractItemModel):
         assert bool(flags & SensorMatching.PX_DIMS), 'SensorMatching flags PX_DIMS needs to be set'
         self.mSensorMatchingFlags = flags
 
-    def sources(self) -> Generator[TimeSeriesSource, Any, None]:
-        """
-        Returns the input sources
-        :return: iterator over [list-of-TimeSeriesSources]
-        """
-        for tss in self.mTSS.values():
-            yield tss
-
     def sourceUris(self) -> List[str]:
         """
         Returns the uris of all sources
@@ -878,8 +887,8 @@ class TimeSeries(QAbstractItemModel):
 
     def __repr__(self):
         info = ['TimeSeries:',
-                '\t{} Images',
-                '\t{} Observation dates']
+                f'\t{len(self.mTSS)} Images',
+                f'\t{len(self)} Observation dates']
         return '\n'.join(info)
 
     def headerData(self, section, orientation, role):
@@ -1026,7 +1035,7 @@ class TimeSeries(QAbstractItemModel):
         results = {}
         sources = []
         sensors = {}
-        for tss in self.timeSeriesSources():
+        for tss in self.sources():
             d = tss.asMap()
             sid = tss.sid()
             d[TimeSeriesSource.MKeySensor] = sensors.setdefault(sid, len(sensors))
@@ -1037,12 +1046,15 @@ class TimeSeries(QAbstractItemModel):
         results['sources'] = sources
         return results
 
-    def fromMap(self, data: dict, feedback: QgsProcessingFeedback = QgsProcessingFeedback()):
+    def fromMap(self,
+                data: dict, feedback: QgsProcessingFeedback = QgsProcessingFeedback(),
+                clear: bool = True):
 
         multistep = QgsProcessingMultiStepFeedback(4, feedback)
         multistep.setCurrentStep(1)
         multistep.setProgressText('Clean')
-        self.clear()
+        if clear:
+            self.clear()
 
         uri_vis = dict()
 
@@ -1050,22 +1062,56 @@ class TimeSeries(QAbstractItemModel):
         multistep.setProgressText('Read Sources')
         sources = []
 
+        SENSORS = data.get('sensors', {})
+        # make the '0' json key an integer
+        SENSORS = {int(k): SensorInstrument.fromMap(v) for k, v in SENSORS.items()}
+        for sensor in SENSORS.values():
+            self.addSensors(sensor)
+
+        errors = set()
+
         for d in data.get('sources', []):
-            src = d.get('source')
+            sid = d.get(TimeSeriesSource.MKeySensor)
+            if isinstance(sid, int):
+                sensor = SENSORS.get(sid)
+                if isinstance(sensor, SensorInstrument):
+                    sid = sensor.id()
+            elif isinstance(sid, dict):
+                sid = sensorIDfromMap(sid)
+            else:
+                sid = None
 
-            if src:
-                tss = TimeSeriesSource.create(src)
-                uri_vis[tss.source()] = d.get('visible', True)
-                if isinstance(tss, TimeSeriesSource):
-                    sources.append(tss)
+            tss = None
+            try:
+                tss = TimeSeriesSource.fromMap(d, sid=sid)
+                s = ""
+            except Exception as ex1:
+                errors.add(str(ex1))
 
+            if tss is None:
+                try:
+                    if src := d.get('source'):
+                        tss = TimeSeriesSource.create(src)
+                        tss.setIsVisible(d.get('visible', True))
+                except Exception as ex2:
+                    errors.add(str(ex2))
+
+            if isinstance(tss, TimeSeriesSource):
+                sources.append(tss)
+            else:
+                feedback.reportError(f'Unable to open source: {d}')
+        if len(errors) > 0:
+            msg = 'The following error(s) occurred one or multiple times when loading sources:'
+            for err in errors:
+                msg += f'\n\t{err}'
+            feedback.reportError(msg)
         multistep.setCurrentStep(3)
         multistep.setProgressText('Add Sources')
 
         if len(sources) > 0:
             self.addSources(sources)
 
-        for tss in self.timeSeriesSources():
+        for tss in self.sources():
             tss.setIsVisible(uri_vis.get(tss.source(), tss.isVisible()))
 
     def data(self, index: QModelIndex, role: Qt.DisplayRole):
