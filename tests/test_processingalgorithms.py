@@ -408,7 +408,7 @@ class ProcessingAlgorithmTests(EOTSVTestCase):
 
         def executeWithGui(aid, parent, in_place: bool, as_batch: bool):
             alg = QgsApplication.processingRegistry().algorithmById(aid)
-            self.assertIsInstance(alg, QgsProcessingAlgorithm)
+            self.assertIsInstance(alg, QgsProcessingAlgorithm, msg=f'Algorithm {aid} is not a QgsProcessingAlgorithm')
             d = AlgorithmDialog(alg)
             d.exec_()
             d.close()

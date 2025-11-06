@@ -53,6 +53,7 @@ class TestGDALProfileLoading(TestCase):
         TSV.loadExampleTimeSeries(loadAsync=False)
         TSV.addVectorData(path_vector_out)
         self.showGui(TSV.ui)
+        TSV.close()
 
     def test_read_profiles_parallel(self):
 

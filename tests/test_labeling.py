@@ -20,15 +20,6 @@ import random
 import re
 import unittest
 
-from qgis.PyQt.QtCore import NULL, QEvent, QMetaType, QPoint, QPointF, Qt
-from qgis.PyQt.QtGui import QMouseEvent, QStandardItem, QStandardItemModel
-from qgis.PyQt.QtTest import QAbstractItemModelTester
-from qgis.PyQt.QtWidgets import QAction, QComboBox, QLabel, QListView, QMenu, QVBoxLayout, QWidget
-from qgis.core import edit, QgsEditorWidgetSetup, QgsExpression, QgsExpressionContext, QgsExpressionContextScope, \
-    QgsFeature, QgsField, QgsFields, QgsGeometry, QgsMapLayer, QgsMarkerSymbol, QgsPointXY, QgsProject, QgsVectorLayer, \
-    QgsWkbTypes
-from qgis.gui import QgsDualView, QgsFieldComboBox, QgsMapCanvas, QgsMapLayerStyleManagerWidget
-
 from eotimeseriesviewer import initAll
 from eotimeseriesviewer.docks import LabelDockWidget
 from eotimeseriesviewer.labeling.attributetable import QuickLabelAttributeTableWidget
@@ -51,6 +42,14 @@ from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_DOUBLE,
     QMETATYPE_QTIME
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from eotimeseriesviewer.timeseries.source import TimeSeriesDate
+from qgis.PyQt.QtCore import NULL, QEvent, QMetaType, QPoint, QPointF, Qt
+from qgis.PyQt.QtGui import QMouseEvent, QStandardItem, QStandardItemModel
+from qgis.PyQt.QtTest import QAbstractItemModelTester
+from qgis.PyQt.QtWidgets import QAction, QComboBox, QLabel, QListView, QMenu, QVBoxLayout, QWidget
+from qgis.core import edit, QgsEditorWidgetSetup, QgsExpression, QgsExpressionContext, QgsExpressionContextScope, \
+    QgsFeature, QgsField, QgsFields, QgsGeometry, QgsMapLayer, QgsMarkerSymbol, QgsPointXY, QgsProject, QgsVectorLayer, \
+    QgsWkbTypes
+from qgis.gui import QgsDualView, QgsFieldComboBox, QgsMapCanvas, QgsMapLayerStyleManagerWidget
 
 start_app()
 initAll()
