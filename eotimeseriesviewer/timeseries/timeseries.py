@@ -601,9 +601,11 @@ class TimeSeries(QAbstractItemModel):
         """
         Removes all data sources from the TimeSeries (which will be empty after calling this routine).
         """
+        allTSDs = list(self.mTSDs.values())
         self.beginResetModel()
         self._clear()
         self.endResetModel()
+        self.sigTimeSeriesDatesRemoved.emit(allTSDs)
 
     def addSensors(self, sensors: Union[SensorInstrument, List[SensorInstrument]]) -> List[SensorInstrument]:
         """
