@@ -4,7 +4,7 @@ set "ROOT=%~dp0.."
 set SUBMODULE=eotimeseriesviewer/qgispluginsupport
 echo "Update $SUBMODULE"
 cd /d %ROOT%\%SUBMODULE%
-git checkout master
+git checkout enmapbox_3.17
 git fetch
 git pull
 cd /d %ROOT%

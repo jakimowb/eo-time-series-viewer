@@ -3,7 +3,7 @@
 SUBMODULE=eotimeseriesviewer/qgispluginsupport
 echo "Update $SUBMODULE"
 cd $SUBMODULE
-git checkout master
+git checkout enmapbox_3.17
 git fetch
 git pull
 cd ../..
