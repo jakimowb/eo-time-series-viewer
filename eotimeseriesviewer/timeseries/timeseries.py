@@ -214,7 +214,7 @@ class TimeSeries(QAbstractItemModel):
             qgsTask.executed.connect(self.onTaskFinished)
 
             tm: QgsTaskManager = QgsApplication.taskManager()
-            # stop previous tasks, allow to run one only
+            # stop previous tasks, allow running one only
             for t in tm.tasks():
                 if isinstance(t, TimeSeriesFindOverlapTask):
                     t.cancel()
@@ -223,37 +223,19 @@ class TimeSeries(QAbstractItemModel):
 
     def onFoundOverlap(self, results: dict):
 
-        URI2TSS = dict()
-        for tsd in self:
-            for tss in tsd:
-                URI2TSS[tss.source()] = tss
-
-        affectedTSDs = set()
-        for tssUri, b in results.items():
-            assert isinstance(tssUri, str)
-            tss = URI2TSS.get(tssUri, None)
-            if isinstance(tss, TimeSeriesSource):
+        reset = False
+        for uri, b in results.items():
+            tss = self.mTSS.get(uri)
+            if isinstance(tss, TimeSeriesSource) and tss.isVisible() != b:
                 tss.setIsVisible(b)
-                tsd = tss.timeSeriesDate()
-                if isinstance(tsd, TimeSeriesDate):
-                    affectedTSDs.add(tsd)
-        if len(affectedTSDs) == 0:
-            return
+                reset = True
 
-        affectedTSDs = sorted(affectedTSDs)
-
-        rowMin = rowMax = None
-        for i, tsd in enumerate(affectedTSDs):
-            idx = self.tsdToIdx(tsd)
-            if i == 0:
-                rowMin = rowMax = idx.row()
-            else:
-                rowMin = min(rowMin, idx.row())
-                rowMax = max(rowMax, idx.row())
-
-        idx0 = self.index(rowMin, 0)
-        idx1 = self.index(rowMax, 0)
-        self.dataChanged.emit(idx0, idx1, [Qt.CheckStateRole])
+        if reset:
+            # idx0 = self.index(rowMin, 0)
+            # idx1 = self.index(rowMax, 0)
+            idx0 = self.index(0, 0)
+            idx1 = self.index(len(self.mTSDs) - 1, 0)
+            self.dataChanged.emit(idx0, idx1, [Qt.CheckStateRole])
 
     def setVisibleDates(self, tsds: list):
         """
@@ -782,6 +764,8 @@ class TimeSeries(QAbstractItemModel):
             tss = [tss]
         else:
             assert isinstance(tss, list)
+
+        tss = [TimeSeriesSource.fromMap(d) if isinstance(d, dict) else d for d in tss]
 
         tss = sorted(set(tss))
 

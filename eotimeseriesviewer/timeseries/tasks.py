@@ -132,6 +132,7 @@ class TimeSeriesFindOverlapSubTask(QgsTask):
                  extent: QgsRectangle,
                  crs: QgsCoordinateReferenceSystem,
                  sources: List[str],
+                 progress_interval: int = 5,
                  sample_size: int = 16):
         super().__init__(flags=QgsTask.CancelWithoutPrompt)
         assert isinstance(extent, QgsRectangle)
@@ -139,6 +140,7 @@ class TimeSeriesFindOverlapSubTask(QgsTask):
         assert isinstance(sources, list)
         assert isinstance(sample_size, int) and sample_size > 0
 
+        self.progress_interval = progress_interval
         self.extent = extent
         self.sources = [str(s) for s in sources]
         self.crs = crs
@@ -156,6 +158,9 @@ class TimeSeriesFindOverlapSubTask(QgsTask):
         n_total = len(self.sources)
 
         intersections = dict()
+
+        t0 = datetime.datetime.now()
+
         for i, source in enumerate(self.sources):
 
             if self.isCanceled():
@@ -166,11 +171,13 @@ class TimeSeriesFindOverlapSubTask(QgsTask):
             if err not in ['', None]:
                 self.errors.append(err)
 
-            if (i > 0 and i % 20 == 0) or i >= n_total - 1:
+            dt = datetime.datetime.now() - t0
+            if dt.total_seconds() > self.progress_interval or i >= n_total - 1:
                 self.setProgress(100 * (i + 1) / n_total)
                 self.foundSourceOverlaps.emit(intersections.copy())
                 self.intersections.update(intersections)
                 intersections.clear()
+                t0 = datetime.datetime.now()
 
         assert len(intersections) == 0
         assert len(self.intersections) == len(self.sources)
@@ -224,6 +231,9 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
         n_sources = len(sources)
         n_badge = math.ceil(n_sources / n_threads)
 
+        self.mLastProgress = datetime.datetime.now()
+        self.mLoadingProgress = dict()
+        self.mProgressInterval = 3
         current_badge = []
         for s in sources:
             current_badge.append(s.source())
@@ -234,7 +244,8 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
                     current_badge[:],
                     sample_size=self.mSampleSize
                 )
-                subTask.foundSourceOverlaps.connect(self.sigTimeSeriesSourceOverlap)
+                # subTask.foundSourceOverlaps.connect(self.sigTimeSeriesSourceOverlap)
+                subTask.foundSourceOverlaps.connect(self.collect_loading_progress)
                 subTask.executed.connect(self.subTaskExecuted)
                 self.addSubTask(subTask, subTaskDependency=QgsTask.SubTaskDependency.ParentDependsOnSubTask)
                 current_badge.clear()
@@ -245,6 +256,15 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
     def intersections(self):
         return self.mIntersections
 
+    def collect_loading_progress(self, data: dict):
+
+        dt = datetime.datetime.now() - self.mLastProgress
+        self.mLoadingProgress.update(data)
+        if dt.total_seconds() > self.mProgressInterval:
+            self.sigTimeSeriesSourceOverlap.emit(self.mLoadingProgress.copy())
+            self.mLoadingProgress.clear()
+            self.mLastProgress = datetime.datetime.now()
+
     def subTaskExecuted(self, success: bool, results: dict):
         if success:
             self.mIntersections.update(results)
@@ -254,6 +274,8 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
         Start the Task and returns the results.
         :return:
         """
+        if len(self.mLoadingProgress) > 0:
+            self.sigTimeSeriesSourceOverlap.emit(self.mLoadingProgress.copy())
 
         for subTask in self.subTasks():
             subTask: TimeSeriesFindOverlapSubTask
@@ -330,7 +352,7 @@ class TimeSeriesLoadingTask(EOTSVTask):
     def __init__(self,
                  files: List[str],
                  description: str = "Load Images",
-                 report_block_size=25,
+                 report_block_size=500,
                  n_threads: int = 4,
                  progress_interval: int = 5):
         """
