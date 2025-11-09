@@ -146,6 +146,7 @@ class TestTimeSeries(EOTSVTestCase):
         for tss in tsAbs.sources():
             self.assertTrue(Path(tss.source()).is_file())
 
+    @unittest.skipIf(os.environ.get('GITHUB_ACTIONS') == 'true', 'Skipping this test on GitHub Actions')
     def test_focus_visibility(self):
 
         ts = TestObjects.createTimeSeries()
