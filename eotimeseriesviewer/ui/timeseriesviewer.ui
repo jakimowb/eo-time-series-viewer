@@ -75,7 +75,7 @@
      <x>0</x>
      <y>0</y>
      <width>910</width>
-     <height>21</height>
+     <height>30</height>
     </rect>
    </property>
    <property name="contextMenuPolicy">
@@ -843,10 +843,10 @@
   </action>
   <action name="actionAddSubDatasets">
    <property name="text">
-    <string>Sub-Datasets</string>
+    <string>Subdatasets</string>
    </property>
    <property name="toolTip">
-    <string>Open Subdatasets, e.g. from HDF files</string>
+    <string>Opens Subdatasets, e.g. from HDF files or Sentinel SAFE datasets.</string>
    </property>
   </action>
   <action name="mActionSaveEdits">

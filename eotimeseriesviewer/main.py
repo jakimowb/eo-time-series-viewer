@@ -1059,6 +1059,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         from .qgispluginsupport.qps.subdatasets import SubDatasetSelectionDialog
         d = SubDatasetSelectionDialog(providers=['gdal'])
+        d.setStorageMode(QgsFileWidget.StorageMode.GetMultipleFiles)
         d.setWindowTitle(title)
         d.setFileFilter(filter)
         d.exec_()
@@ -1499,6 +1500,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         for lyr in sensorLayers:
 
+            pt2 = spatialPoint.toCrs(lyr.crs())
+            if isinstance(pt2, SpatialPoint):
+                if not lyr.extent().contains(pt2):
+                    continue
             source = StandardLayerProfileSource(lyr)
             results = source.collectProfiles(spatialPoint, kernel_size=QSize(1, 1), snap=False)
 

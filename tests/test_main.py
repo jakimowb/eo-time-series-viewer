@@ -21,6 +21,7 @@ import unittest
 
 from osgeo import gdal
 
+from eotimeseriesviewer import initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer, SaveAllMapsDialog
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from eotimeseriesviewer.timeseries.source import TimeSeriesSource
@@ -29,6 +30,7 @@ from qgis.core import QgsCoordinateReferenceSystem, QgsProject
 from qgis.gui import QgsMapCanvas
 
 start_app()
+initAll()
 
 
 class TestMain(EOTSVTestCase):

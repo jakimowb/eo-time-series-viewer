@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +16,7 @@ import example
 import example.Images
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.main import EOTimeSeriesViewer
+from eotimeseriesviewer.qgispluginsupport.qps.subdatasets import subLayerDetails
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
 from eotimeseriesviewer.sensors import registerDataProvider, sensorID, SensorInstrument, SensorMockupDataProvider
 from eotimeseriesviewer.tasks import EOTSVTask
@@ -437,6 +439,51 @@ class TestTimeSeries(EOTSVTestCase):
             sources = list(TS.sources())
             self.assertEqual(2, len(sources))
             self.assertEqual(1, len(TS))
+
+    def test_multisource_tanager(self):
+
+        path = Path(r'/Users/jakimowb/Documents/Tanager')
+        if not path.is_dir():
+            return
+
+        TSV = EOTimeSeriesViewer()
+        TS = TSV.timeSeries()
+        files = file_search(path, re.compile(r'.*\.h5$'), recursive=True)
+
+        sr_details = []
+        for file in files:
+            for sl in subLayerDetails(file):
+                if sl.name().endswith('surface_reflectance'):
+                    sr_details.append(sl)
+                    break
+
+        for i, sl in enumerate(sr_details):
+            TS.addSourceInputs([sl], runAsync=False)
+
+        idx0 = TS.index(0, 0)
+        idx0b = TS.tsdToIdx(TS.tsds()[0])
+
+        n_tsds = TS.rowCount()
+        for r in range(TS.rowCount()):
+            idxTSD = TS.index(r, 0)
+
+            tsd = TS.data(idxTSD, Qt.UserRole)
+            assert isinstance(tsd, TimeSeriesDate)
+            assert idxTSD == TS.tsdToIdx(tsd)
+            assert tsd == idxTSD.internalPointer()
+
+            n_tss = TS.rowCount(idxTSD)
+            assert n_tss > 0
+            for r_tss in range(TS.rowCount(idxTSD)):
+                idxTSS = TS.index(r_tss, 0, idxTSD)
+                tss = TS.data(idxTSS, Qt.UserRole)
+                assert isinstance(tss, TimeSeriesSource)
+                assert idxTSS.internalPointer() == tss
+                assert tss in tsd
+
+        self.showGui(TSV.ui)
+        TSV.close()
+        s = ""
 
     def test_multisource_tsd(self):
 

@@ -1059,9 +1059,10 @@ class MapCanvas(QgsMapCanvas):
                 name = os.path.basename(mapLayer.source())
             else:
                 name = mapLayer.name()
+
             sub: QMenu = m.addMenu(name)
             sub.setToolTipsVisible(True)
-
+            sub.setToolTip(mapLayer.source())
             if is_sensor_layer:
                 sub.setIcon(QIcon(':/eotimeseriesviewer/icons/icon.svg'))
             elif isinstance(mapLayer, QgsRasterLayer):
