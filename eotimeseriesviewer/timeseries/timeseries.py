@@ -190,7 +190,8 @@ class TimeSeries(QAbstractItemModel):
 
     def focusVisibility(self,
                         ext: SpatialExtent,
-                        date_of_interest: Optional[QDateTime] = None):
+                        date_of_interest: Optional[QDateTime] = None,
+                        runAsync: bool = True):
         """
         Changes TSDs visibility according to its intersection with a SpatialExtent
         :param date_of_interest:
@@ -213,13 +214,17 @@ class TimeSeries(QAbstractItemModel):
             qgsTask.progressChanged.connect(self.sigProgress.emit)
             qgsTask.executed.connect(self.onTaskFinished)
 
-            tm: QgsTaskManager = QgsApplication.taskManager()
-            # stop previous tasks, allow running one only
-            for t in tm.tasks():
-                if isinstance(t, TimeSeriesFindOverlapTask):
-                    t.cancel()
-            tid = tm.addTask(qgsTask)
-            self.mTasks[tid] = qgsTask
+            self.mTasks[id(qgsTask)] = qgsTask
+
+            if runAsync:
+                tm: QgsTaskManager = QgsApplication.taskManager()
+                # stop previous tasks, allow running one only
+                for t in tm.tasks():
+                    if isinstance(t, TimeSeriesFindOverlapTask):
+                        t.cancel()
+                tm.addTask(qgsTask)
+            else:
+                qgsTask.run_serial()
 
     def onFoundOverlap(self, results: dict):
 

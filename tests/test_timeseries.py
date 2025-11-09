@@ -158,7 +158,7 @@ class TestTimeSeries(EOTSVTestCase):
 
         doi = ts[25].dtg()
 
-        ts.focusVisibility(extent1, date_of_interest=doi)
+        ts.focusVisibility(extent1, date_of_interest=doi, runAsync=True)
         self.taskManagerProcessEvents()
 
         for tss in ts.sources():
@@ -166,7 +166,7 @@ class TestTimeSeries(EOTSVTestCase):
             self.assertFalse(ext.intersects(extent1))
             self.assertFalse(tss.isVisible())
 
-        ts.focusVisibility(extent2)
+        ts.focusVisibility(extent2, runAsync=True)
         self.taskManagerProcessEvents()
         for tss in ts.sources():
             ext = tss.spatialExtent().toCrs(extent2.crs())
