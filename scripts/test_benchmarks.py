@@ -6,11 +6,15 @@ from pathlib import Path
 from typing import Union
 
 import numpy as np
+import tqdm
 from openpyxl.reader.excel import load_workbook
 from openpyxl.styles import Alignment, Border, Font, Side
 from openpyxl.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 from osgeo import gdal
+from qgis import processing
+from qgis.core import QgsApplication, QgsProcessingAlgRunnerTask, QgsProject, QgsRasterLayer, QgsTaskManager
+from qgis.core import QgsCoordinateReferenceSystem, QgsRectangle
 
 from eotimeseriesviewer import initAll, DIR_REPO
 from eotimeseriesviewer.force import FORCEUtils
@@ -20,9 +24,6 @@ from eotimeseriesviewer.processing.processingalgorithms import ReadTemporalProfi
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 from eotimeseriesviewer.timeseries.source import TimeSeriesSource
 from eotimeseriesviewer.timeseries.tasks import hasValidPixel
-from qgis import processing
-from qgis.core import QgsApplication, QgsProcessingAlgRunnerTask, QgsProject, QgsRasterLayer, QgsTaskManager
-from qgis.core import QgsCoordinateReferenceSystem, QgsRectangle
 
 start_app()
 initAll()
@@ -62,8 +63,6 @@ class BenchmarkTestCase(EOTSVTestCase):
         path_files = DIR_BENCHMARKS / 'benchmark_load_mosaics_files.json'
         path_json = DIR_BENCHMARKS / 'benchmark_load_mosaics_overlap.json'
         files = None
-
-        import tqdm
 
         if not path_files.is_file():
             task = FindFORCEProductsTask('BOA', FORCE_MOSAICS, dateMax='1986-12-31')
@@ -142,8 +141,6 @@ class BenchmarkTestCase(EOTSVTestCase):
         path_files = DIR_BENCHMARKS / 'benchmark_load_mosaics_files.json'
         path_json = DIR_BENCHMARKS / 'benchmark_load_mosaics_results.json'
         files = None
-
-        import tqdm
 
         if not path_files.is_file():
             task = FindFORCEProductsTask('BOA', FORCE_MOSAICS, dateMax='1986-12-31')

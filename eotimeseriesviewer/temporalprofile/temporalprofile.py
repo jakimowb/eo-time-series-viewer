@@ -17,7 +17,7 @@ from osgeo.ogr import OGRERR_NONE
 from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
 from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
-from eotimeseriesviewer.sensors import sensor_id, create_sensor_id
+from eotimeseriesviewer.sensors import sensorIDFromLayer, create_sensor_id
 from eotimeseriesviewer.spectralindices import spectral_index_acronyms, spectral_indices
 from eotimeseriesviewer.tasks import EOTSVTask
 from qgis.PyQt.QtCore import NULL, pyqtSignal, QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt, QVariant
@@ -857,7 +857,7 @@ class LoadTemporalProfileSubTask(QgsTask):
                 return None, f'Unable to load {src}'
 
             # sid, dtg = self.mdCache[src]
-            sid = sensor_id(lyr)
+            sid = sensorIDFromLayer(lyr)
             if not sid:
                 return None, f'Unable to load sensor id from {lyr}'
 

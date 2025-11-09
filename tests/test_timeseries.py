@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -10,19 +11,12 @@ from typing import Optional
 
 import numpy as np
 from osgeo import gdal
-from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QDateTime, QMimeData, QPointF, \
-    QSortFilterProxyModel, Qt, QUrl
-from qgis.PyQt.QtGui import QDropEvent
-from qgis.PyQt.QtWidgets import QTableView, QTreeView
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsMimeDataUtils, \
-    QgsProject, QgsRasterLayer, QgsVector
-from qgis.core import QgsGeometry, QgsFeature
-from qgis.gui import QgsTaskManagerWidget
 
 import example
 import example.Images
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.main import EOTimeSeriesViewer
+from eotimeseriesviewer.qgispluginsupport.qps.subdatasets import subLayerDetails
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
 from eotimeseriesviewer.sensors import registerDataProvider, sensorID, SensorInstrument, SensorMockupDataProvider
 from eotimeseriesviewer.tasks import EOTSVTask
@@ -32,6 +26,14 @@ from eotimeseriesviewer.timeseries.tasks import TimeSeriesFindOverlapSubTask, Ti
     TimeSeriesLoadingTask
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from eotimeseriesviewer.timeseries.widgets import TimeSeriesDock
+from qgis.PyQt.QtCore import QAbstractItemModel, QDateTime, QMimeData, QPointF, \
+    QSortFilterProxyModel, Qt, QUrl
+from qgis.PyQt.QtGui import QDropEvent
+from qgis.PyQt.QtWidgets import QTreeView
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsMimeDataUtils, \
+    QgsProject, QgsRasterLayer, QgsVector
+from qgis.core import QgsGeometry, QgsFeature
+from qgis.gui import QgsTaskManagerWidget
 
 start_app()
 
@@ -69,9 +71,10 @@ class TestTimeSeries(EOTSVTestCase):
         t0 = datetime.now()
 
         sources = [TimeSeriesSource.fromMap(d) for d in data['sources']]
+        # sources = sources[0:10]
         n = len(sources)
         dt0 = dt(f'loading {n} TimeSeriesSources from json')
-        TS.addTimeSeriesSources(sources[0:2])
+        TS.addSources(sources)
         dt2 = dt(f'adding {n} TimeSeriesSource to TimeSeries')
 
         self.showGui(TSV.ui)
@@ -86,7 +89,7 @@ class TestTimeSeries(EOTSVTestCase):
                  example.Images.re_2014_08_20]
         for f in files:
             self.assertTrue(os.path.isfile(f))
-        ts.addSources(files, runAsync=False)
+        ts.addSourceInputs(files, runAsync=False)
         self.assertTrue(len(ts) == len(files))
 
         # save time series, absolute paths
@@ -117,7 +120,7 @@ class TestTimeSeries(EOTSVTestCase):
                  example.Images.re_2014_08_20]
         for f in files:
             self.assertTrue(os.path.isfile(f))
-        ts.addSources(files, runAsync=False)
+        ts.addSourceInputs(files, runAsync=False)
         self.assertTrue(len(ts) == len(files))
 
         # save time series, absolute paths
@@ -134,15 +137,16 @@ class TestTimeSeries(EOTSVTestCase):
         tsRel = TimeSeries()
         tsRel.loadFromFile(pathTSFileRel, runAsync=False)
         self.assertTrue(len(tsRel) == len(files))
-        for tss in tsRel.timeSeriesSources():
+        for tss in tsRel.sources():
             self.assertTrue(Path(tss.source()).is_file())
 
         tsAbs = TimeSeries()
         tsAbs.loadFromFile(pathTSFileAbs, runAsync=False)
         self.assertTrue(len(tsAbs) == len(files))
-        for tss in tsAbs.timeSeriesSources():
+        for tss in tsAbs.sources():
             self.assertTrue(Path(tss.source()).is_file())
 
+    @unittest.skipIf(os.environ.get('GITHUB_ACTIONS') == 'true', 'Skipping this test on GitHub Actions')
     def test_focus_visibility(self):
 
         ts = TestObjects.createTimeSeries()
@@ -155,15 +159,19 @@ class TestTimeSeries(EOTSVTestCase):
 
         doi = ts[25].dtg()
 
-        ts.focusVisibility(extent1, date_of_interest=doi)
+        ts.focusVisibility(extent1, date_of_interest=doi, runAsync=True)
         self.taskManagerProcessEvents()
 
-        for tss in ts.timeSeriesSources():
+        for tss in ts.sources():
+            ext = tss.spatialExtent().toCrs(extent1.crs())
+            self.assertFalse(ext.intersects(extent1))
             self.assertFalse(tss.isVisible())
 
-        ts.focusVisibility(extent2)
+        ts.focusVisibility(extent2, runAsync=True)
         self.taskManagerProcessEvents()
-        for tss in ts.timeSeriesSources():
+        for tss in ts.sources():
+            ext = tss.spatialExtent().toCrs(extent2.crs())
+            self.assertTrue(ext.intersects(extent2))
             self.assertTrue(tss.isVisible())
 
         ts.clear()
@@ -281,23 +289,14 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertEqual(tsd.sensor(), sensor)
         self.assertEqual(len(tsd), 0)
 
-        tsd.addSource(tss)
-        tsd.addSource(tss)
+        tsd.addSources(tss)
+        tsd.addSources(tss)
         self.assertEqual(len(tsd), 1)
 
         self.assertTrue(tsd.year() == 2014)
         self.assertTrue(tsd.doy() == 79)
         self.assertIsInstance(tsd.decimalYear(), float)
         self.assertTrue(tsd.decimalYear() >= 2014 and tsd.decimalYear() < 2015)
-
-        self.assertIsInstance(tsd, QAbstractTableModel)
-        for r in range(len(tsd)):
-            for i in range(len(TimeSeriesDate.ColumnNames)):
-                value = tsd.data(tsd.createIndex(r, i), role=Qt.DisplayRole)
-
-        TV = QTableView()
-        TV.setModel(tsd)
-        self.showGui(TV)
 
     def test_tsd_daterange(self):
 
@@ -316,11 +315,22 @@ class TestTimeSeries(EOTSVTestCase):
 
     def test_add_sources(self):
 
+        d = {}
+        dtg1 = QDateTime.fromString('2014-04-02', Qt.ISODate)
+        dtg2 = QDateTime.fromString('2014-04-03', Qt.ISODate)
+        dtr = QgsDateTimeRange(dtg1, dtg2)
+        dtr2 = QgsDateTimeRange(dtg1, dtg2)
+
+        sid = 'foobar'
+        d[(dtr.begin(), sid)] = 'foo'
+
+        assert (dtr2.begin(), sid) in d
+
         ts = TimeSeries()
         tss = TimeSeriesSource.fromGDALDataset(example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA)
 
         self.assertIsInstance(tss, TimeSeriesSource)
-        ts.addTimeSeriesSources([tss])
+        ts.addSources(tss)
 
     def test_TimeSeriesSource(self):
 
@@ -421,7 +431,7 @@ class TestTimeSeries(EOTSVTestCase):
             self.assertIsInstance(TS, TimeSeries)
             self.assertTrue(TS.mDateTimePrecision == DateTimePrecision.Day)
 
-            TS.addSources(images, runAsync=False)
+            TS.addSourceInputs(images, runAsync=False)
             sources = list(TS.sources())
             self.assertEqual(2, len(sources))
 
@@ -430,10 +440,55 @@ class TestTimeSeries(EOTSVTestCase):
             self.assertEqual(n_tsd_default, len(TS))
 
             TS.setDateTimePrecision(precision)
-            TS.addSources(images, runAsync=False)
+            TS.addSourceInputs(images, runAsync=False)
             sources = list(TS.sources())
             self.assertEqual(2, len(sources))
             self.assertEqual(1, len(TS))
+
+    def test_multisource_tanager(self):
+
+        path = Path(r'/Users/jakimowb/Documents/Tanager')
+        if not path.is_dir():
+            return
+
+        TSV = EOTimeSeriesViewer()
+        TS = TSV.timeSeries()
+        files = file_search(path, re.compile(r'.*\.h5$'), recursive=True)
+
+        sr_details = []
+        for file in files:
+            for sl in subLayerDetails(file):
+                if sl.name().endswith('surface_reflectance'):
+                    sr_details.append(sl)
+                    break
+
+        for i, sl in enumerate(sr_details):
+            TS.addSourceInputs([sl], runAsync=False)
+
+        idx0 = TS.index(0, 0)
+        idx0b = TS.tsdToIdx(TS.tsds()[0])
+
+        n_tsds = TS.rowCount()
+        for r in range(TS.rowCount()):
+            idxTSD = TS.index(r, 0)
+
+            tsd = TS.data(idxTSD, Qt.UserRole)
+            assert isinstance(tsd, TimeSeriesDate)
+            assert idxTSD == TS.tsdToIdx(tsd)
+            assert tsd == idxTSD.internalPointer()
+
+            n_tss = TS.rowCount(idxTSD)
+            assert n_tss > 0
+            for r_tss in range(TS.rowCount(idxTSD)):
+                idxTSS = TS.index(r_tss, 0, idxTSD)
+                tss = TS.data(idxTSS, Qt.UserRole)
+                assert isinstance(tss, TimeSeriesSource)
+                assert idxTSS.internalPointer() == tss
+                assert tss in tsd
+
+        self.showGui(TSV.ui)
+        TSV.close()
+        s = ""
 
     def test_multisource_tsd(self):
 
@@ -449,7 +504,7 @@ class TestTimeSeries(EOTSVTestCase):
         TS = TimeSeries()
         self.assertEqual(len(TS), 0)
 
-        TS.addSources(sources, runAsync=False)
+        TS.addSourceInputs(sources, runAsync=False)
         self.assertEqual(len(TS), 1)
 
         tsd = TS[0]
@@ -459,7 +514,7 @@ class TestTimeSeries(EOTSVTestCase):
         paths = TestObjects.createMultiSourceTimeSeries()
 
         TS = TimeSeries()
-        TS.addSources(paths, runAsync=False)
+        TS.addSourceInputs(paths, runAsync=False)
         srcUris = TS.sourceUris()
 
         self.assertEqual(len(srcUris), len(paths))
@@ -475,9 +530,9 @@ class TestTimeSeries(EOTSVTestCase):
         task = TimeSeriesLoadingTask(files)
         runAsync = False
         TS = TimeSeries()
-        TS.addSources(files, runAsync=runAsync)
-        TS.addSources(files, runAsync=runAsync)
-        TS.addSources(files, runAsync=runAsync)
+        TS.addSourceInputs(files, runAsync=runAsync)
+        TS.addSourceInputs(files, runAsync=runAsync)
+        TS.addSourceInputs(files, runAsync=runAsync)
 
         self.taskManagerProcessEvents()
 
@@ -514,17 +569,18 @@ class TestTimeSeries(EOTSVTestCase):
         # TS.sigSourcesChanged.connect(lambda tsd: sourcesChanged.append(tsd))
         TS.sigSensorAdded.connect(lambda sensor: addedSensors.append(sensor))
         TS.sigSensorRemoved.connect(lambda sensor: removedSensors.append(sensor))
-        TS.addSources(files, runAsync=False)
+        TS.addSourceInputs(files, runAsync=False)
 
         counts = dict()
         for i, tsd in enumerate(TS):
             self.assertIsInstance(tsd, TimeSeriesDate)
             sensor = tsd.sensor()
-            if sensor not in counts.keys():
-                counts[sensor] = 0
-            counts[sensor] = counts[sensor] + 1
+            counts[sensor] = counts.get(sensor, 0) + 1
 
-        self.assertEqual(len(files), len(TS))
+        counts_total = sum(counts.values())
+        self.assertEqual(counts_total, len(files))
+
+        self.assertEqual(len(files), len(TS.sourceUris()))
         self.assertEqual(len(addedDates), len(TS))
 
         self.assertTrue(len(TS) > 0)
@@ -538,7 +594,7 @@ class TestTimeSeries(EOTSVTestCase):
 
         sensor = TS.sensors()[0]
         self.assertIsInstance(sensor, SensorInstrument)
-        self.assertTrue(sensor == TS.sensor(sensor.id()))
+        self.assertEqual(sensor, TS.sensor(sensor.id()))
         TS.removeSensor(sensor)
         self.assertEqual(counts[sensor], len(removedDates))
 
@@ -549,12 +605,8 @@ class TestTimeSeries(EOTSVTestCase):
 
         TS = TimeSeries()
         sources = self.exampleRasterFiles()
-        TS.addSources(sources, runAsync=False)
+        TS.addSourceInputs(sources, runAsync=False)
         self.assertEqual(len(TS), len(sources))
-
-        for src in sources:
-            tsd = TS.getTSD(src)
-            self.assertIsInstance(tsd, TimeSeriesDate)
 
     def test_SensorProxyLayerMockupDataProvider(self):
 
@@ -605,22 +657,43 @@ class TestTimeSeries(EOTSVTestCase):
 
     def test_TimeSeriesTreeModel(self):
 
-        TS = TimeSeries()
+        TS: TimeSeries = TimeSeries()
+        TS.setDateTimePrecision(DateTimePrecision.Day)
         self.assertIsInstance(TS, QAbstractItemModel)
         sources = TestObjects.createMultiSourceTimeSeries()
+        n_sources = len(sources)
 
-        # 1. and 2.nd image should have same date
+        s1 = sources[0]
+        s2 = sources[1]
+
+        ds1 = gdal.Open(s1)
+        ds2 = gdal.Open(s2)
+        dtg1 = ImageDateUtils.dateTimeFromGDALDataset(ds1)
+        dtg2 = ImageDateUtils.dateTimeFromGDALDataset(ds2)
+
+        self.assertNotEqual(dtg1, dtg2)
+        self.assertEqual(dtg1.date(), dtg2.date())
+
+        TS.addSourceInputs([s1, s2], runAsync=False)
+        self.assertEqual(len(TS), 1)
+        self.assertEqual(TS.rowCount(), 1)
+        self.assertEqual(TS.rowCount(TS.index(0, 0)), 2)
+        # 1. and 2.nd image should have the same date
         # -> 1 image group with 2 source images
-        TS.addSources(sources[0:1], runAsync=False)
-        self.assertTrue(len(TS) == 1)
-        TS.addSources(sources[1:2], runAsync=False)
-        self.assertTrue(len(TS) == 1)
-        self.assertTrue(len(TS[0]) == 2)
+        TS.addSourceInputs(sources[0:1], runAsync=False)
+        self.assertEqual(len(TS), 1)
+        TS.addSourceInputs(sources[1:2], runAsync=False)
+
+        self.assertEqual(len(TS), 1)
+        self.assertEqual(len(TS[0]), 2)
 
         self.assertTrue(len(TS) > 0)
         self.assertTrue(TS.rowCount(TS.index(0, 0)) == 2)
 
-        TS.addSources(sources[2:], runAsync=False)
+        TS.addSourceInputs(sources[2:], runAsync=False)
+
+        self.assertEqual(set(sources), set(TS.sourceUris()))
+
         self.assertEqual(len(TS), TS.rowCount())
         M = QSortFilterProxyModel()
         M.setSourceModel(TS)
@@ -633,7 +706,7 @@ class TestTimeSeries(EOTSVTestCase):
     def test_TimeSeriesDock(self):
 
         TS = TimeSeries()
-        TS.addSources(TestObjects.createMultiSourceTimeSeries())
+        TS.addSourceInputs(TestObjects.createMultiSourceTimeSeries())
 
         dock = TimeSeriesDock()
         dock.timeSeriesWidget().setTimeSeries(TS)

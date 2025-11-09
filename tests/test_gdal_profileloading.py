@@ -5,16 +5,19 @@ from pathlib import Path
 from osgeo import ogr, gdal
 
 import example
+from eotimeseriesviewer import initAll
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.testing import TestCase
 from eotimeseriesviewer.tests import start_app
-from scripts.load_eotsv_profiles import main, points_info, SourceInfoProvider, read_profiles
+from scripts.load_eotsv_profiles import create_profile_layer, points_info, SourceInfoProvider, read_profiles
 
 start_app()
+initAll()
 
 
 class TestGDALProfileLoading(TestCase):
 
-    def test_main(self):
+    def test_create_profile_layer(self):
         dir_rasters = example.dir_images
         path_vector = example.examplePoints
 
@@ -23,7 +26,7 @@ class TestGDALProfileLoading(TestCase):
         ref = ogr.Open(path_vector)
         lyr = ref.GetLayer(0)
 
-        ds2, tps = main(dir_rasters, path_vector, output_vector=path_vector_out)
+        ds2, tps = create_profile_layer(dir_rasters, path_vector, output_vector=path_vector_out)
 
         assert isinstance(ds2, gdal.Dataset)
         assert isinstance(tps, dict)
@@ -46,6 +49,12 @@ class TestGDALProfileLoading(TestCase):
 
             assert dataLyr == dataTps
 
+        TSV = EOTimeSeriesViewer()
+        TSV.loadExampleTimeSeries(loadAsync=False)
+        TSV.addVectorData(path_vector_out)
+        self.showGui(TSV.ui)
+        TSV.close()
+
     def test_read_profiles_parallel(self):
 
         pass
@@ -58,9 +67,6 @@ class TestGDALProfileLoading(TestCase):
         pts, srs_wkt = points_info(ds_vector.GetLayer())
 
         results, errors = read_profiles(files, pts, srs_wkt)
-
-        # we need to be able to write the results to JSON
-        json.dumps(results, indent=4)
 
         self.assertIsInstance(results, list)
         for item in results:
@@ -87,6 +93,11 @@ class TestGDALProfileLoading(TestCase):
                 assert fid in pts
                 self.assertIsInstance(profile, list)
                 self.assertEqual(len(profile), ds_raster.RasterCount)
+
+        # we need to be able to write the results to JSON
+        path_json = self.createTestOutputDirectory() / 'test_profiles.json'
+        with open(path_json, 'w') as f:
+            json.dump(results, f, indent=4)
 
     def test_read_sensorinfo(self):
         creator = SourceInfoProvider

@@ -8,7 +8,8 @@ from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent, px2geo
 from eotimeseriesviewer.sensors import create_sensor_id, SensorInstrument
 from qgis.PyQt.QtCore import QMetaType, QPoint
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractTableModel, QDate, QDateTime, QMimeData, QModelIndex, Qt
+from qgis.PyQt.QtCore import QObject
+from qgis.PyQt.QtCore import pyqtSignal, QDate, QDateTime, QMimeData, Qt
 from qgis.core import QgsCoordinateReferenceSystem, QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, \
     QgsMimeDataUtils, QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRectangle
 from qgis.core import QgsFeature, QgsFields, QgsField, QgsCoordinateTransform, QgsProject, Qgis
@@ -88,34 +89,17 @@ class TimeSeriesSource(object):
 
         assert isinstance(sid, (str, dict))
         if isinstance(sid, dict):
-            sid = json.dumps(sid, ensure_ascii=False)
+            sid = json.dumps(sid, ensure_ascii=False, sort_keys=True)
 
         dtg = d[TimeSeriesSource.MKeyDateTime]
         crs = d[TimeSeriesSource.MKeyCrs]
         extent = d[TimeSeriesSource.MKeyExtent]
         dims = d[TimeSeriesSource.MKeyDimensions]
+        visible = d.get(TimeSeriesSource.MKeyIsVisible, True)
 
-        #             source=ds.GetDescription(),
-        #             dtg=dtg,
-        #             sid=sid,
-        #             dims=dims,
-        #             crs=crs,
-        #             extent=extent,
-        #             provider='gdal',
-        #             name=name
-
-        return TimeSeriesSource(source, dtg, sid, dims, crs, extent, provider, name=name)
-
-        if provider == 'gdal':
-            ds = gdal.Open(d[TimeSeriesSource.MKeySource])
-            return TimeSeriesSource.fromGDALDataset(ds,
-                                                    name=d.get(TimeSeriesSource.MKeyName))
-        else:
-            layer = QgsRasterLayer(d[TimeSeriesSource.MKeySource],
-                                   name=d.get(TimeSeriesSource.MKeyName),
-                                   providerType=d.get(TimeSeriesSource.MKeyProvider))
-            dtg = QDateTime.fromString(d[TimeSeriesSource.MKeyDateTime], Qt.ISODateWithMs)
-            return TimeSeriesSource(layer, dtg)
+        tss = TimeSeriesSource(source, dtg, sid, dims, crs, extent, provider, name=name)
+        tss.setIsVisible(visible)
+        return tss
 
     def qgsMimeDataUtilsUri(self) -> QgsMimeDataUtils.Uri:
 
@@ -438,12 +422,12 @@ class TimeSeriesSource(object):
         return hash(self.mSource)
 
 
-class TimeSeriesDate(QAbstractTableModel):
+class TimeSeriesDate(QObject):
     """
     A container to store all source images related to a single observation date (range) and sensor.
     """
-    sigSourcesAdded = pyqtSignal(list)
-    sigSourcesRemoved = pyqtSignal(list)
+    # sigSourcesAdded = pyqtSignal(list)
+    # sigSourcesRemoved = pyqtSignal(list)
     sigRemoveMe = pyqtSignal()
 
     cnUri = 'Source'
@@ -475,11 +459,7 @@ class TimeSeriesDate(QAbstractTableModel):
     def removeSource(self, source: TimeSeriesSource):
 
         if source in self.mSources:
-            i = self.mSources.index(source)
-            self.beginRemoveRows(QModelIndex(), i, i)
             self.mSources.remove(source)
-            self.endRemoveRows()
-            self.sigSourcesRemoved.emit([source])
 
     def dateTimeRange(self) -> QgsDateTimeRange:
         return QgsDateTimeRange(self.mDTR.begin(), self.mDTR.end())
@@ -498,28 +478,29 @@ class TimeSeriesDate(QAbstractTableModel):
 
         return scope
 
-    def addSource(self, source: TimeSeriesSource):
+    def addSources(self,
+                   sources: Union[TimeSeriesSource, List[TimeSeriesSource]]) -> List[TimeSeriesSource]:
         """
-        Adds an time series source to this TimeSeriesDate
-        :param path: TimeSeriesSource or any argument accepted by TimeSeriesSource.create()
-        :return: TimeSeriesSource, if added
+        Adds a time series source to this TimeSeriesDate
+        :param sources: TimeSeriesSource or any argument accepted by TimeSeriesSource.create()
+        :return: list of added TimeSeriesSources
         """
+        if not isinstance(sources, list):
+            sources = [sources]
 
-        assert isinstance(source, TimeSeriesSource)
-        # assert self.mDate == source.date()
-        # assert self.mSensor.id() == source.sid()
+        added = []
+        for s in sources:
+            assert isinstance(s, TimeSeriesSource)
+            if s in self.mSources:
+                continue
 
-        source.setTimeSeriesDate(self)
+            s.setTimeSeriesDate(self)
+            added.append(s)
+        if len(added) > 0:
+            self.mSources.extend(added)
 
-        if source not in self.mSources:
-            i = len(self)
-            self.beginInsertRows(QModelIndex(), i, i)
-            self.mSources.append(source)
-            self.endInsertRows()
-            self.sigSourcesAdded.emit([source])
-            return source
-        else:
-            return None
+            # self.sigSourcesAdded.emit(added)
+        return added
 
     def checkState(self) -> Qt.CheckState:
         """
@@ -679,49 +660,6 @@ class TimeSeriesDate(QAbstractTableModel):
             return False
         else:
             return self.sensor().id() < other.sensor().id()
-
-    def rowCount(self, parent: QModelIndex = QModelIndex()):
-
-        return len(self)
-
-    def columnCount(self, parent: QModelIndex):
-        return len(TimeSeriesDate.ColumnNames)
-
-    def flags(self, index: QModelIndex):
-        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
-
-    def headerData(self, section, orientation, role):
-        assert isinstance(section, int)
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return TimeSeriesDate.ColumnNames[section]
-        else:
-            return None
-
-    def data(self, index: QModelIndex, role: int):
-
-        if not index.isValid():
-            return None
-
-        tss = self.mSources[index.row()]
-        assert isinstance(tss, TimeSeriesSource)
-
-        cn = TimeSeriesDate.ColumnNames[index.column()]
-        if role == Qt.UserRole:
-            return tss
-
-        if role == Qt.DisplayRole:
-            if cn == TimeSeriesDate.cnNB:
-                return tss.nb()
-            if cn == TimeSeriesDate.cnNS:
-                return tss.ns()
-            if cn == TimeSeriesDate.cnNL:
-                return tss.nl()
-            if cn == TimeSeriesDate.cnCRS:
-                return tss.crs().description()
-            if cn == TimeSeriesDate.cnUri:
-                return tss.source()
-
-        return None
 
     def id(self) -> Tuple[QgsDateTimeRange, str]:
         """

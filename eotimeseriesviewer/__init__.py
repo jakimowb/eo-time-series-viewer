@@ -26,7 +26,7 @@ from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import PlotDat
 from qgis.PyQt.QtGui import QIcon
 from qgis.core import Qgis, QgsApplication
 
-__version__ = '2.2.2'
+__version__ = '2.3'
 
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
@@ -41,7 +41,7 @@ ISSUE_TRACKER = 'https://github.com/jakimowb/eo-time-series-viewer/issues'
 CREATE_ISSUE = 'https://github.com/jakimowb/eo-time-series-viewer/issues/new'
 DEPENDENCIES = ['numpy', 'osgeo.gdal']
 URL_TESTDATA = r''
-QGIS_MIN_VERSION = '3.38'
+QGIS_MIN_VERSION = '3.40'
 
 DEBUG: bool = str(os.environ.get('DEBUG', '1')).lower() in ['true', '1', 'yes']
 

@@ -30,10 +30,6 @@ from typing import Any, Dict, List, Match, Pattern, Tuple, Union
 
 import numpy as np
 from osgeo import gdal, osr
-from qgis.PyQt.QtCore import Qt
-from qgis.PyQt.QtWidgets import QWidget
-from qgis.core import edit, QgsApplication, QgsError, QgsFeature, QgsFields, QgsGeometry, QgsMapToPixel, QgsPointXY, \
-    QgsRasterLayer, QgsVectorLayer
 
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
@@ -44,6 +40,10 @@ from eotimeseriesviewer.sensors import SensorInstrument
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
 from eotimeseriesviewer.timeseries.source import TimeSeriesSource
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
+from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtWidgets import QWidget
+from qgis.core import edit, QgsApplication, QgsError, QgsFeature, QgsFields, QgsGeometry, QgsMapToPixel, QgsPointXY, \
+    QgsRasterLayer, QgsVectorLayer
 
 start_app = start_app
 
@@ -255,7 +255,7 @@ def createTimeSeries(self) -> TimeSeries:
     files = example_raster_files()
     TS = TimeSeries()
     self.assertIsInstance(TS, TimeSeries)
-    TS.addSources(files)
+    TS.addSourceInputs(files)
     self.assertTrue(len(TS) > 0)
     return TS
 
@@ -362,7 +362,7 @@ class TestObjects(TObj):
         TS.setDateTimePrecision(precision)
         # files = file_search(DIR_EXAMPLES, '*.tif', recursive=True)
         files = file_search(DIR_EXAMPLES / 'Images', '*.tif', recursive=True)
-        TS.addSources(list(files), runAsync=False)
+        TS.addSourceInputs(list(files), runAsync=False)
         assert len(TS) > 0
         return TS
 

@@ -246,7 +246,7 @@ class TestProjectIO(EOTSVTestCase):
         new_map_view_names = [mv.name() for mv in TSV.mapViews()]
         QgsApplication.processEvents()
         new_tss_visibility = dict()
-        for tss in TSV.timeSeries().timeSeriesSources():
+        for tss in TSV.timeSeries().sources():
             tss.setIsVisible(random.choice([True, False]))
             new_tss_visibility[tss.source()] = tss.isVisible()
 
@@ -281,7 +281,7 @@ class TestProjectIO(EOTSVTestCase):
 
         self.assertEqualElements(settings3, TSV.asMap(), excluded_prefixes=excluded_prefixes)
         tss_vis = new_tss_visibility.copy()
-        for tss in TSV.timeSeries().timeSeriesSources():
+        for tss in TSV.timeSeries().sources():
             self.assertTrue(tss.source() in tss_vis)
             self.assertEqual(tss.isVisible(), tss_vis.pop(tss.source()))
         self.assertTrue(len(tss_vis) == 0)
@@ -310,9 +310,46 @@ class TestProjectIO(EOTSVTestCase):
         print(p.fileName())
 
         TSV = EOTimeSeriesViewer()
+
         p.read(self.PATH_Project)
 
         self.showGui(TSV.ui)
+        TSV.close()
+
+    @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Needs Question Dialog')
+    def test_write_and_load_project(self):
+
+        test_dir = self.createTestOutputDirectory()
+        path_prj = test_dir / 'test_write_and_load_project.qgs'
+        p: QgsProject = QgsProject.instance()
+        p.read(path_prj.as_posix())
+        TSV = EOTimeSeriesViewer()
+        TSV.loadExampleTimeSeries(loadAsync=False)
+        # hide all re_ scenes
+        BEFORE = dict()
+        for tss in TSV.timeSeries().sources():
+            if os.path.basename(tss.source()).startswith('re_'):
+                tss.setIsVisible(False)
+            BEFORE[tss.source()] = tss.isVisible()
+        p.write(path_prj.as_posix())
+
+        TSV.timeSeries().clear()
+        self.assertEqual(0, len(TSV.timeSeries()))
+
+        TSV.loadExampleTimeSeries(loadAsync=False)
+        self.assertEqual(len(BEFORE), len(TSV.timeSeries()))
+        for tss in TSV.timeSeries().sources():
+            self.assertTrue(tss.isVisible())
+
+        TSV.close()
+        del TSV
+
+        TSV = EOTimeSeriesViewer()
+        self.assertEqual(0, len(TSV.timeSeries()))
+        p.read(path_prj.as_posix())
+        self.assertEqual(len(BEFORE), len(TSV.timeSeries()))
+        for tss in TSV.timeSeries().sources():
+            self.assertEqual(BEFORE[tss.source()], tss.isVisible())
         TSV.close()
 
 

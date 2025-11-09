@@ -181,7 +181,7 @@ class SubstituteCollection(object):
 
         new_lines = []
         s_pattern = re.compile(r'(?<!\.\. )\|([\w\d-]+)\|')
-        l_pattern = re.compile(r'[\w\d_-]+_(?=\s|[.:?!]|$)', re.I)
+        l_pattern = re.compile(r'(?<!\w)[A-Fa-f][\w_-]+_(?=\s|[.:?!]|$)', re.I)
         requested = set()
 
         for line in lines:
@@ -196,6 +196,7 @@ class SubstituteCollection(object):
 
             for r in l_pattern.findall(line):
                 requested.add(r)
+                pass
 
         if len(requested) > 0:
             print(f'Update {path_rst}')

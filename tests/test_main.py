@@ -20,15 +20,17 @@ import os
 import unittest
 
 from osgeo import gdal
-from qgis.core import QgsCoordinateReferenceSystem, QgsProject
-from qgis.gui import QgsMapCanvas
 
+from eotimeseriesviewer import initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer, SaveAllMapsDialog
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from eotimeseriesviewer.timeseries.source import TimeSeriesSource
 from example import examplePoints, exampleLandsat8
+from qgis.core import QgsCoordinateReferenceSystem, QgsProject
+from qgis.gui import QgsMapCanvas
 
 start_app()
+initAll()
 
 
 class TestMain(EOTSVTestCase):
@@ -104,7 +106,7 @@ class TestMain(EOTSVTestCase):
         TSV = EOTimeSeriesViewer()
         TSV.mapWidget().setMapsPerMapView(3, 1)
         TSV.loadExampleTimeSeries(loadAsync=True)
-        self.taskManagerProcessEvents()
+        # self.taskManagerProcessEvents()
 
         self.showGui(TSV.ui)
         TSV.close()

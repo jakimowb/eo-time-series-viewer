@@ -51,7 +51,7 @@ class TestFileFormatLoading(EOTSVTestCase):
         for file in files:
             tss = TimeSeriesSource.create(file)
             self.assertIsInstance(tss, TimeSeriesSource)
-        self.TS.addSources(files, runAsync=False)
+        self.TS.addSourceInputs(files, runAsync=False)
         self.assertEqual(len(files), len(self.TS))
 
     def test_loadLandsat(self):
@@ -60,7 +60,7 @@ class TestFileFormatLoading(EOTSVTestCase):
             print('DIR_LANDSAT undefined. skip test.')
             return
         files = list(file_search(searchDir, '*_L*_BOA.bsq'))[0:3]
-        self.TS.addSources(files, runAsync=False)
+        self.TS.addSourceInputs(files, runAsync=False)
 
         self.assertEqual(len(files), len(self.TS))
         s = ""
@@ -88,7 +88,7 @@ class TestFileFormatLoading(EOTSVTestCase):
                 tss = TimeSeriesSource.create(path)
                 self.assertIsInstance(tss, TimeSeriesSource)
                 self.assertTrue(tss.crs().isValid())
-                self.TS.addSources([path], runAsync=False)
+                self.TS.addSourceInputs([path], runAsync=False)
                 self.assertEqual(len(self.TS), i + 1)
 
                 tss = self.TS[0][0]
@@ -107,7 +107,7 @@ class TestFileFormatLoading(EOTSVTestCase):
             if len(files) > 10:
                 files = files[0:10]
             for i, path in enumerate(files):
-                self.TS.addSources([path], runAsync=False)
+                self.TS.addSourceInputs([path], runAsync=False)
                 self.assertEqual(len(self.TS), i + 1)
 
                 tss = self.TS[0][0]
@@ -132,7 +132,7 @@ class TestFileFormatLoading(EOTSVTestCase):
             print('DIR_VRT undefined. skip test.')
             return
         files = list(file_search(searchDir, '*BOA.vrt', recursive=True))[0:3]
-        self.TS.addSources(files, runAsync=False)
+        self.TS.addSourceInputs(files, runAsync=False)
         self.assertEqual(len(files), len(self.TS))
 
     def test_loadRapidEye(self):
@@ -145,7 +145,7 @@ class TestFileFormatLoading(EOTSVTestCase):
         files = [f for f in files if not re.search(r'_(udm|browse)\.tif$', f)]
         if len(files) > 10:
             files = files[0:10]
-        self.TS.addSources(files, runAsync=False)
+        self.TS.addSourceInputs(files, runAsync=False)
         self.assertEqual(len(files), len(self.TS.sourceUris()))
 
         tsd = self.TS[0]
@@ -163,7 +163,7 @@ class TestFileFormatLoading(EOTSVTestCase):
             return
         # files = file_search(searchDir, 'DIM*.xml', recursive=True)
         files = list(file_search(searchDir, '*.jp2', recursive=True))[0:3]
-        self.TS.addSources(files, runAsync=False)
+        self.TS.addSourceInputs(files, runAsync=False)
         self.assertEqual(len(files), len(self.TS))
 
     def test_loadSentinel2(self):
@@ -173,7 +173,7 @@ class TestFileFormatLoading(EOTSVTestCase):
             print('DIR_SENTINEL undefined. skip test.')
             return
         files = list(file_search(searchDir, '*MSIL1C.xml', recursive=True))
-        self.TS.addSources(files, runAsync=False)
+        self.TS.addSourceInputs(files, runAsync=False)
 
         # self.assertRegexpMatches(self.stderr.getvalue().strip(), 'Unable to add:')
         self.assertEqual(0, len(self.TS))  # do not add a containers
@@ -181,7 +181,7 @@ class TestFileFormatLoading(EOTSVTestCase):
         for file in files:
             subs = gdal.Open(file).GetSubDatasets()
             subdatasets.extend(s[0] for s in subs)
-        self.TS.addSources(subdatasets, runAsync=False)
+        self.TS.addSourceInputs(subdatasets, runAsync=False)
         self.assertEqual(len(subdatasets), len(self.TS))  # add subdatasets
 
 

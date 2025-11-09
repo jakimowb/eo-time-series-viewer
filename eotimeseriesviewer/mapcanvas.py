@@ -52,7 +52,7 @@ from .qgispluginsupport.qps.maptools import CursorLocationMapTool, FullExtentMap
     PixelScaleExtentMapTool, QgsMapToolAddFeature, QgsMapToolSelect, QgsMapToolSelectionHandler
 from .qgispluginsupport.qps.qgisenums import QGIS_RASTERBANDSTATISTIC
 from .qgispluginsupport.qps.utils import filenameFromString, findParent, SpatialExtent, SpatialPoint
-from .sensors import has_sensor_id, sensor_id, SensorMockupDataProvider, SensorInstrument
+from .sensors import has_sensor_id, sensorIDFromLayer, SensorMockupDataProvider, SensorInstrument
 from .settings.settings import EOTSVSettingsManager
 from .timeseries.source import TimeSeriesDate, TimeSeriesSource
 from .utils import copyMapLayerStyle, layerStyleString, setLayerStyleString
@@ -523,7 +523,7 @@ class MapCanvas(QgsMapCanvas):
 
         # self.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
 
-    def setTSD(self, tsd: TimeSeriesDate):
+    def setTSD(self, tsd: Optional[TimeSeriesDate]):
         """
         Sets the TimeSeriesDate this map-canvas is linked to
         :param tsd:
@@ -886,7 +886,7 @@ class MapCanvas(QgsMapCanvas):
             lyr = self.sender()
 
         assert isinstance(lyr, QgsRasterLayer)
-        sid = sensor_id(lyr)
+        sid = sensorIDFromLayer(lyr)
         if sid:
             masterLyr = self.mapView().sensorProxyLayer(sid)
             if masterLyr:
@@ -1059,9 +1059,10 @@ class MapCanvas(QgsMapCanvas):
                 name = os.path.basename(mapLayer.source())
             else:
                 name = mapLayer.name()
+
             sub: QMenu = m.addMenu(name)
             sub.setToolTipsVisible(True)
-
+            sub.setToolTip(mapLayer.source())
             if is_sensor_layer:
                 sub.setIcon(QIcon(':/eotimeseriesviewer/icons/icon.svg'))
             elif isinstance(mapLayer, QgsRasterLayer):

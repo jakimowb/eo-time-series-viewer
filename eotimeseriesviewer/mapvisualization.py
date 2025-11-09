@@ -53,7 +53,7 @@ from .qgispluginsupport.qps.crosshair.crosshair import CrosshairMapCanvasItem, C
 from .qgispluginsupport.qps.layerproperties import VectorLayerTools
 from .qgispluginsupport.qps.maptools import MapTools
 from .qgispluginsupport.qps.utils import loadUi, SignalBlocker, SpatialExtent, SpatialPoint
-from .sensors import has_sensor_id, sensor_id, SensorInstrument, SensorMockupDataProvider
+from .sensors import has_sensor_id, sensorIDFromLayer, SensorInstrument, SensorMockupDataProvider
 from .settings.settings import EOTSVSettingsManager
 
 logger = logging.getLogger(__name__)
@@ -695,7 +695,7 @@ class MapView(QFrame):
         :return: QgsMapLayer
         """
         cl = self.mLayerTreeView.currentLayer()
-        if sid := sensor_id(cl):
+        if sid := sensorIDFromLayer(cl):
             canvases = [c for c in self.mapCanvases()
                         if isinstance(c.tsd(), TimeSeriesDate) and c.tsd().sensor().id() == sid]
             canvases = sorted(canvases, key=lambda c: c is not self.currentMapCanvas())
@@ -800,7 +800,7 @@ class MapView(QFrame):
     def onMasterStyleChanged(self, masterLayer: QgsRasterLayer):
 
         assert has_sensor_id(masterLayer)
-        sid = sensor_id(masterLayer)
+        sid = sensorIDFromLayer(masterLayer)
 
         if isinstance(sid, str):
 
@@ -935,10 +935,10 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
             return
 
         current = self.mapView().currentLayer()
-        csid = sensor_id(current)
+        csid = sensorIDFromLayer(current)
         if csid:
             for lyr in canvas.layers():
-                sid = sensor_id(lyr)
+                sid = sensorIDFromLayer(lyr)
                 if sid == csid:
                     b = canvas.stretchToExtent(layer=lyr)
                     if not b:
@@ -960,7 +960,7 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         currentCanvas = self.mapView().currentMapCanvas()
         isSensorGroup = isinstance(currentGroup, QgsLayerTreeGroup) and currentGroup.customProperty(
             KEY_SENSOR_GROUP) in [True, 'true']
-        isSensorLayer = isinstance(sensor_id(currentLayer), str)
+        isSensorLayer = isinstance(sensorIDFromLayer(currentLayer), str)
         mv: MapView = self.mapView()
         mw: MapWidget = mv.mapWidget()
         mw.setCurrentMapView(mv)
@@ -1868,7 +1868,7 @@ class MapWidget(QFrame):
 
     def onSetInitialCurrentDate(self):
         if len(self.timeSeries()) > 0:
-            self.setCurrentDate(self.timeSeries()[0])
+            self.setCurrentDate(self.timeSeries().tsds(sort=True)[0])
             self.mTimeSeries.sigTimeSeriesDatesAdded.disconnect(self.onSetInitialCurrentDate)
 
     def _updateSliderRange(self):
@@ -1911,10 +1911,13 @@ class MapWidget(QFrame):
             px_start_left = 0
             px_start_right = 0
         else:
-
-            iS = self.timeSeries().mTSDs.index(dateS)
-            i0 = self.timeSeries().mTSDs.index(visible_dates[0])
-            i1 = self.timeSeries().mTSDs.index(visible_dates[-1])
+            sorted_tsds = self.timeSeries().tsds(sort=True)
+            # iS = sorted_tsds.index(dateS)
+            i0 = sorted_tsds.index(visible_dates[0])
+            i1 = sorted_tsds.index(visible_dates[-1])
+            # iS = self.timeSeries().mTSDs.index(dateS)
+            # i0 = self.timeSeries().mTSDs.index(visible_dates[0])
+            # i1 = self.timeSeries().mTSDs.index(visible_dates[-1])
 
             px_per_date = px_width / self.mTimeSlider.maximum()
             px_dateS = int(self.mTimeSlider.value() * px_per_date)
@@ -1976,20 +1979,22 @@ QSlider::add-page {{
         if isinstance(tsd, TimeSeriesDate):
             self.setCurrentDate(tsd)
 
-    def sliderDate(self, i: int = None) -> TimeSeriesDate:
+    def sliderDate(self, i: int = None) -> Optional[TimeSeriesDate]:
         """
         Returns the TimeSeriesDate related to slider value i
         :param i: slider value
         :return: TimeSeriesDate
         """
-        tsd = None
         if i is None:
             i = self.mTimeSlider.value()
-        if isinstance(self.mTimeSeries, TimeSeries) and len(self.mTimeSeries) > 0:
-            i = min(i, len(self.mTimeSeries) - 1)
+        if isinstance(self.mTimeSeries, TimeSeries):
+            visible_dates = self.mTimeSeries.visibleTSDs()
+            if len(visible_dates) == 0:
+                return None
+            i = min(i, len(visible_dates) - 1)
             i = max(i, 0)
-            tsd = self.mTimeSeries[i]
-        return tsd
+            return visible_dates[i]
+        return None
 
     def timeSeries(self) -> TimeSeries:
         return self.mTimeSeries
@@ -2081,17 +2086,26 @@ QSlider::add-page {{
 
     def moveToNextTSD(self):
 
-        for tsd in self.timeSeries()[:]:
-            assert isinstance(tsd, TimeSeriesDate)
-            if tsd > self.currentDate() and tsd.checkState():
-                self.setCurrentDate(tsd)
-                return
+        cd = self.currentDate()
+
+        tsds = self.timeSeries().visibleTSDs()
+        if len(tsds) == 0:
+            return
+        if cd:
+            for tsd in tsds:
+                assert isinstance(tsd, TimeSeriesDate)
+                if tsd > cd:
+                    self.setCurrentDate(tsd)
+                    break
 
     def moveToPreviousTSD(self):
-        for tsd in reversed(self.timeSeries()[:]):
-            if tsd < self.currentDate() and tsd.checkState():
-                self.setCurrentDate(tsd)
-                return
+        tsds = reversed(self.timeSeries().visibleTSDs())
+        cd = self.currentDate()
+        if cd:
+            for tsd in tsds:
+                if tsd < cd:
+                    self.setCurrentDate(tsd)
+                    break
 
     def moveToNextTSDFast(self):
         visibleAll = self.timeSeries().visibleTSDs()
@@ -2114,14 +2128,14 @@ QSlider::add-page {{
             self.setCurrentDate(visibleAll[i])
 
     def moveToFirstTSD(self):
-        for tsd in self.timeSeries()[:]:
+        for tsd in self.timeSeries().tsds(sort=True):
             if tsd.checkState():
                 self.setCurrentDate(tsd)
                 return
         s = ""
 
     def moveToLastTSD(self):
-        for tsd in reversed(self.timeSeries()[:]):
+        for tsd in reversed(self.timeSeries().tsds(sort=True)):
             if tsd.checkState():
                 self.setCurrentDate(tsd)
                 return
@@ -2147,9 +2161,11 @@ QSlider::add-page {{
         self.mCurrentDate = tsd
         self.mCurrentDateMode = mode
 
+        visible_dates = self.timeSeries().visibleTSDs()
+
         if b:
             self._updateCanvasDates()
-            i = self.mTimeSeries[:].index(self.mCurrentDate)
+            i = visible_dates.index(self.mCurrentDate)
 
             if self.mTimeSlider.value() != i:
                 with SignalBlocker(self.mTimeSlider) as blocker:
@@ -2158,7 +2174,7 @@ QSlider::add-page {{
             self.sigCurrentDateChanged.emit(self.mCurrentDate)
 
         if isinstance(self.currentDate(), TimeSeriesDate):
-            i = self.timeSeries()[:].index(self.currentDate())
+            i = visible_dates.index(self.currentDate())
             canForward = i < len(self.mTimeSeries) - 1
             canBackward = i > 0
         else:
@@ -2178,7 +2194,7 @@ QSlider::add-page {{
     def timeSlider(self) -> QSlider:
         return self.mTimeSlider
 
-    def currentDate(self) -> TimeSeriesDate:
+    def currentDate(self) -> Optional[TimeSeriesDate]:
         """
         Returns the current TimeSeriesDate
         :return: TimeSeriesDate

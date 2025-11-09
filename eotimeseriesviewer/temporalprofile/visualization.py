@@ -150,6 +150,7 @@ class TemporalProfileVisualization(QObject):
     loadingProgress = pyqtSignal(float)
     moveToDate = pyqtSignal(QDateTime, str)
     featureSelectionChanged = pyqtSignal(dict)
+    candidatesChanged = pyqtSignal()
 
     def __init__(self,
                  treeView: PlotSettingsTreeView,
@@ -286,10 +287,14 @@ class TemporalProfileVisualization(QObject):
     def showSelectedOnly(self) -> bool:
         return self.mShowSelectedOnly
 
+    def hasCandidates(self) -> bool:
+        return len(self.mProfileCandidates) > 0
+
     def acceptCandidates(self):
         if len(self.mProfileCandidates) > 0:
             self.mProfileCandidates.clear()
             self.updatePlot()
+            self.candidatesChanged.emit()
 
     def profileCandidates(self) -> Dict[Tuple[str, str], List[int]]:
         return self.mProfileCandidates
@@ -424,6 +429,7 @@ class TemporalProfileVisualization(QObject):
                 tid = tm.addTask(task)
             else:
                 task.finished(task.run_serial())
+        self.candidatesChanged.emit()
         return True
 
     def onLayerFeatureSelectionChanged(self, *args, **kwds):
@@ -987,7 +993,9 @@ class TemporalProfileDock(QgsDockWidget):
         self.mVectorLayerTool: Optional[VectorLayerTools] = None
 
         self.mVis = TemporalProfileVisualization(self.mTreeView, self.mPlotWidget)
+        self.mVis.candidatesChanged.connect(self.updateActions)
         self.mTreeView.selectionModel().selectionChanged.connect(self.updateActions)
+
         self.mVis.loadingProgress.connect(self.setProgress)
         self.mVis.moveToDate.connect(self.sigMoveToDate)
         self.mVis.featureSelectionChanged.connect(self.onFeatureSelectionChanged)
@@ -1010,10 +1018,12 @@ class TemporalProfileDock(QgsDockWidget):
         self.btnCancelTask.clicked.connect(self.mVis.cancelLoadingTask)
         self.progressWidget.setVisible(False)
 
+        self.updateActions()
+
     def updateActions(self):
 
         self.mTreeView.selectedLayers()
-
+        self.actionAcceptCandidate.setEnabled(self.mVis.hasCandidates())
         selectedLayers = self.mTreeView.selectedLayers()
 
         self.actionShowAttributeTable.setEnabled(len(selectedLayers) > 0)

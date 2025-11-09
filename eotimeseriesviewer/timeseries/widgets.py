@@ -3,6 +3,10 @@ import pathlib
 import re
 from typing import List
 
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi, SpatialExtent
+from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
+from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from qgis.PyQt.QtCore import pyqtSignal, QDir, QItemSelectionModel, QMimeData, QModelIndex, QRegExp, \
     QSortFilterProxyModel, \
     Qt, QUrl
@@ -11,11 +15,6 @@ from qgis.PyQt.QtWidgets import QAbstractItemView, QAction, QMainWindow, QMenu, 
 from qgis.PyQt.QtWidgets import QHeaderView
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsProject
 from qgis.gui import QgisInterface, QgsDockWidget
-
-from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi, SpatialExtent
-from eotimeseriesviewer.timeseries.source import TimeSeriesDate, TimeSeriesSource
-from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 
 
 class TimeSeriesTreeView(QTreeView):
@@ -54,7 +53,7 @@ class TimeSeriesTreeView(QTreeView):
                         local_files.append(path)
         event.acceptProposedAction()
         if len(local_files) > 0:
-            self.timeseries().addSources(local_files)
+            self.timeseries().addSourceInputs(local_files)
         if len(local_ts_lists) > 0:
             for file in local_ts_lists:
                 self.timeseries().loadFromFile(file)
@@ -129,12 +128,12 @@ class TimeSeriesTreeView(QTreeView):
             menu.addSeparator()
         else:
             s = ""
-        a = menu.addAction('Set date(s) invisible')
-        a.setToolTip('Hides the selected time series dates from being shown in a map.')
-        a.triggered.connect(lambda *args, tsds=selectedTSDs: self.timeseries().showTSDs(tsds, False))
-        a = menu.addAction('Set date(s) visible')
+        a = menu.addAction('Set sources invisible')
+        a.setToolTip('Hides the selected time series sources from being shown in a map.')
+        a.triggered.connect(lambda *args, sources=selectedTSSs: self.timeseries().setSourceVisibility(sources, False))
+        a = menu.addAction('Set sources visible')
         a.setToolTip('Shows the selected time series dates in maps.')
-        a.triggered.connect(lambda *args, tsds=selectedTSDs: self.timeseries().showTSDs(tsds, True))
+        a.triggered.connect(lambda *args, sources=selectedTSSs: self.timeseries().setSourceVisibility(sources, True))
 
         menu.addSeparator()
 

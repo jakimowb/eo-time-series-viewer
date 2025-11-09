@@ -6,7 +6,7 @@ channels:
   - conda-forge
 dependencies:
   - python>=3.10
-  - qgis>=3.38
+  - qgis>=3.40
   - gitpython
   - scipy
   - markdown
