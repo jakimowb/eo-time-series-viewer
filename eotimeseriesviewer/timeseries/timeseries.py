@@ -465,7 +465,7 @@ class TimeSeries(QAbstractItemModel):
             # idx1 = self.tsdToIdx(tsd)
 
         idx0 = self.index(0, 0)
-        idx1 = self.index(self.rowCount(), 0)
+        idx1 = self.index(self.rowCount() - 1, 0)
         self.dataChanged.emit(idx0, idx1, [Qt.CheckStateRole])
 
         self.sigVisibilityChanged.emit()
@@ -951,31 +951,20 @@ class TimeSeries(QAbstractItemModel):
         :param parent: QModelIndex
         :return: QModelIndex
         """
-        try:
-            if parent is None:
-                parent = self.mRootIndex
-            else:
-                assert isinstance(parent, QModelIndex)
 
-            if row < 0 or row >= len(self):
-                return QModelIndex()
-            if column < 0 or column >= len(self.mColumnNames):
-                return QModelIndex()
+        if parent is None:
+            parent = self.mRootIndex
+        else:
+            assert isinstance(parent, QModelIndex)
 
-            if parent == self.mRootIndex:
-                # TSD node
-                if row < 0 or row >= len(self):
-                    return QModelIndex()
-                return self.createIndex(row, column, self[row])
+        if parent == self.mRootIndex:
+            return self.createIndex(row, column, self[row])
 
-            elif parent.parent() == self.mRootIndex:
-                # TSS node
-                tsd = self.tsdFromIdx(parent)
-                if row < 0 or row >= len(tsd):
-                    return QModelIndex()
-                return self.createIndex(row, column, tsd[row])
-        except Exception as ex:
-            s = ""
+        elif parent.parent() == self.mRootIndex:
+            # TSS node
+            tsd = self.tsdFromIdx(parent)
+            return self.createIndex(row, column, tsd[row])
+
         return QModelIndex()
 
     def tsdToIdx(self, tsd: TimeSeriesDate) -> QModelIndex:
@@ -1118,6 +1107,9 @@ class TimeSeries(QAbstractItemModel):
             tss = node
         elif isinstance(node, TimeSeriesDate):
             tsd = node
+
+        if tsd is None and tss is None:
+            return None
 
         if role == Qt.UserRole:
             return node
