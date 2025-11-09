@@ -1,5 +1,16 @@
 # Changelog
 
+## EOTSV 2.3 (2025-11-09)
+
+* revision of TimeSeries model. Source images are now loaded and removed much faster (
+  issues [27]https://github.com/jakimowb/eo-time-series-viewer/issues/27
+  and [29](https://github.com/jakimowb/eo-time-series-viewer/issues/29))
+* the default style of profile candidates can be set in the EOTSV settings
+* plot styles activate antialias by default
+* fixed loading of Sentinel-2 images and other datasets with sublayers (
+  issue [46](https://github.com/jakimowb/eo-time-series-viewer/issues/46))
+* EOTSV loads Tanager \*.h5 files
+
 ## EOTSV 2.2 (2025-09-25)
 
 * multi-sensor time series can be saved as JSON. loading from
