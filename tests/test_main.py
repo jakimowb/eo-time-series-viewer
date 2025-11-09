@@ -105,7 +105,7 @@ class TestMain(EOTSVTestCase):
         self.taskManagerProcessEvents()
         TSV = EOTimeSeriesViewer()
         TSV.mapWidget().setMapsPerMapView(3, 1)
-        TSV.loadExampleTimeSeries(loadAsync=False)
+        TSV.loadExampleTimeSeries(loadAsync=True)
         # self.taskManagerProcessEvents()
 
         self.showGui(TSV.ui)

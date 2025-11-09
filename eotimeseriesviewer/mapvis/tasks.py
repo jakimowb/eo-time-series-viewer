@@ -3,7 +3,7 @@ from typing import Union, Optional, Tuple, Type, List, Dict
 
 from eotimeseriesviewer.tasks import EOTSVTask
 from qgis.core import QgsRasterLayer, QgsMapLayer, QgsVectorTileLayer, QgsVectorLayer, Qgis, QgsRasterFileWriter, \
-    QgsVectorFileWriter
+    QgsVectorFileWriter, QgsApplication
 
 LAYER_CLASSES = dict()
 for l in [QgsRasterLayer, QgsVectorLayer, QgsVectorTileLayer]:
@@ -130,6 +130,11 @@ class LoadMapCanvasLayers(EOTSVTask):
                 result = {'uri': uri, 'legend_layer': legend_layer_id, 'layer': lyr}
                 self.mResults.append(result)
 
+        for r in self.mResults:
+            lyr: QgsMapLayer = r['layer']
+            # required to avoid this error:
+            # QObject::setParent: Cannot set parent, new parent is in a different thread
+            lyr.moveToThread(QgsApplication.instance().thread())
         # self.executed.emit(True, self)
 
         return True
