@@ -162,11 +162,15 @@ class TestTimeSeries(EOTSVTestCase):
         self.taskManagerProcessEvents()
 
         for tss in ts.sources():
+            ext = tss.spatialExtent().toCrs(extent1.crs())
+            self.assertFalse(ext.intersects(extent1))
             self.assertFalse(tss.isVisible())
 
         ts.focusVisibility(extent2)
         self.taskManagerProcessEvents()
         for tss in ts.sources():
+            ext = tss.spatialExtent().toCrs(extent2.crs())
+            self.assertTrue(ext.intersects(extent2))
             self.assertTrue(tss.isVisible())
 
         ts.clear()
