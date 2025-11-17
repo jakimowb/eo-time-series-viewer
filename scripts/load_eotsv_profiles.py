@@ -27,7 +27,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Union, Tuple, Optional
 
-from osgeo import gdal, ogr, osr
+from osgeo import gdal, ogr, osr, gdalconst
 from osgeo.ogr import OGRERR_NONE
 
 gdal.UseExceptions()
@@ -531,8 +531,8 @@ def callback(progress, msg, data):
 
 
 def create_profile_layer(rasters, vector,
-                         pattern='*.tif',
-                         threads=4,
+                         pattern: str = '*.tif',
+                         n_jobs: int = 4,
                          layer_name: Optional[Union[int, str]] = None,
                          output_vector=None,
                          output_field: str = 'profiles',
@@ -551,8 +551,8 @@ def create_profile_layer(rasters, vector,
             output_format = gdal.IdentifyDriver(str(vector)).ShortName
 
         drv: ogr.Driver = ogr.GetDriverByName(output_format)
-        ds_src = ogr.Open(str(vector))
-        # ds_src = gdal.OpenEx(str(vector), gdalconst.OF_VECTOR)
+        # ds_src = ogr.Open(str(vector))
+        ds_src = gdal.OpenEx(str(vector), gdalconst.OF_VECTOR)
 
         if isinstance(layer_name, int):
             lyr_src = ds_src.GetLayer(layer_name)
@@ -564,7 +564,11 @@ def create_profile_layer(rasters, vector,
         assert isinstance(lyr_src, ogr.Layer), f"Could not find layer {layer_name}"
         assert lyr_src.GetFeatureCount() > 0, f'Layer {layer_name} is empty'
 
-        if False:
+        out = Path(output_vector)
+        if out.exists():
+            out.unlink()
+
+        if True:
             toptions = gdal.VectorTranslateOptions(
                 # accessMode='update',
                 layers=[lyr_src.GetName()],
@@ -572,15 +576,20 @@ def create_profile_layer(rasters, vector,
                 emptyStrAsNull=True,
                 format=output_format)
 
-            ds = gdal.VectorTranslate(str(output_vector), ds_src, options=toptions)
-            ds.FlushCache()
-        else:
-            ds = drv.CopyDataSource(ds_src, str(output_vector))
-        # ds = gdal.OpenEx(str(output_vector), gdalconst.OF_VECTOR)
-        del lyr_src
-        del ds_src
+            gdal.VectorTranslate(str(output_vector), ds_src, options=toptions)
+            ds = gdal.OpenEx(str(output_vector), nOpenFlags=gdalconst.OF_VECTOR | gdalconst.OF_UPDATE)
 
-    assert isinstance(ds, ogr.DataSource), 'Unable to open vector dataset'
+        else:
+
+            # ds = drv.CopyDataSource(ds_src, str(output_vector))
+            ds = drv.CreateDataSource(str(output_vector))
+            lyr = ds.CopyLayer(lyr_src, layer_name)
+
+        # ds = gdal.OpenEx(str(output_vector), gdalconst.OF_VECTOR)
+        # del lyr_src
+        # del ds_src
+
+    assert isinstance(ds, (gdal.Dataset, ogr.DataSource)), 'Unable to open vector dataset'
 
     if isinstance(layer_name, str):
         lyr = ds.GetLayerByName(layer_name)
@@ -597,14 +606,14 @@ def create_profile_layer(rasters, vector,
         assert ogr.OGRERR_NONE == lyr.CreateField(
             ogr.FieldDefn(output_field, ogr.OFSTJSON))
 
-    print('Search time series sources...')
+    print('Search for potential source image files ...')
     if isinstance(pattern, str) and pattern.startswith('rx:'):
         pattern = re.compile(pattern[3:])
 
     files = list(file_search(rasters, pattern=pattern, recursive=recursive))
-
     n_total = len(files)
     assert n_total > 0, 'No raster files found'
+    print(f'Found {n_total} files')
 
     points, srs_wkt = points_info(lyr)
 
@@ -619,8 +628,9 @@ def create_profile_layer(rasters, vector,
         badges.append(badge.copy())
     errors = []
     POINT2RESULTS = dict()
+
     # ProcessPoolExecutor
-    with concurrent.futures.ProcessPoolExecutor(max_workers=threads) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=n_jobs) as executor:
         # Start the load operations and mark each future with its URL
         future_to_url = {executor.submit(read_profiles, badge, points.copy(), srs_wkt): badge for badge in
                          badges}
@@ -645,6 +655,7 @@ def create_profile_layer(rasters, vector,
             f.SetField(output_field, dump)
             lyr.SetFeature(f)
 
+    ds.FlushCache()
     return ds, TEMPORAL_PROFILES
 
 
@@ -735,23 +746,21 @@ Examples:
     # Raster input options (mutually exclusive)
     raster_group = parser.add_mutually_exclusive_group(required=True)
     raster_group.add_argument('-r', '--rasters', nargs='+',
-                              help='Space-separated list of raster files to sample')
-    raster_group.add_argument('-r_dir', '--rasters-dir',
-                              help='Directory containing raster files')
-
+                              help='Space-separated list of raster files or directories to sample from')
     # Optional arguments
     parser.add_argument('--pattern', default='*.tif',
                         help='File pattern for raster search. Default: *.tif')
-    parser.add_argument('-t', '--threads', type=int, default=4,
-                        help='Number of threads to use. Default: 4')
+    parser.add_argument('-j', '--jobs', type=int, default=4,
+                        help='Number of jobs to execute in parallel. Default: 4')
     parser.add_argument('--recursive', action='store_true',
-                        help='Recursively search for raster files in subdirectories')
+                        help='Recursively search for raster files in directories')
     parser.add_argument('-f', '--field', default='profiles',
                         help='Field name to store the extracted profiles. Default: profiles')
     parser.add_argument('-o', '--output',
                         help='Output vector file. If omitted, input file will be modified in-place')
     parser.add_argument('-l', '--layer',
-                        help='Layer name/index in the vector file. If omitted, first layer is used')
+                        help='Layer name/index in the vector file to choose. '
+                             'If omitted, first layer is used')
     parser.add_argument('--format', default='GPKG',
                         help='Output vector format (if --output is specified). Default: GPKG')
 
@@ -775,7 +784,7 @@ Examples:
             rasters=raster_files,
             vector=args.vector,
             pattern=args.pattern,
-            threads=args.threads,
+            n_jobs=args.threads,
             layer_name=args.layer,
             output_vector=args.output,
             output_field=args.field,

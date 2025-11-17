@@ -1,12 +1,14 @@
 import datetime
 import json
+import subprocess
+import sys
 from pathlib import Path
 from typing import Union
 
 from osgeo import ogr, gdal
 
 import example
-from eotimeseriesviewer import initAll
+from eotimeseriesviewer import initAll, DIR_REPO
 from eotimeseriesviewer.qgispluginsupport.qps.testing import TestCase
 from eotimeseriesviewer.tests import start_app
 from scripts.load_eotsv_profiles import create_profile_layer, points_info, SourceInfoProvider, read_profiles
@@ -127,13 +129,21 @@ class TestGDALProfileLoading(TestCase):
         ds_out, profiles = create_profile_layer(
             rasters=str(dir_rasters),
             vector=str(path_vector),
-            pattern='rx:re.*\\.tif$',
-            threads=3,
+            pattern='rx:.*\\.tif$',
+            n_jobs=3,
             output_vector=str(path_vector_out),
             output_field='my_profiles12'
         )
 
         self.assertIsProfileLayer(path_vector_out, 'my_profiles12')
+
+        if not TestCase.runsInCI():
+            from eotimeseriesviewer.main import EOTimeSeriesViewer
+            TSV = EOTimeSeriesViewer()
+            TSV.loadExampleTimeSeries(loadAsync=False)
+            TSV.addVectorData(path_vector_out)
+            self.showGui(TSV.ui)
+            TSV.close()
 
         s = ""
         pass
@@ -177,6 +187,38 @@ class TestGDALProfileLoading(TestCase):
         path_json = self.createTestOutputDirectory() / 'test_profiles.json'
         with open(path_json, 'w') as f:
             json.dump(results, f, indent=4)
+
+    def test_read_cli(self):
+
+        dir_rasters = example.dir_images
+        path_vector = example.examplePoints
+
+        test_outputs = self.createTestOutputDirectory()
+        path_vector_out = test_outputs / 'test_vector_parallel.geojson'
+
+        cli_args = [f'-v {path_vector}',
+                    f'-r {dir_rasters}',
+                    f'--pattern *.tif',
+                    f'--n_jobs 3',
+                    f'--output_vector {path_vector_out}', ]
+
+        script_path = DIR_REPO / 'scripts' / 'load_eotsv_profiles.py'
+        cmd = [sys.executable, str(script_path), *cli_args]
+
+        result = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        # For debugging on failure
+        err = f'{result.stderr}'
+        if result.returncode != 0:
+            print("STDOUT:\n", result.stdout)
+            print("STDERR:\n", err)
+
+        assert result.returncode == 0, err
 
     def test_read_sensorinfo(self):
         creator = SourceInfoProvider
