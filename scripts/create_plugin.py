@@ -24,6 +24,7 @@ import re
 import shutil
 import site
 import textwrap
+from configparser import ConfigParser
 from pathlib import Path
 from typing import Iterator, Optional, Union
 
@@ -36,22 +37,24 @@ from qgis.core import QgsUserProfile, QgsUserProfileManager
 
 site.addsitedir(Path(__file__).parents[1].as_posix())
 import eotimeseriesviewer
-from eotimeseriesviewer import DIR_REPO, PATH_CHANGELOG, PATH_ABOUT
+from eotimeseriesviewer import DIR_REPO, PATH_CHANGELOG
 
 print('DIR_REPO={}'.format(DIR_REPO))
 CHECK_COMMITS = False
 
 ########## Config Section
+config = ConfigParser()
+config.read(DIR_REPO / 'tox.ini')
 
 MD = QGISMetadataFileWriter()
 MD.mName = eotimeseriesviewer.TITLE
 MD.mDescription = eotimeseriesviewer.DESCRIPTION
-MD.mTags = ['remote sensing', 'raster', 'time series', 'landsat', 'sentinel']
+MD.mTags = config.get('qgisplugin', 'tags')
 MD.mCategory = 'Analysis'
-MD.mAuthor = 'Benjamin Jakimow, Sebastian van der Linden, Patrick Hostert'
+MD.mAuthor = config.get('qgisplugin', 'author')
 MD.mIcon = 'eotimeseriesviewer/icon.png'
 MD.mHomepage = eotimeseriesviewer.HOMEPAGE
-MD.mAbout = ''
+MD.mAbout = config.get('qgisplugin', 'about').splitlines()
 MD.mTracker = eotimeseriesviewer.ISSUE_TRACKER
 MD.mRepository = eotimeseriesviewer.REPOSITORY
 MD.mQgisMinimumVersion = eotimeseriesviewer.QGIS_MIN_VERSION
@@ -118,7 +121,6 @@ def create_plugin(include_testdata: bool = False,
 
     PATH_METADATAFILE = PLUGIN_DIR / 'metadata.txt'
     MD.mVersion = BUILD_NAME
-    MD.mAbout = markdown2html(PATH_ABOUT)
     MD.mIsExperimental = experimental is True
     MD.writeMetadataTxt(PATH_METADATAFILE)
 
@@ -261,6 +263,38 @@ def markdown2html(path: Union[str, Path]) -> str:
     return markdown.markdown(md)
 
 
+def markdown2text(path) -> str:
+    from io import StringIO
+
+    def unmark_element(element, stream=None):
+        if stream is None:
+            stream = StringIO()
+        if element.text:
+            stream.write(element.text)
+        for sub in element:
+            unmark_element(sub, stream)
+            # Add newlines after block-level elements
+            # if sub.tag in ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+            #               'li', 'br', 'hr', 'blockquote', 'pre']:
+            #    stream.write('\n\n')
+
+        if element.tail:
+            stream.write(element.tail)
+        return stream.getvalue()
+
+    # patching Markdown
+    from markdown import Markdown
+    Markdown.output_formats["plain"] = unmark_element
+    __md = Markdown(output_format="plain")
+    __md.stripTopLevelTags = False
+
+    path_md = Path(path)
+    with open(path_md, 'r', encoding='utf-8') as f:
+        text = f.read()
+
+    return __md.convert(text)
+
+
 def createHTMLDocuments(dirPlugin: Path):
     """
     Reads the CHANGELOG.md and creates the deploy/CHANGELOG (without extension!) for the QGIS Plugin Manager
@@ -271,7 +305,7 @@ def createHTMLDocuments(dirPlugin: Path):
     os.makedirs(pathHTML.parent, exist_ok=True)
 
     # make html compact
-    html = markdown2html(PATH_CHANGELOG).replace('\n', '')
+    html = markdown2html(PATH_CHANGELOG)  # .replace('\n', '')
     with open(pathHTML, 'w', encoding='utf-8') as f:
         f.write(''.join(html))
 
