@@ -26,5 +26,6 @@ export QT_QPA_PLATFORM=offscreen
 export CI=True
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 python3 $REPO_ROOT/scripts/setup_repository.py -r
+python3 $REPO_ROOT/scripts/systeminfo.py
 source $REPO_ROOT/scripts/runtests.sh "$@"
 #popd

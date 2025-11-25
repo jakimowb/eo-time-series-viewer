@@ -39,8 +39,6 @@ jobs:
           docker --version
       - name: Python Packages Info
         run: pip list
-      - name: System Info
-        run: python scripts/systeminfo.py
       - name: Example Images
         run: |
           ls -lash example/Images
