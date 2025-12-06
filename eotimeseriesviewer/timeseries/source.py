@@ -195,8 +195,6 @@ class TimeSeriesSource(object):
     FIELDS.append(QgsField(MKeySensor, QMetaType.QString))
     FIELDS.append(QgsField(MKeyDateTime, QMetaType.QDateTime))
 
-    CRS = QgsCoordinateReferenceSystem('EPSG:4326')
-
     def __init__(self,
                  source: str,
                  dtg: Union[str, QDateTime],
@@ -241,7 +239,8 @@ class TimeSeriesSource(object):
         # super().__init__(fields, hash(source))
         self.mFeature = QgsFeature(fields, hash(source))
         # set feature geometry in EPSG:4326
-        transform = QgsCoordinateTransform(crs, self.CRS, QgsProject.instance().transformContext())
+        transform = QgsCoordinateTransform(crs, QgsCoordinateReferenceSystem('EPSG:4326'),
+                                           QgsProject.instance().transformContext())
         g = QgsGeometry(extent)
         assert g.transform(transform) == Qgis.GeometryOperationResult.Success
         self.mFeature.setGeometry(g)
@@ -389,7 +388,7 @@ class TimeSeriesSource(object):
                 self.mSourceExtent = SpatialExtent.fromRasterSource(self.mSource)
             return self.mSourceExtent
         else:
-            return SpatialExtent(self.CRS, self.geometry().boundingBox())
+            return SpatialExtent(QgsCoordinateReferenceSystem('EPSG:4326'), self.geometry().boundingBox())
 
     def asDataset(self) -> gdal.Dataset:
         """
