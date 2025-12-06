@@ -7,6 +7,10 @@ Visit http://eo-time-series-viewer.readthedocs.io/en/latest/ for more informatio
 
 ![Example image](doc/source/img/screenshot_1.20.png)
 
+## License and Use ##
+
+The EO Time Series Viewer is licenced under the [GNU GPL-3 Licence](https://www.gnu.org/licenses/gpl-3.0.de.html).
+
 ## How to clone this repo
 
 ````bash
@@ -15,6 +19,17 @@ cd eo-time-series-viewer
 git submodule update --init --recursive
 ````
 
-## License and Use ##
+## Run the unit tests
 
-The EO Time Series Viewer is licenced under the [GNU GPL-3 Licence](https://www.gnu.org/licenses/gpl-3.0.de.html).
+The scripts/runtests.sh helps to run the unittest with pytest.
+
+```bash
+./scripts/runtests.sh
+```
+
+Use ``QGIS_VERSION=<version tag>`` and docker compose to run the tests with a specific QGIS version
+a [QGIS docker image](https://hub.docker.com/r/qgis/qgis)
+
+```bash
+QGIS_VERSION=3.44 docker compose -f .docker/docker-compose.gh.yml run --rm qgis /usr/src/.docker/run_docker_tests.sh -n auto
+```
