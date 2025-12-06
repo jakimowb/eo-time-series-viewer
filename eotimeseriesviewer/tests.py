@@ -31,7 +31,7 @@ from typing import Any, Dict, List, Match, Pattern, Tuple, Union
 import numpy as np
 from osgeo import gdal, osr
 
-from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
+from eotimeseriesviewer import DIR_EXAMPLES
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.testing import start_app, TestCase, TestObjects as TObj
@@ -201,19 +201,25 @@ JSON_NDVI = [{"name": None,
                         "2023-09-14T00:00:00", "2023-09-15T00:00:00", "2023-09-20T00:00:00"]}]
 
 
-class EOTSVTestCase(TestCase):
-    @classmethod
-    def setUpClass(cls, *args, **kwds):
-        super().setUpClass(*args, *kwds)
+def example_raster_files(pattern: Union[str, Pattern, Match] = '*.tif') -> List[str]:
+    return list(file_search(DIR_EXAMPLES, pattern, recursive=True))
 
-        eotsv_resources = DIR_UI / 'eotsv_resources_rc.py'
-        assert eotsv_resources.is_file(), \
-            'eotsv_resources_rc.py not compiled. run python scripts/compile_resourcefiles.py first.'
-        initAll()
+
+def createTimeSeries(self) -> TimeSeries:
+    files = example_raster_files()
+    TS = TimeSeries()
+    self.assertIsInstance(TS, TimeSeries)
+    TS.addSourceInputs(files)
+    self.assertTrue(len(TS) > 0)
+    return TS
+
+
+class EOTSVTestCase(TestCase):
 
     @classmethod
     def tearDownClass(cls):
         cls.assertTrue(EOTimeSeriesViewer.instance() is None, 'EOTimeSeriesViewer instance was not closed')
+        super().tearDownClass()
 
     @staticmethod
     def taskManagerProcessEvents() -> bool:
@@ -245,19 +251,6 @@ class EOTSVTestCase(TestCase):
     @classmethod
     def exampleRasterFiles(cls) -> List[str]:
         return example_raster_files()
-
-
-def example_raster_files(pattern: Union[str, Pattern, Match] = '*.tif') -> List[str]:
-    return list(file_search(DIR_EXAMPLES, pattern, recursive=True))
-
-
-def createTimeSeries(self) -> TimeSeries:
-    files = example_raster_files()
-    TS = TimeSeries()
-    self.assertIsInstance(TS, TimeSeries)
-    TS.addSourceInputs(files)
-    self.assertTrue(len(TS) > 0)
-    return TS
 
 
 class TestObjects(TObj):

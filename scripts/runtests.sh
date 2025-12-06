@@ -1,7 +1,11 @@
 #!/bin/bash
 
-export QT_QPA_PLATFORM=offscreen
+
 export CI=True
+export PYQTGRAPH_QT_LIB=PyQt5
+export QT_QPA_PLATFORM=offscreen
+# export QT_DEBUG_PLUGINS=True
+# export QT_FATAL_WARNINGS=True
 export QGIS_CONTINUOUS_INTEGRATION_RUN=true
 
 REPO_ROOT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )/..
