@@ -579,8 +579,10 @@ def search_raster_files(rasters: List[Path],
     return results
 
 
-def create_qml(layer: ogr.Layer, field_name: str = 'profiles') -> Optional[Path]:
-    ds: gdal.Dataset = layer.GetDataset()
+def create_qml(layer: ogr.Layer, field_name: str = 'profiles', ds=None) -> Optional[Path]:
+    assert isinstance(layer, ogr.Layer)
+    if ds is None:
+        ds: gdal.Dataset = layer.GetDataset()
 
     path_ds = Path(ds.GetDescription())
     if not path_ds.is_file():
@@ -748,7 +750,7 @@ def create_profile_layer(rasters, vector,
             lyr.SetFeature(f)
 
     ds.FlushCache()
-    create_qml(lyr, output_field)
+    create_qml(lyr, output_field, ds=ds)
     return ds, TEMPORAL_PROFILES
 
 

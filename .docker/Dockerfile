@@ -25,8 +25,7 @@ RUN python3 -m venv --system-site-packages $VENV \
      && source $VENV/bin/activate \
      && python3 -m pip install --no-cache-dir -r tmp/requirements_dev.txt
 
-ENV PYTHONPATH="${PYTHONPATH}"\
-":/usr/share/qgis/python/plugins"
+ENV PYTHONPATH="${PYTHONPATH}:/usr/share/qgis/python/plugins"
 
 WORKDIR /src
 
