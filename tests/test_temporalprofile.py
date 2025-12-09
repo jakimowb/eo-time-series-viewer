@@ -7,6 +7,7 @@ __copyright__ = 'Copyright 2024, Benjamin Jakimow'
 import datetime
 import unittest
 
+from eotimeseriesviewer import initAll
 from eotimeseriesviewer.force import FORCEUtils
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
@@ -19,6 +20,7 @@ from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsFea
     QgsRasterLayer, QgsTaskManager, QgsVectorLayer
 
 start_app()
+initAll()
 
 
 class TestTemporalProfilesV2(EOTSVTestCase):
