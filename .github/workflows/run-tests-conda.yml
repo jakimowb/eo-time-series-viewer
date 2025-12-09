@@ -78,3 +78,44 @@ jobs:
         run: |
           chmod +x scripts/runtests.sh
           bash ./scripts/runtests.sh -n auto
+
+
+  test_gdal_only:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+
+    env:
+      CI: true
+
+    strategy:
+      fail-fast: false
+      matrix:
+        gdal_version: [ "3.8", "3.10", "3.12" ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: true
+
+      - name: Setup Miniforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          channels: conda-forge,defaults
+          channel-priority: strict
+          auto-activate-base: false
+
+      - name: Create Conda Environment
+        run: |
+          mamba create -n gdal_only -c conda-forge gdal=${{matrix.gdal_version}} pytest pytest-cov python=3.10 -y
+
+      - name: Run pytest
+        run: |
+          conda activate gdal_only
+          gdalinfo --version
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          pytest tests/test_gdal_only_profileloading.py
