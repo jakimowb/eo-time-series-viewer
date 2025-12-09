@@ -21,6 +21,7 @@ import random
 import unittest
 from typing import List, Optional
 
+from eotimeseriesviewer import initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapvisualization import MapView, MapWidget
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
@@ -32,6 +33,7 @@ from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsProject, 
 from qgis.gui import QgsMapCanvas
 
 start_app()
+initAll()
 
 
 def onCRSChanged(c):

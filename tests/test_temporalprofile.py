@@ -26,6 +26,7 @@ initAll()
 class TestTemporalProfilesV2(EOTSVTestCase):
     """Test temporal profiles"""
 
+    # @unittest.skip('Not working yet')
     def test_load_profiles_only(self):
 
         TSV = EOTimeSeriesViewer()
@@ -54,8 +55,9 @@ class TestTemporalProfilesV2(EOTSVTestCase):
         vis.createVisualization()
         vis.updatePlot()
         self.showGui(TSV.ui)
-
+        del vl
         TSV.close()
+
         QgsProject.instance().removeAllMapLayers()
 
     def test_load_timeseries_profiledata_tm(self):
@@ -173,9 +175,11 @@ class TestTemporalProfilesV2(EOTSVTestCase):
         self.assertIsInstance(field, QgsField)
         self.assertTrue(TemporalProfileUtils.isProfileField(field))
 
+    # @unittest.skip('Not working yet')
     def test_create_temporal_profile_layer(self):
-
-        lyr = TemporalProfileUtils.createProfileLayer()
+        d = self.createTestOutputDirectory()
+        p = d / 'test_profiles.gpkg'
+        lyr = TemporalProfileUtils.createProfileLayer(path=p)
         self.assertIsInstance(lyr, QgsVectorLayer)
         self.assertTrue(lyr.isValid())
         self.assertEqual(lyr.featureCount(), 0)
