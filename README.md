@@ -31,5 +31,5 @@ Use ``QGIS_VERSION=<version tag>`` and docker compose to run the tests with a sp
 a [QGIS docker image](https://hub.docker.com/r/qgis/qgis)
 
 ```bash
-QGIS_VERSION=3.44 docker compose -f .docker/docker-compose.gh.yml run --rm qgis /usr/src/.docker/run_docker_tests.sh -n auto
+QGIS_VERSION=3.44 docker compose -f .docker/docker-compose.gh.yml run --pull always --rm qgis /usr/src/.docker/run_docker_tests.sh -n auto
 ```

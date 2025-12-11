@@ -1,6 +1,7 @@
 import datetime
 import hashlib
 import json
+import multiprocessing
 import os
 import random
 import shutil
@@ -16,6 +17,9 @@ from osgeo import ogr, gdal, osr
 
 from scripts.load_eotsv_profiles import create_profile_layer, points_info, SourceInfoProvider, read_profiles, \
     file_search
+
+if sys.platform != 'win32':
+    multiprocessing.set_start_method('spawn', force=True)
 
 DIR_REPO = Path(__file__).parents[1]
 EXAMPLE_DATA = DIR_REPO / 'example'

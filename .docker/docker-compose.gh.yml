@@ -2,6 +2,8 @@ services:
 
   qgis:
     platform: ${DOCKER_PLATFORM:-linux/amd64}
+    # image: qgis/qgis:${QGIS_VERSION:-latest}
+    # pull_policy: always
     build:
       context: ..
       dockerfile: ./.docker/Dockerfile
