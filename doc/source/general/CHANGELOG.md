@@ -15,7 +15,6 @@ hide-toc: false
 * fixed loading of Sentinel-2 images and other datasets with sublayers (
   issue [46](https://github.com/jakimowb/eo-time-series-viewer/issues/46))
 * EOTSV loads Tanager \*.h5 files
-* fixed plugin description 
 
 ## EOTSV 2.2 (2025-09-25)
 

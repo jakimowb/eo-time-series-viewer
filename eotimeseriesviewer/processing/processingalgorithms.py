@@ -13,13 +13,13 @@ from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from qgis.PyQt.QtCore import NULL, QMetaType, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.core import QgsCoordinateTransform, QgsRasterLayer, QgsProject
-from qgis.core import (edit, Qgis, QgsApplication, QgsFeature, QgsFeatureSink, QgsField, QgsFields, QgsMapLayer, \
+from qgis.core import (edit, Qgis, QgsApplication, QgsFeature, QgsFeatureSink, QgsField, QgsFields, QgsMapLayer,
                        QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext, QgsProcessingException,
-                       QgsProcessingFeedback, \
-                       QgsProcessingOutputVectorLayer, QgsProcessingParameterBoolean, QgsProcessingParameterCrs, \
+                       QgsProcessingFeedback,
+                       QgsProcessingOutputVectorLayer, QgsProcessingParameterBoolean, QgsProcessingParameterCrs,
                        QgsProcessingParameterFeatureSink, QgsProcessingParameterFieldMapping,
-                       QgsProcessingParameterFile, \
-                       QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessingParameterVectorLayer, \
+                       QgsProcessingParameterFile,
+                       QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessingParameterVectorLayer,
                        QgsProcessingProvider, QgsProcessingRegistry, QgsProcessingUtils, QgsVectorFileWriter,
                        QgsVectorLayer,
                        QgsProcessingOutputLayerDefinition)
