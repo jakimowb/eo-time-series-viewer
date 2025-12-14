@@ -13,12 +13,16 @@ from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from qgis.PyQt.QtCore import NULL, QMetaType, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.core import QgsCoordinateTransform, QgsRasterLayer, QgsProject
-from qgis.core import edit, Qgis, QgsApplication, QgsFeature, QgsFeatureSink, QgsField, QgsFields, QgsMapLayer, \
-    QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext, QgsProcessingException, QgsProcessingFeedback, \
-    QgsProcessingOutputVectorLayer, QgsProcessingParameterBoolean, QgsProcessingParameterCrs, \
-    QgsProcessingParameterFeatureSink, QgsProcessingParameterFieldMapping, QgsProcessingParameterFile, \
-    QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessingParameterVectorLayer, \
-    QgsProcessingProvider, QgsProcessingRegistry, QgsProcessingUtils, QgsVectorFileWriter, QgsVectorLayer
+from qgis.core import (edit, Qgis, QgsApplication, QgsFeature, QgsFeatureSink, QgsField, QgsFields, QgsMapLayer, \
+                       QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext, QgsProcessingException,
+                       QgsProcessingFeedback, \
+                       QgsProcessingOutputVectorLayer, QgsProcessingParameterBoolean, QgsProcessingParameterCrs, \
+                       QgsProcessingParameterFeatureSink, QgsProcessingParameterFieldMapping,
+                       QgsProcessingParameterFile, \
+                       QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessingParameterVectorLayer, \
+                       QgsProcessingProvider, QgsProcessingRegistry, QgsProcessingUtils, QgsVectorFileWriter,
+                       QgsVectorLayer,
+                       QgsProcessingOutputLayerDefinition)
 
 
 class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):
@@ -330,10 +334,10 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
 
         p6 = QgsProcessingParameterFeatureSink(
             self.OUTPUT,
-            description="Calculated",
+            description="Temporal Profiles",
             defaultValue=QgsProcessing.TEMPORARY_OUTPUT,
         )
-        p6.setHelp('Name of the create vector layer with temporal profiles.')
+        p6.setHelp('Vector layer with temporal profiles.')
         for p in [p1, p2, p3, p4, p5, p6]:
             self.addParameter(p)
 
@@ -404,18 +408,24 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
             feedback.reportError(f'Unable to transform vector CRS to raster CRS: {crs.description()}')
             return False
 
-        out_path = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
-        if out_path.startswith('memory:'):
-            out_driver = 'memory'
-        elif out_path.startswith('ogr:') and '.gpkg' in out_path.lower():
-            out_driver = 'GPKG'
-        else:
-            if os.path.isfile(out_path):
-                Path(out_path).unlink()
+        output_path = parameters.get(self.OUTPUT, self.parameterDefinition(self.OUTPUT).defaultValue())
 
-            out_driver = QgsVectorFileWriter.driverForExtension(os.path.splitext(out_path)[1])
+        if isinstance(output_path, QgsProcessingOutputLayerDefinition):
+            output_path = output_path.toVariant()['sink']['val']
+
+        if output_path == QgsProcessing.TEMPORARY_OUTPUT:
+            out_driver = 'GPKG'
+        elif output_path.startswith('ogr:') and '.gpkg' in output_path.lower():
+            out_driver = 'GPKG'
+        elif output_path.startswith('memory:'):
+            out_driver = 'memory'
+        else:
+            if os.path.isfile(output_path):
+                Path(output_path).unlink()
+
+            out_driver = QgsVectorFileWriter.driverForExtension(os.path.splitext(output_path)[1])
             if out_driver in ['', None]:
-                feedback.reportError(f'Unable to identify vector driver for output path: "{out_path}"', True)
+                feedback.reportError(f'Unable to identify vector driver for output path: "{output_path}"', True)
                 return False
 
         self._output_driver = out_driver
