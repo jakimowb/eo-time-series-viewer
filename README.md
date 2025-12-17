@@ -7,6 +7,24 @@ Visit http://eo-time-series-viewer.readthedocs.io/en/latest/ for more informatio
 
 ![Example image](doc/source/img/screenshot_1.20.png)
 
+# Installation
+
+## Standard
+
+1. Install QGIS 3.40 or newer from https://qgis.org/
+2. Start QGIS
+3. Use the QGIS qgisPlugin Manager to install the Earth Observation Time Series Viewer plugin
+
+## Conda
+
+1. Install QGIS environment
+    ````bash
+    conda install -n eotsv -f=https://raw.githubusercontent.com/jakimowb/eo-time-series-viewer/refs/heads/main/.conda/eotsv.yml
+    ````
+
+2. Start QGIS
+3. Use the QGIS qgisPlugin Manager to install the Earth Observation Time Series Viewer plugin
+
 ## License and Use ##
 
 The EO Time Series Viewer is licenced under the [GNU GPL-3 Licence](https://www.gnu.org/licenses/gpl-3.0.de.html).
