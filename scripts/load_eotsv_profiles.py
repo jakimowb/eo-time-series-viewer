@@ -23,12 +23,12 @@ import json
 import os
 import re
 import sys
+import typing
 from datetime import datetime
 from pathlib import Path
 from typing import List, Union, Tuple, Optional
 
 from osgeo import gdal, ogr, osr, gdalconst
-from osgeo.gdal import Dataset
 from osgeo.ogr import OGRERR_NONE
 
 gdal.UseExceptions()
@@ -176,7 +176,7 @@ class SourceInfoProvider(object):
 
         def to_float_list(items: List[str]) -> Optional[List[Optional[float]]]:
             """
-            Convert a list of strings into a list of floats or None values.
+            Convert a list of strings or None values into a list of floats or None values.
             """
             results = []
             for s in items:
@@ -230,12 +230,22 @@ class SourceInfoProvider(object):
             return wl, wlu
 
         # 4. generic checking for wavelengths in band metadata
+
+        # test which domain contains the wavelength information
+        band1 = ds.GetRasterBand(1)
+        domain = None
+        for d in band1.GetMetadataDomainList():
+            keys = list(band1.GetMetadata_Dict(d).keys())
+            if any(cls.rx_wl.search(k) for k in keys):
+                domain = d
+                break
+
         wl = []
         wlu = []
         for b in range(ds.RasterCount):
             band: gdal.Band = ds.GetRasterBand(b + 1)
             _wl = _wlu = None
-            for key, value in band.GetMetadata_Dict().items():
+            for key, value in band.GetMetadata_Dict(domain).items():
                 if _wl is None and cls.rx_wl.search(key):
                     # try to parse the wavelength
                     _wl = value
@@ -247,13 +257,17 @@ class SourceInfoProvider(object):
             wlu.append(_wlu)
 
         wl = to_float_list(wl)
-        if any(wl):
-            wlu = wlu[0] if len(wlu) == 1 else None
-            if wlu is None:
-                wlu = deduce_wlu(max(wl), float)
-            return wl, wlu
-
-        return None, None
+        if len(wlu) > 0:
+            for wlu_ in wlu:
+                if isinstance(wlu_, str):
+                    wlu = wlu_
+                    break
+            if isinstance(wlu, list):
+                wlu = None
+        elif isinstance(wl, list):
+            # deduce wavelength unit from wavelength values
+            wlu = deduce_wlu(max(wl), float)
+        return wl, wlu
 
     @classmethod
     def _datetime_from_string(cls, text: str) -> Optional['datetime']:
@@ -327,6 +341,7 @@ class SourceInfoProvider(object):
                     'wlu': wlu,
                     'name': name
                     }
+        # return jsonDict
         return json.dumps(jsonDict, ensure_ascii=False)
 
 
@@ -444,11 +459,13 @@ def read_profiles(files: List,
                 px_x, px_y = int(xyz[0]), int(xyz[1])
 
                 if 0 <= px_x < ds.RasterXSize and 0 <= px_y < ds.RasterYSize:
-
-                    profile = ds.ReadAsArray(px_x, px_y, 1, 1).flatten().tolist()
-                    profile = [None if v == nd else v for nd, v in zip(nodata, profile)]
-                    if any(profile):
-                        profiles[fid] = profile
+                    try:
+                        profile = ds.ReadAsArray(px_x, px_y, 1, 1).flatten().tolist()
+                        profile = [None if v == nd else v for nd, v in zip(nodata, profile)]
+                        if any(profile):
+                            profiles[fid] = profile
+                    except Exception as ex:
+                        errors.append(f'Error reading profile for {file}: {ex}')
 
         if len(profiles) > 0:
             r_info['profiles'] = profiles
@@ -457,91 +474,233 @@ def read_profiles(files: List,
     return results, errors
 
 
-def find_raster_files(raster, pattern='*.tif', recursive=False, regex: bool = False):
-    raster = Path(raster)
-    all_files = []
-    if raster.is_dir():
-        if recursive:
-            # Walk through all subdirectories
-            for root, _, files in os.walk(raster):
-                for file in files:
-                    if fnmatch.fnmatch(file, pattern):
-                        all_files.append(os.path.join(root, file))
+def file_search(rootdir,
+                pattern,
+                recursive: bool = False,
+                ignoreCase: bool = False,
+                directories: bool = False,
+                fullpath: bool = False):
+    """
+    Searches for files or folders
+    :param rootdir: root directory to search in
+    :param pattern: wildcard ("my*files.*") or regular expression that describes the file or folder name.
+    :param recursive: set True to search recursively.
+    :param ignoreCase: set True to ignore the character case.
+    :param directories: set True to search for directories/folders instead of files.
+    :param fullpath: set True if the entire path should be evaluated and not the file-name only
+    :return: enumerator over file paths
+    """
+    assert os.path.isdir(rootdir), "Path is not a directory:{}".format(rootdir)
 
-        else:
-            # Just look in the specified directory
-            with os.scandir(raster) as scan:
-                for entry in scan:
-                    if entry.is_file() and fnmatch.fnmatch(entry.name, pattern):
-                        all_files.append(entry.path)
+    with os.scandir(rootdir) as entry_search:
+        for entry in entry_search:
+            if directories is False:
+                if entry.is_file():
+                    if fullpath:
+                        name = entry.path
+                    else:
+                        name = os.path.basename(entry.path)
+                    if isinstance(pattern, typing.Pattern):
+                        if pattern.search(name):
+                            yield entry.path.replace('\\', '/')
 
-    return all_files
+                    elif (ignoreCase and fnmatch.fnmatch(name, pattern.lower())) \
+                            or fnmatch.fnmatch(name, pattern):
+                        yield entry.path.replace('\\', '/')
+                elif entry.is_dir() and recursive is True:
+                    for r in file_search(entry.path, pattern,
+                                         recursive=recursive,
+                                         directories=directories,
+                                         fullpath=fullpath):
+                        yield r
+            else:
+                if entry.is_dir():
+                    if recursive:
+                        for d in file_search(entry.path, pattern,
+                                             recursive=recursive,
+                                             directories=directories,
+                                             fullpath=fullpath):
+                            yield d
+
+                    if fullpath:
+                        name = entry.path
+                    else:
+                        name = os.path.basename(entry.path)
+                    if isinstance(pattern, typing.Pattern):
+                        if pattern.search(name):
+                            yield entry.path.replace('\\', '/')
+
+                    elif (ignoreCase and fnmatch.fnmatch(name, pattern.lower())) \
+                            or fnmatch.fnmatch(name, pattern):
+                        yield entry.path.replace('\\', '/')
 
 
 import fnmatch
 
 
-def callback(progress, msg, data):
-    print(f'Progress: {progress}')
+def search_raster_files(rasters: List[Path],
+                        pattern,
+                        recursive: bool = False,
+                        fullpath: bool = True,
+                        n_max: Optional[int] = None) -> List[Path]:
+    print('Search for source raster files ...')
+
+    assert isinstance(rasters, list)
+
+    if isinstance(pattern, str) and pattern.startswith('rx:'):
+        pattern = re.compile(pattern[3:])
+
+    results: List[Path] = list()
+    for source in rasters:
+        if source.is_dir():
+            # read from a directory
+            files = [Path(p) for p in file_search(source,
+                                                  pattern=pattern,
+                                                  fullpath=fullpath,
+                                                  recursive=recursive)]
+            results.extend(files)
+        elif source.is_file():
+            # read from a *.txt or *.csv file
+            if source.suffix in ['.txt', '.csv']:
+                with open(source, 'r') as f:
+                    lines = f.readlines()
+                    for line in lines:
+                        line = line.strip()
+                        if line.startswith('#') or len(line) == 0:
+                            continue
+                        p = Path(line)
+                        if p.is_file():
+                            results.append(p)
+            else:
+                # standard file path
+                results.append(source)
+        if isinstance(n_max, int) and len(results) >= n_max:
+            return results[0:n_max]
+    return results
+
+
+def create_qml(layer: ogr.Layer, field_name: str = 'profiles', ds=None) -> Optional[Path]:
+    assert isinstance(layer, ogr.Layer)
+    if ds is None:
+        ds: gdal.Dataset = layer.GetDataset()
+
+    path_ds = Path(ds.GetDescription())
+    if not path_ds.is_file():
+        return None
+    path_qml = path_ds.with_suffix('.qml')
+    content = f"""
+<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
+<qgis>
+    <fieldConfiguration>
+        <field configurationFlags="NoFlag" name="{field_name}">
+            <editWidget type="Temporal Profile">
+                <config>
+                    <Option/>
+                </config>
+            </editWidget>
+        </field>
+    </fieldConfiguration>
+</qgis>
+    """
+    with open(path_qml, 'w') as f:
+        f.write(content)
+    return path_qml
 
 
 def create_profile_layer(rasters, vector,
-                         pattern='*.tif',
-                         threads=4,
+                         pattern: str = '*.tif',
+                         n_jobs: int = 4,
+                         n_max: Optional[int] = None,
                          layer_name: Optional[Union[int, str]] = None,
-                         output_vector=None,
+                         output_vector: str = None,
                          output_field: str = 'profiles',
-                         output_format: str = 'GPKG',
+                         output_format: Optional[str] = None,
                          recursive=False) -> Tuple[gdal.Dataset, dict[int, dict]]:
-    if isinstance(rasters, (str, Path)):
-        rasters = Path(rasters)
+    if not isinstance(rasters, list):
+        rasters = [rasters]
+    rasters = [Path(r) for r in rasters]
 
-    in_place = output_vector is None
+    if isinstance(pattern, str):
+        pattern = pattern.strip()
 
-    ds_dst = None
     assert isinstance(vector, (str, Path))
-    if in_place:
-        ds_src = ds_dst = ogr.Open(str(vector), update=gdal.OF_UPDATE)
+    if output_vector is None:
+        # in_place
+        ds = ogr.Open(str(vector), update=gdal.OF_UPDATE)
     else:
+        output_vector = str(output_vector)
+        if output_format is None:
+            drv = gdal.IdentifyDriver(output_vector)
+            if isinstance(drv, gdal.Driver):
+                output_format = drv.ShortName
+            else:
+                _, ext = os.path.splitext(output_vector)
+                ext = ext.lower()
+                if ext == '.shp':
+                    output_format = 'ESRI Shapefile'
+                elif ext == '.geojson':
+                    output_format = 'GeoJSON'
+                elif ext == '.gpkg':
+                    output_format = 'GPKG'
+                else:
+                    raise ValueError(f'Unable to determine output format for {output_vector}')
+
+        drv: gdal.Driver = gdal.GetDriverByName(output_format)
         # ds_src = ogr.Open(str(vector))
+
+        # remove an existing file if it exists
+        out = Path(output_vector)
+        if out.exists():
+            out.unlink()
+
         ds_src = gdal.OpenEx(str(vector), gdalconst.OF_VECTOR)
-        # assert isinstance(ds_src, ogr.DataSource)
-        # create output vector dataset
 
-        ds_dst = gdal.VectorTranslate(str(output_vector), ds_src)
+        if isinstance(layer_name, int):
+            lyr_src = ds_src.GetLayer(layer_name)
+        elif isinstance(layer_name, str):
+            lyr_src = ds_src.GetLayerByName(layer_name)
+        else:
+            lyr_src = ds_src.GetLayer()
 
-    assert isinstance(ds_src, Dataset)
-    assert isinstance(ds_dst, Dataset), "Could not open output vector"
+        assert isinstance(lyr_src, ogr.Layer), f"Could not find layer {layer_name}"
+        layer_name = lyr_src.GetName()
+
+        assert lyr_src.GetFeatureCount() > 0, f'Layer {layer_name} is empty'
+
+        # copy the existing source layer
+
+        ds = drv.Create(output_vector, 0, 0, 0, gdal.GDT_Unknown)
+        ds.CopyLayer(lyr_src, layer_name)
+        ds.FlushCache()
+        ds = gdal.OpenEx(output_vector, gdalconst.OF_VECTOR | gdalconst.OF_UPDATE)
+
+        #
+        del lyr_src
+        del ds_src
+
+    assert isinstance(ds, (gdal.Dataset, ogr.DataSource)), 'Unable to open vector dataset'
 
     if isinstance(layer_name, str):
-        lyr_src = ds_src.GetLayerByName(layer_name)
+        lyr = ds.GetLayerByName(layer_name)
     elif isinstance(layer_name, int):
-        lyr_src = ds_src.GetLayer(layer_name)
+        lyr = ds.GetLayer(layer_name)
     else:
-        lyr_src = ds_src.GetLayer()
+        lyr = ds.GetLayer()
 
-    assert isinstance(lyr_src, ogr.Layer), "Could not find layer"
-
-    if in_place:
-        layer_dst = lyr_src
-    else:
-
-        layer_dst: ogr.Layer = ds_dst.GetLayerByName(lyr_src.GetName())
-        assert isinstance(layer_dst, ogr.Layer)
-
+    assert isinstance(lyr, ogr.Layer), 'Could not find layer'
+    assert lyr.GetFeatureCount() > 0, f'Layer {lyr.GetName()} is empty'
     assert isinstance(output_field, str)
-    field_names = [field.GetName() for field in layer_dst.schema]
+    field_names = [field.GetName() for field in lyr.schema]
     if output_field not in field_names:
-        assert ogr.OGRERR_NONE == layer_dst.CreateField(
+        assert ogr.OGRERR_NONE == lyr.CreateField(
             ogr.FieldDefn(output_field, ogr.OFSTJSON))
 
-    print('Search time series sources...')
-    files = find_raster_files(rasters, pattern=pattern, recursive=recursive)
-
+    files = search_raster_files(rasters, pattern, recursive=recursive, n_max=n_max)
     n_total = len(files)
     assert n_total > 0, 'No raster files found'
+    print(f'Found {n_total} files')
 
-    points, srs_wkt = points_info(lyr_src)
+    points, srs_wkt = points_info(lyr)
 
     badges = []
     badge = []
@@ -550,39 +709,49 @@ def create_profile_layer(rasters, vector,
         if len(badge) == 10:
             badges.append(badge.copy())
             badge.clear()
-
+    if len(badge) > 0:
+        badges.append(badge.copy())
     errors = []
     POINT2RESULTS = dict()
-    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
+
+    # ProcessPoolExecutor
+    with concurrent.futures.ProcessPoolExecutor(max_workers=n_jobs) as executor:
         # Start the load operations and mark each future with its URL
         future_to_url = {executor.submit(read_profiles, badge, points.copy(), srs_wkt): badge for badge in
                          badges}
+        n_total = len(future_to_url)
+        n_done = 0
         for future in concurrent.futures.as_completed(future_to_url):
             files = future_to_url[future]
-            try:
-                b_results, b_errors = future.result()
-                for result in b_results:
-                    for fid, profile in result['profiles'].items():
-                        POINT2RESULTS.setdefault(fid, []).append(result)
-                errors.extend(b_errors)
-            except Exception as exc:
-                print('%r generated an exception: %s' % (files, exc))
 
+            b_results, b_errors = future.result()
+            for result in b_results:
+                for fid, profile in result['profiles'].items():
+                    POINT2RESULTS.setdefault(fid, []).append(result)
+            if len(errors) > 0:
+                s = ""
+                errors.extend(b_errors)
+            n_done += 1
+            progress = round(n_done / n_total * 100, 1)
+            print(f'Progress: {progress}%', end="\r")
+
+    print(f'Profiles loaded. Add to {output_vector}')
     # convert results into multi-sensor profiles for each point
 
     TEMPORAL_PROFILES = create_temporal_profiles(POINT2RESULTS)
 
     # write results
-    for f_dst in layer_dst:
-        f_dst: ogr.Feature
-        fid = f_dst.GetFID()
+    for f in lyr:
+        fid = f.GetFID()
         if fid in TEMPORAL_PROFILES:
             data = TEMPORAL_PROFILES[fid]
             dump = json.dumps(data, ensure_ascii=False)
-            f_dst.SetField(output_field, dump)
-            layer_dst.SetFeature(f_dst)
-    layer_dst.SyncToDisk()
-    return ds_dst, TEMPORAL_PROFILES
+            f.SetField(output_field, dump)
+            lyr.SetFeature(f)
+
+    ds.FlushCache()
+    create_qml(lyr, output_field, ds=ds)
+    return ds, TEMPORAL_PROFILES
 
 
 def create_temporal_profiles(POINT2RESULTS: dict[int, dict]) -> dict[int, dict]:
@@ -652,67 +821,72 @@ if __name__ == "__main__":
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    # Basic usage with default settings
-    python load_eotsv_profiles.py -v points.gpkg -r_dir /path/to/rasters
+    # Basic usage with default settings.
+    python load_eotsv_profiles.py points.geojson /path/to/rasters
 
-    # With multiple specific raster files
-    python load_eotsv_profiles.py -v points.gpkg -r file1.tif file2.tif file3.tif
+    # Write outputs into a new vector file "temporalprofiles.gpkg" with field "my_profiles"
+    python load_eotsv_profiles.py -o temporalprofiles.gpkg -f my_profiles points.geojson /path/to/rasters
 
-    # Advanced usage with all options
-    python load_eotsv_profiles.py -v points.gpkg -r_dir /path/to/rasters \\
-        --recursive --threads 8 --field custom_profiles \\
-        --output output.gpkg --pattern "*.tif"
+    # Rasters can be specified explicitly as file or within a .txt or .csv file.
+    python load_eotsv_profiles.py points.geojson file1.tif file2.tif otherfiles.csv
+
+    # Raster can be searches recursively (-r). The files to read can be specified 
+    # using a wildcard pattern (-p)
+    python load_eotsv_profiles.py -p *_BOA.tif points.geojson /path/to/datacuberoot
+    
+    # The pattern prefix "rx:" allows to use regular expression (yay!)
+    python load_eotsv_profiles.py -p rx:.*_BOA.tif$ points.geojson /path/to/datacuberoot
         """
     )
 
-    # Required arguments
-    parser.add_argument('-v', '--vector', required=True,
-                        help='Input vector file with point geometries')
 
-    # Raster input options (mutually exclusive)
-    raster_group = parser.add_mutually_exclusive_group(required=True)
-    raster_group.add_argument('-r', '--rasters', nargs='+',
-                              help='Space-separated list of raster files to sample')
-    raster_group.add_argument('-r_dir', '--rasters-dir',
-                              help='Directory containing raster files')
+    def do_strip(s):
+        return s.strip(" '\"")
+
 
     # Optional arguments
-    parser.add_argument('--pattern', default='*.tif',
+    parser.add_argument('-p', '--pattern', default='*.tif', type=do_strip,
                         help='File pattern for raster search. Default: *.tif')
-    parser.add_argument('-t', '--threads', type=int, default=4,
-                        help='Number of threads to use. Default: 4')
-    parser.add_argument('--recursive', action='store_true',
-                        help='Recursively search for raster files in subdirectories')
-    parser.add_argument('-f', '--field', default='profiles',
+
+    parser.add_argument('-j', '--jobs', type=int, default=4,
+                        help='Number of jobs to execute in parallel. Default: 4')
+
+    parser.add_argument('-r', '--recursive', action='store_true',
+                        help='Recursively search for raster files in directories')
+
+    parser.add_argument('-f', '--field', default='profiles', type=do_strip,
                         help='Field name to store the extracted profiles. Default: profiles')
-    parser.add_argument('-o', '--output',
-                        help='Output vector file. If omitted, input file will be modified in-place')
-    parser.add_argument('-l', '--layer',
-                        help='Layer name/index in the vector file. If omitted, first layer is used')
-    parser.add_argument('--format', default='GPKG',
-                        help='Output vector format (if --output is specified). Default: GPKG')
+
+    parser.add_argument('-o', '--output', type=do_strip,
+                        help='Output vector file. If omitted, input vector file will be modified in-place')
+
+    parser.add_argument('-l', '--layer', type=do_strip,
+                        help='Layer name/index in the vector file to choose. '
+                             'If omitted, first layer is used')
+
+    parser.add_argument('--format', type=str,
+                        help='Output vector format, if it cannot be derived from the output file name')
+
+    parser.add_argument('--n_max', type=int,
+                        help='Maximum number of raster files to read. Useful for testing')
+
+    # positional arguments
+    parser.add_argument('vector', type=str,
+                        help='Input vector file with point geometries')
+
+    parser.add_argument('rasters', nargs='+', type=str,
+                        help='Space-separated list of raster files or directories with raster files to sample from')
 
     args = parser.parse_args()
-
-    # Prepare raster input list
-    raster_files = []
-    if args.rasters:
-        raster_files = args.rasters
-    elif args.rasters_dir:
-        raster_files = find_raster_files(args.rasters_dir,
-                                         pattern=args.pattern,
-                                         recursive=args.recursive)
-
-    if not raster_files:
-        parser.error("No raster files found/provided")
-
+    s = ""
     try:
         # Run the main function with parsed arguments
         ds_out, profiles = create_profile_layer(
-            rasters=raster_files,
+            rasters=args.rasters,
             vector=args.vector,
             pattern=args.pattern,
-            threads=args.threads,
+            n_jobs=args.jobs,
+            n_max=args.n_max,
             layer_name=args.layer,
             output_vector=args.output,
             output_field=args.field,
@@ -720,7 +894,6 @@ Examples:
             recursive=args.recursive
         )
 
-        print(f"Successfully processed {len(raster_files)} raster files")
         print(f"Results saved to: {args.output or args.vector}")
 
     except Exception as e:

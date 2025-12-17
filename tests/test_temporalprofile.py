@@ -7,8 +7,10 @@ __copyright__ = 'Copyright 2024, Benjamin Jakimow'
 import datetime
 import unittest
 
+from eotimeseriesviewer import initAll
 from eotimeseriesviewer.force import FORCEUtils
 from eotimeseriesviewer.main import EOTimeSeriesViewer
+from eotimeseriesviewer.processing.processingalgorithms import EOTSVProcessingProvider, CreateEmptyTemporalProfileLayer
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, \
     TemporalProfileLayerFieldComboBox, TemporalProfileLayerProxyModel, TemporalProfileUtils
@@ -16,14 +18,28 @@ from eotimeseriesviewer.temporalprofile.visualization import TemporalProfileVisu
 from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app, TestObjects
 from qgis.PyQt.QtWidgets import QComboBox
 from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsFeature, QgsField, QgsFields, QgsProject, \
-    QgsRasterLayer, QgsTaskManager, QgsVectorLayer
+    QgsRasterLayer, QgsTaskManager, QgsVectorLayer, QgsProcessingRegistry
 
 start_app()
+initAll()
 
 
 class TestTemporalProfilesV2(EOTSVTestCase):
     """Test temporal profiles"""
 
+    def test_create_tp_alg(self):
+
+        reg: QgsProcessingRegistry = QgsApplication.processingRegistry()
+
+        name = f'{EOTSVProcessingProvider.id()}:{CreateEmptyTemporalProfileLayer.name()}'
+        alg_names = [a.id() for a in reg.algorithms()]
+
+        self.assertIn(name, alg_names)
+
+        alg = reg.createAlgorithmById(name)
+        self.assertIsInstance(alg, CreateEmptyTemporalProfileLayer)
+
+    # @unittest.skip('Not working yet')
     def test_load_profiles_only(self):
 
         TSV = EOTimeSeriesViewer()
@@ -52,8 +68,9 @@ class TestTemporalProfilesV2(EOTSVTestCase):
         vis.createVisualization()
         vis.updatePlot()
         self.showGui(TSV.ui)
-
+        del vl
         TSV.close()
+
         QgsProject.instance().removeAllMapLayers()
 
     def test_load_timeseries_profiledata_tm(self):
@@ -171,9 +188,11 @@ class TestTemporalProfilesV2(EOTSVTestCase):
         self.assertIsInstance(field, QgsField)
         self.assertTrue(TemporalProfileUtils.isProfileField(field))
 
+    # @unittest.skip('Not working yet')
     def test_create_temporal_profile_layer(self):
-
-        lyr = TemporalProfileUtils.createProfileLayer()
+        d = self.createTestOutputDirectory()
+        p = d / 'test_profiles.gpkg'
+        lyr = TemporalProfileUtils.createProfileLayer(path=p)
         self.assertIsInstance(lyr, QgsVectorLayer)
         self.assertTrue(lyr.isValid())
         self.assertEqual(lyr.featureCount(), 0)

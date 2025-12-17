@@ -10,10 +10,13 @@ Temporal Profiles
 Loading
 =======
 
-Temporal profiles can be loaded (a) interactively with the *cursor location info* tool, or
-(b) for point locations that are defined in a vector layer, using the *read temporal profiles* processing algorithms.
+Temporal profiles can be loaded interactively with the *cursor location info* tool, or
+for point locations that are defined in a vector layer, using the *read temporal profiles* processing algorithms
+or the `load_eotsv_profiles.py` script.
 
-a) To load a single temporal profile *on-the-fly*, activate the *identify cursor location value* tool
+On-the-fly
+----------
+To load a single temporal profile *on-the-fly*, activate the *identify cursor location value* tool
 |select_location| with option *collect temporal profiles* |mIconTemporalProfile|. Then click with the mouse
 on a map location of interest to extract the temporal profile for. If no other vector layer exists, the loaded profile will be added to a new created in-memory vector layer
 and visualized in the temporal profile view.
@@ -23,14 +26,89 @@ and visualized in the temporal profile view.
     Collecting temporal profiles.
 
 
-b) The :ref:`read temporal profiles <qpa-readtemporalprofiles>` processing algorithm loads temporal profiles
+QGIS Processing Algorithm
+-------------------------
+The :ref:`read temporal profiles <qpa-readtemporalprofiles>` processing algorithm loads temporal profiles
 for multiple point locations. It can be started from menu bar *Tools* -> *Read Temporal Profiles* or the QGIS processing toolbox:
 
 .. figure:: /img/gui_qpa_read_tp.png
 
+Python Script / Command Line
+----------------------------
+
+The `scripts/load_eotsv_profiles.py` script can be used to extract temporal profiles.
+It uses GDAL-only and can be run from environments that do not have QGIS installed.
+
+Call `python load_eotsv_profiles.py -h` to show it's syntax:
+
+.. code-block:: bash
+
+    python load_eotsv_profiles.py -h
+    Sample temporal profiles from EO raster time series for each vector feature.
+
+    positional arguments:
+      vector                Input vector file with point geometries
+      rasters               Space-separated list of raster files or directories with raster files to sample from
+
+    options:
+      -h, --help            show this help message and exit
+      -p PATTERN, --pattern PATTERN
+                            File pattern for raster search. Default: *.tif
+      -j JOBS, --jobs JOBS  Number of jobs to execute in parallel. Default: 4
+      -r, --recursive       Recursively search for raster files in directories
+      -f FIELD, --field FIELD
+                            Field name to store the extracted profiles. Default: profiles
+      -o OUTPUT, --output OUTPUT
+                            Output vector file. If omitted, input vector file will be modified in-place
+      -l LAYER, --layer LAYER
+                            Layer name/index in the vector file to choose. If omitted, first layer is used
+      --format FORMAT       Output vector format, if it cannot be derived from the output file name
+      --n_max N_MAX         Maximum number of raster files to read. Useful for testing
+
+    Examples:
+        # Basic usage with default settings.
+        python load_eotsv_profiles.py points.geojson /path/to/rasters
+
+        # Write outputs into a new vector file "temporalprofiles.gpkg" with field "my_profiles"
+        python load_eotsv_profiles.py -o temporalprofiles.gpkg -f my_profiles points.geojson /path/to/rasters
+
+        # Rasters can be specified explicitly as file or within a .txt or .csv file.
+        python load_eotsv_profiles.py points.geojson file1.tif file2.tif otherfiles.csv
+
+        # Raster can be searches recursively (-r). The files to read can be specified
+        # using a wildcard pattern (-p)
+        python load_eotsv_profiles.py -p *_BOA.tif points.geojson /path/to/datacuberoot
+
+        # Using the pattern prefix "rx:" allows to specify regular expressions (yay!)
+        python load_eotsv_profiles.py -p rx:.*_BOA.tif$ points.geojson /path/to/datacuberoot
+
+The following example shows how to extract temporal profiles from a FORCE datacube.
+The regular expression rx:_BOA\.tif is used to read only from raster files which end on `.tif`.
+
+.. code-block:: bash
+
+    python scripts/load_eotsv_profiles.py -p 'rx:_BOA\.tif$' -r -j 3 /data/my_points_of_interest.geojson /data/MyFORCE_CUBE
+    Search for source raster files ...
+    Found 2440 files
+    Progress: 31.1%
+    ...
+    Results saved to: /data/my_points_of_interest.geojson
+
+Vector files can be updated in-place. Assuming that `my_pois.geojson` contains
+point coordinate of interest, we can update them with
+
+.. code-block:: bash
+
+    # read temporal profiles for points in FORCE tile X00014_Y0010
+    python scripts/load_eotsv_profiles.py -p 'rx:_BOA\.tif$' -r -j 3 /data/my_points_of_interest.geojson /data/MyFORCE_CUBE/X00014_Y0010
+    ...
+
+    # read temporal profiles for points in FORCE tile X00014_Y0011
+    python scripts/load_eotsv_profiles.py -p 'rx:_BOA\.tif$' -r -j 3 /data/my_points_of_interest.geojson /data/MyFORCE_CUBE/X00014_Y0011
+    ...
+
 
 .. _temporal_profile_data_structure:
-
 
 Data Structure
 ==============

@@ -1105,6 +1105,8 @@ class PlotSettingsTreeView(QTreeView):
         tp_layers = []
         for idx in self.selectionModel().selectedRows():
             item = idx.data(Qt.UserRole)
+            if item is None:
+                continue
             if isinstance(item, PropertyLabel):
                 item = item.propertyItem()
             parentItem = item.parent()
