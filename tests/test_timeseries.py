@@ -146,7 +146,6 @@ class TestTimeSeries(EOTSVTestCase):
         for tss in tsAbs.sources():
             self.assertTrue(Path(tss.source()).is_file())
 
-    @unittest.skipIf(os.environ.get('GITHUB_ACTIONS') == 'true', 'Skipping this test on GitHub Actions')
     def test_focus_visibility(self):
 
         ts = TestObjects.createTimeSeries()
@@ -159,7 +158,7 @@ class TestTimeSeries(EOTSVTestCase):
 
         doi = ts[25].dtg()
 
-        ts.focusVisibility(extent1, date_of_interest=doi, runAsync=True)
+        ts.focusVisibility(extent1, date_of_interest=doi, runAsync=False)
         self.taskManagerProcessEvents()
 
         for tss in ts.sources():
@@ -167,7 +166,7 @@ class TestTimeSeries(EOTSVTestCase):
             self.assertFalse(ext.intersects(extent1))
             self.assertFalse(tss.isVisible())
 
-        ts.focusVisibility(extent2, runAsync=True)
+        ts.focusVisibility(extent2, runAsync=False)
         self.taskManagerProcessEvents()
         for tss in ts.sources():
             ext = tss.spatialExtent().toCrs(extent2.crs())

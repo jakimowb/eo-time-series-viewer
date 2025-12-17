@@ -385,18 +385,18 @@ class TemporalProfileUtils(object):
         specs = json.loads(sid)
         if isinstance(specs.get('wlu'), str) and isinstance(specs['wl'], list):
             # convert wavelengths to nanometers
-            wl: List[float] = UnitLookup.convertLengthUnit(specs['wl'], specs['wlu'], 'nm')
+            wl: Optional[List[float]] = UnitLookup.convertLengthUnit(specs['wl'], specs['wlu'], 'nm')
+            if isinstance(wl, list):
+                s0, s1 = min(wl), max(wl)
 
-            s0, s1 = min(wl), max(wl)
+                for name, info in SI_ACRONYMS['band_identifier'].items():
+                    wl0, wl1 = info['wl_min'], info['wl_max']
 
-            for name, info in SI_ACRONYMS['band_identifier'].items():
-                wl0, wl1 = info['wl_min'], info['wl_max']
-
-                if max(s0, wl0) <= min(s1, wl1):
-                    center_wl = 0.5 * (info['wl_min'] + info['wl_max'])
-                    band_lookup[name] = int(np.argmin(np.abs(np.asarray(wl) - center_wl)))
-                else:
-                    band_lookup[name] = None
+                    if max(s0, wl0) <= min(s1, wl1):
+                        center_wl = 0.5 * (info['wl_min'] + info['wl_max'])
+                        band_lookup[name] = int(np.argmin(np.abs(np.asarray(wl) - center_wl)))
+                    else:
+                        band_lookup[name] = None
 
         specs['sid'] = sid
         specs['band_lookup'] = band_lookup

@@ -1,20 +1,33 @@
 import datetime
+import hashlib
 import json
+import multiprocessing
+import os
+import random
+import shutil
 import subprocess
 import sys
+import unittest
+import warnings
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional
+from unittest import TestCase
 
-from osgeo import ogr, gdal
+from osgeo import ogr, gdal, osr
 
-import example
-from eotimeseriesviewer import initAll, DIR_REPO
-from eotimeseriesviewer.qgispluginsupport.qps.testing import TestCase
-from eotimeseriesviewer.tests import start_app
-from scripts.load_eotsv_profiles import create_profile_layer, points_info, SourceInfoProvider, read_profiles
+from scripts.load_eotsv_profiles import create_profile_layer, points_info, SourceInfoProvider, read_profiles, \
+    file_search
 
-start_app()
-initAll()
+if sys.platform != 'win32':
+    multiprocessing.set_start_method('spawn', force=True)
+
+DIR_REPO = Path(__file__).parents[1]
+EXAMPLE_DATA = DIR_REPO / 'example'
+DATA_Images = EXAMPLE_DATA / 'Images'
+DATA_L8 = DATA_Images / '2014-05-23_LC82270652014143LGN00_BOA.tif'
+DATA_Points = EXAMPLE_DATA / 'example_points.geojson'
+
+FORCE_CUBE = Path(os.environ.get('FORCE_CUBE', '-'))
 
 
 class TestGDALProfileLoading(TestCase):
@@ -68,9 +81,57 @@ class TestGDALProfileLoading(TestCase):
                     d = json.loads(dump)
                     self.assertIsProfileDictionary(d)
 
+    def createTestOutputDirectory(self,
+                                  root: Optional[str] = 'test-outputs',
+                                  subdir: Optional[Union[str, Path]] = None,
+                                  cleanup: bool = False,
+                                  max_length: int = 200) -> Path:
+        """
+        Returns the path to a test output directory.
+        Defaults to: <repo>/<root>/<test module>/<test class>/<test method>
+
+        :param max_length: the maximum length of the path. If the path exceeds this limit, it will be hashed
+                           and the has used for a directory <DIR_REPO>/<root>/<hash>.
+        :param root: str, name of the folder for test output below the repository root. Defaults to <repo>/test-outputs.
+        :param subdir: str or Path with subdirectories to append.
+        :param cleanup: bool, set True to delete existing test ouptuts.
+        :return: Path
+        """
+        """
+        :return:
+        """
+
+        folders = []
+        if hasattr(self, '__class__'):
+            folders.append(self.__class__.__module__)
+            folders.append(self.__class__.__name__)
+        else:
+            folders.append(self.__name__)
+
+        if hasattr(self, '_testMethodName'):
+            folders.append(self._testMethodName)
+
+        if subdir:
+            subdir = Path(subdir)
+            folders.append(subdir)
+
+        p = Path(DIR_REPO) / root / Path(*folders)
+
+        if len(p.as_posix()) > max_length:
+            p2 = Path(DIR_REPO) / root / hashlib.md5(p.as_posix().encode()).hexdigest()
+            info = [f'Path exceeds max_length ({max_length}: {p}).',
+                    f'Use MD5 hash instead: {p2}']
+            warnings.warn('\n'.join(info), stacklevel=2)
+            p = p2
+
+        if cleanup and p.exists() and p.is_dir():
+            shutil.rmtree(p)
+        os.makedirs(p, exist_ok=True)
+        return p
+
     def test_create_profile_layer(self):
-        dir_rasters = example.dir_images
-        path_vector = example.examplePoints
+        dir_rasters = DATA_Images
+        path_vector = DATA_Points
 
         test_outputs = self.createTestOutputDirectory()
         path_vector_out = test_outputs / 'test_vector.geojson'
@@ -118,8 +179,8 @@ class TestGDALProfileLoading(TestCase):
 
     def test_read_profiles_parallel(self):
 
-        dir_rasters = example.dir_images
-        path_vector = example.examplePoints
+        dir_rasters = DATA_Images
+        path_vector = DATA_Points
 
         test_outputs = self.createTestOutputDirectory()
         path_vector_out = test_outputs / 'test_vector_parallel.geojson'
@@ -137,21 +198,10 @@ class TestGDALProfileLoading(TestCase):
 
         self.assertIsProfileLayer(path_vector_out, 'my_profiles12')
 
-        if not TestCase.runsInCI():
-            from eotimeseriesviewer.main import EOTimeSeriesViewer
-            TSV = EOTimeSeriesViewer()
-            TSV.loadExampleTimeSeries(loadAsync=False)
-            TSV.addVectorData(path_vector_out)
-            self.showGui(TSV.ui)
-            TSV.close()
-
-        s = ""
-        pass
-
     def test_read_profiles(self):
-        files = [example.exampleLandsat8]
+        files = [DATA_L8]
 
-        path_vector = example.examplePoints
+        path_vector = DATA_Points
         ds_vector = ogr.Open(path_vector)
         pts, srs_wkt = points_info(ds_vector.GetLayer())
 
@@ -188,22 +238,12 @@ class TestGDALProfileLoading(TestCase):
         with open(path_json, 'w') as f:
             json.dump(results, f, indent=4)
 
-    def test_read_cli(self):
+    script_path = DIR_REPO / 'scripts' / 'load_eotsv_profiles.py'
 
-        dir_rasters = example.dir_images
-        path_vector = example.examplePoints
-
-        test_outputs = self.createTestOutputDirectory()
-        path_vector_out = test_outputs / 'test_vector_parallel.geojson'
-
-        cli_args = [f'-v {path_vector}',
-                    f'-r {dir_rasters}',
-                    f'--pattern *.tif',
-                    f'--n_jobs 3',
-                    f'--output_vector {path_vector_out}', ]
-
-        script_path = DIR_REPO / 'scripts' / 'load_eotsv_profiles.py'
-        cmd = [sys.executable, str(script_path), *cli_args]
+    def call_cli(self, *args):
+        cmd = [sys.executable, str(self.script_path)]
+        for a in args:
+            cmd.extend(str(a).split())
 
         result = subprocess.run(
             cmd,
@@ -218,12 +258,112 @@ class TestGDALProfileLoading(TestCase):
             print("STDOUT:\n", result.stdout)
             print("STDERR:\n", err)
 
-        assert result.returncode == 0, err
+        assert result.returncode == 0, err + f'\ngdal: {gdal.VersionInfo("RELEASE_NAME")}'
+
+    @unittest.skipIf(not FORCE_CUBE.is_dir(), 'FORCE_CUBE undefined / not a directory')
+    def test_read_cli_force(self):
+
+        test_outputs = self.createTestOutputDirectory()
+        path_vector = test_outputs / 'test_vector_inout.geojson'
+        if path_vector.exists():
+            path_vector.unlink()
+
+        n_pts = 30
+        for file in file_search(FORCE_CUBE, pattern='*.tif', recursive=True):
+
+            ds = gdal.Open(str(file))
+            # create a vector file with n_pts points, of which 1/3 are outside the spatial extent of the raster
+            info = gdal.Info(ds, format='json')
+
+            wgs84Extent = info['wgs84Extent']['coordinates'][0]
+            x = [p[0] for p in wgs84Extent]
+            y = [p[1] for p in wgs84Extent]
+
+            minx, maxx = min(x), max(x)
+            miny, maxy = min(y), max(y)
+            w = maxx - minx
+            h = maxy - miny
+
+            drv: gdal.Driver = gdal.GetDriverByName('GeoJSON')
+            ds_vec = drv.Create(str(path_vector), 0, 0, 0, gdal.GDT_Unknown)
+            srs = osr.SpatialReference()
+            srs.ImportFromEPSG(4326)
+            lyr = ds_vec.CreateLayer('points', srs, ogr.wkbPoint)
+            lyr.CreateField(ogr.FieldDefn('name', ogr.OFTString))
+            n_in = int(n_pts * 2 / 3)
+
+            for i in range(n_pts):
+                is_inside = i < n_in
+
+                if is_inside:
+                    x = random.uniform(minx, maxx)
+                    y = random.uniform(miny, maxy)
+                else:
+                    # create point outside
+                    if random.choice([True, False]):
+                        x = maxx + random.uniform(0.0001, 0.5 * w)
+                    else:
+                        x = minx - random.uniform(0.0001, 0.5 * w)
+                    if random.choice([True, False]):
+                        y = maxy + random.uniform(0.0001, 0.5 * h)
+                    else:
+                        y = miny - random.uniform(0.0001, 0.5 * h)
+
+                feat = ogr.Feature(lyr.GetLayerDefn())
+                geom = ogr.Geometry(ogr.wkbPoint)
+                geom.AddPoint(x, y)
+                feat.SetGeometry(geom)
+                feat.SetField('name', f'Random point {i}')
+                lyr.CreateFeature(feat)
+            del ds_vec
+            break
+
+        cli_args = [r'-p rx:(X0012).*\.tif$',
+                    '-r',
+                    # '--n_max 10',
+                    '--field myfield',
+                    '-j 3',
+                    f'{path_vector}', f'{FORCE_CUBE}'
+                    ]
+        self.call_cli(*cli_args)
+
+        from qgis.core import QgsVectorLayer
+        lyr = QgsVectorLayer(str(path_vector))
+        assert 'myfield' in lyr.fields().names()
+        assert lyr.featureCount() == n_pts
+        assert lyr.fields()['myfield'].editorWidgetSetup().type() == 'Temporal Profile'
+
+    def test_read_cli(self):
+
+        dir_rasters = DATA_Images
+
+        test_outputs = self.createTestOutputDirectory()
+
+        path_vector = test_outputs / 'test_vector_inout.geojson'
+        shutil.copy(DATA_Points, path_vector)
+
+        cli_args = ["-p *.tif",
+                    '-j 3',
+                    f'{path_vector}', f'{dir_rasters}',
+                    ]
+        self.call_cli(*cli_args)
+
+        path_vector = test_outputs / 'test_vector_in.geojson'
+        shutil.copy(DATA_Points, path_vector)
+        path_vector_out = test_outputs / 'test_vector_out.geojson'
+
+        cli_args = ['-p *.tif',
+                    '-j 3',
+                    f'-o {path_vector_out}',
+                    f'{path_vector}',
+                    f'{dir_rasters}',
+                    ]
+        self.call_cli(*cli_args)
 
     def test_read_sensorinfo(self):
         creator = SourceInfoProvider
 
-        ds = creator.dataset(example.exampleLandsat8)
+        ds = creator.dataset(DATA_L8)
         self.assertIsInstance(ds, gdal.Dataset)
 
         wl, wlu = creator.wavelengths(ds)
@@ -237,8 +377,7 @@ class TestGDALProfileLoading(TestCase):
 
         sid = creator.wavelengths(ds)
 
-        import eotimeseriesviewer.qgispluginsupport.qpstestdata.wavelength
-        dir_images = Path(eotimeseriesviewer.qgispluginsupport.qpstestdata.wavelength.__path__[0])
+        dir_images = DIR_REPO / 'eotimeseriesviewer/qgispluginsupport/qpstestdata/wavelength'
 
         def test_wl_info(filename: str):
             path = dir_images / filename

@@ -30,6 +30,7 @@ processing.gui.ProcessingToolbox.iface = getattr(qgis.utils, 'iface')
 
 class ProcessingAlgorithmTests(EOTSVTestCase):
 
+    @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Runs in CI. Removing provider can fail other tests.')
     def test_provider(self):
         ID = EOTSVProcessingProvider.id()
         self.assertIsInstance(ID, str)

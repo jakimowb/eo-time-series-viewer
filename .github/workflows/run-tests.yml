@@ -18,8 +18,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        qgis_version: [ '3.40', '3.42', '3.44' ]
-        python: [ '3.12' ]
+        qgis_version: [ '3.44', '3.42', '3.40' ]
     env:
       QGIS_VERSION: ${{ matrix.qgis_version}}
     steps:
@@ -38,7 +37,9 @@ jobs:
         run: |
           docker --version
       - name: Python Packages Info
-        run: pip list
+        run: |
+          python3 --version
+          pip list
       - name: Example Images
         run: |
           ls -lash example/Images

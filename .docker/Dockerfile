@@ -19,15 +19,13 @@ RUN apt update \
 
 
 ENV VENV=/opt/venvs/eotsv
-
 COPY ./requirements_dev.txt /tmp/
 
 RUN python3 -m venv --system-site-packages $VENV \
      && source $VENV/bin/activate \
-     && python3 -m pip install -r tmp/requirements_dev.txt
+     && python3 -m pip install --no-cache-dir -r tmp/requirements_dev.txt
 
-ENV PYTHONPATH="${PYTHONPATH}"\
-":/usr/share/qgis/python/plugins"
+ENV PYTHONPATH="${PYTHONPATH}:/usr/share/qgis/python/plugins"
 
 WORKDIR /src
 
