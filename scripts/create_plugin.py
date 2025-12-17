@@ -102,9 +102,9 @@ def create_plugin(include_testdata: bool = False,
     timestamp = re.split(r'[.+]', lastCommitDate.isoformat())[0]
 
     if build_name is None:
-        # we are on release branch
+        # we are on a release branch
         BUILD_NAME = f'{VERSION}.{VERSION_SHA[0:7]}'
-        if active_branch != 'main':
+        if not re.search(r'(main|release_\d.*)', active_branch):
             BUILD_NAME += f'.{active_branch}'
 
         BUILD_NAME = re.sub(r'[:-]', '', BUILD_NAME)
