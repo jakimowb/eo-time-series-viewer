@@ -18,12 +18,41 @@ On-the-fly
 ----------
 To load a single temporal profile *on-the-fly*, activate the *identify cursor location value* tool
 |select_location| with option *collect temporal profiles* |mIconTemporalProfile|. Then click with the mouse
-on a map location of interest to extract the temporal profile for. If no other vector layer exists, the loaded profile will be added to a new created in-memory vector layer
-and visualized in the temporal profile view.
+on a map location of interest to extract the temporal profile for. If no other vector layer exists, the loaded profile
+will be added to a new created in-memory vector layer and visualized in the temporal profile view.
 
 .. figure:: /img/temporal_profile_panel.gif
 
     Collecting temporal profiles.
+
+
+The profile loaded from a map location is considered to be a *profile candidate*. Candidate profiles have their own
+profile style (usually green) and are overwritten by the next candidates collected. The |mActionAdd| button converts profile candidates into normal features, to keep them in the vector layer.
+
+Visualization
+-------------
+
+If too many profiles are shown, the |mActionShowSelectedLayers| button allows to visualize selected profiles only.
+This helps to focus on, for example, profiles whose corresponding geometries have been selected in a map
+of respective rows in an attribute table.
+
+
+.. video:: /mp4/tp_vis_select_profiles.mp4
+    :width: 100%
+
+
+The settings tree is used to describe the profile visualization. A single *Visualization* node defines
+
+* the profile source, i.e. the vector layer field that stores temporal profile data
+* the general line type and color
+* a filter expression to show profiles only if their vector attribute match a condition, e.g. `class = 'vegetation'`
+* sensor specific-settings like
+
+  * an expression to get the band value or a spectral index value to be shown
+  * the point symbol type and color
+
+You can use the |mActionAddMapView| button to add additional visualizations, e.g. to show data from different
+fields or vector sources together, and |mActionRemoveMapView| to remove visualization nodes.
 
 
 QGIS Processing Algorithm
