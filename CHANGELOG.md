@@ -1,5 +1,12 @@
 # Changelog
 
+## EOTSV 2.3.1 (2026-02-04)
+
+* fixed world-to-pixel coordinate conversion for temporal profile
+  extraction [52](https://github.com/jakimowb/eo-time-series-viewer/issues/52)
+* smaller updates to Spectral Library Viewer
+* image sources can be added to the TimeSeries by dropping them onto the empty Map View area
+
 ## EOTSV 2.3 (2025-11-09)
 
 * revision of TimeSeries model. Source images are now loaded and removed much faster (

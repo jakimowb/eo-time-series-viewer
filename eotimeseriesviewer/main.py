@@ -485,7 +485,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         mw.sigCurrentLayerChanged.connect(self.updateCurrentLayerActions)
         # mw.sigCurrentDateChanged.connect(self.sigCurrentDateChanged)
         mw.sigCurrentDateChanged.connect(tswidget.setCurrentDate)
-
+        mw.sigFilesDropped.connect(self.addTimeSeriesImages)
         self.ui.optionSyncMapCenter.toggled.connect(self.mapWidget().setSyncWithQGISMapCanvas)
         tb = self.ui.toolBarTimeControl
         assert isinstance(tb, QToolBar)

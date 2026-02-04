@@ -364,6 +364,11 @@ class TemporalProfileVisualization(QObject):
         crs_pt = point.crs()
         crs_lyr = layer.crs()
 
+        if not crs_pt.isValid():
+            logger.error(f'crs_pt is not valid {crs_pt.description()}')
+        if not crs_lyr.isValid():
+            logger.error(f'crs_lyr is not valid {crs_pt.description()}')
+
         trans = QgsCoordinateTransform(crs_pt, crs_lyr, QgsProject.instance())
         if not trans.isValid():
             logger.error(f'Unable to get valid QgsCoordinateTransform: {trans}')
