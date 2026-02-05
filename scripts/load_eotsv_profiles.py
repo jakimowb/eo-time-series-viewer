@@ -20,6 +20,7 @@ Example:
 import argparse
 import concurrent.futures
 import json
+import math
 import os
 import re
 import sys
@@ -456,8 +457,7 @@ def read_profiles(files: List,
         profiles = dict()
         for fid, xyz, success in zip(R_POINTS.keys(), pixel, success):
             if success:
-                px_x, px_y = int(xyz[0]), int(xyz[1])
-
+                px_x, px_y = math.floor(xyz[0]), math.floor(xyz[1])
                 if 0 <= px_x < ds.RasterXSize and 0 <= px_y < ds.RasterYSize:
                     try:
                         profile = ds.ReadAsArray(px_x, px_y, 1, 1).flatten().tolist()

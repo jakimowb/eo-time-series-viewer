@@ -25,6 +25,7 @@ import math
 import sys
 import time
 import traceback
+from pathlib import Path
 from threading import Lock
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
@@ -34,8 +35,8 @@ from eotimeseriesviewer.timeseries.source import TimeSeriesDate
 from eotimeseriesviewer.timeseries.timeseries import TimeSeries
 from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, index_window, layerStyleString, \
     setFontButtonPreviewBackgroundColor, setLayerStyleString
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QDateTime, QMimeData, QModelIndex, QSize, Qt, QTimer
-from qgis.PyQt.QtGui import QColor, QIcon, QKeySequence, QMouseEvent
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QDateTime, QMimeData, QModelIndex, QSize, Qt, QTimer, QUrl
+from qgis.PyQt.QtGui import QColor, QDragEnterEvent, QDragMoveEvent, QDropEvent, QIcon, QKeySequence, QMouseEvent
 from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
     QWidget
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsExpression, QgsExpressionContext, \
@@ -1216,6 +1217,7 @@ class MapWidget(QFrame):
                                            [QgsCoordinateReferenceSystem, QgsPointXY, QgsMapCanvas])
     sigVisibleDatesChanged = pyqtSignal(list)
     sigViewModeChanged = pyqtSignal(ViewMode)
+    sigFilesDropped = pyqtSignal(list)
 
     def __init__(self, *args, **kwds):
         super(MapWidget, self).__init__(*args, **kwds)
@@ -1225,6 +1227,10 @@ class MapWidget(QFrame):
         self.mGridFrame: QFrame
         self.mGrid: QGridLayout
         assert isinstance(self.mGrid, QGridLayout)
+
+        # Enable drag and drop
+        self.setAcceptDrops(True)
+        self.mGridFrame.setAcceptDrops(True)
 
         self.mSyncLock = False
         self.mSyncQGISMapCanvasCenter: bool = False
@@ -2627,6 +2633,51 @@ QSlider::add-page {{
                     logger.debug(errorText)
 
             mapView.setInfoExpressionError(errorText)
+
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        """
+        Handle drag enter events for file drops
+        """
+        md: QMimeData = event.mimeData()
+        if md.hasUrls():
+            # Check if any URLs are local files
+            for url in md.urls():
+                if isinstance(url, QUrl) and url.isLocalFile():
+                    event.acceptProposedAction()
+                    return
+        event.ignore()
+
+    def dragMoveEvent(self, event: QDragMoveEvent):
+        """
+        Handle drag move events for file drops
+        """
+        md: QMimeData = event.mimeData()
+        if md.hasUrls():
+            for url in md.urls():
+                if isinstance(url, QUrl) and url.isLocalFile():
+                    event.acceptProposedAction()
+                    return
+        event.ignore()
+
+    def dropEvent(self, event: QDropEvent):
+        """
+        Handle drop events for external files.
+        Emits sigFilesDropped with a list of file paths.
+        """
+        md: QMimeData = event.mimeData()
+        local_files = []
+
+        if md.hasUrls():
+            for url in md.urls():
+                if isinstance(url, QUrl) and url.isLocalFile():
+                    path = Path(url.toLocalFile())
+                    local_files.append(path)
+
+        if len(local_files) > 0:
+            event.acceptProposedAction()
+            self.sigFilesDropped.emit(local_files)
+        else:
+            event.ignore()
 
 
 class BlockExtentChange(object):

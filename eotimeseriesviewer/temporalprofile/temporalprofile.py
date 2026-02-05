@@ -817,7 +817,7 @@ class LoadTemporalProfileSubTask(QgsTask):
                 profile_values = None
 
                 if success:
-                    px_x, px_y = int(round(px[0], 0)), int(round(px[1], 0))
+                    px_x, px_y = int(math.floor(px[0])), math.floor(px[1])
                     if 0 <= px_x < ds.RasterXSize and 0 <= px_y < ds.RasterYSize:
                         pv = ds.ReadAsArray(px_x, px_y, 1, 1).flatten().tolist()
                         # set no-data values to None

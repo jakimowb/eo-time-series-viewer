@@ -58,6 +58,7 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.ifconfig',
               'sphinx.ext.viewcode',
               'sphinx_tabs.tabs',
+              'sphinxcontrib.video',
               # 'sphinx.ext.autosectionlabel',
               'myst_parser',
               ]
