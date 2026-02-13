@@ -220,7 +220,7 @@ class TemporalProfileVisualization(QObject):
             lid = lid.id()
 
         if lid in self.mLayerConnectionSignalProxys:
-            print(f'Remove {len(self.mLayerConnectionSignalProxys[lid])} connections to {lid}')
+            # print(f'Remove {len(self.mLayerConnectionSignalProxys[lid])} connections to {lid}')
             for proxy in self.mLayerConnectionSignalProxys[lid]:
                 if isinstance(proxy, pg.SignalProxy):
                     proxy.disconnect()
