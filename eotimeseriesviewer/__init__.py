@@ -31,20 +31,12 @@ from qgis.core import Qgis, QgsApplication
 __version__ = '<version>'
 __version_sha__ = '<sha>'
 
-LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
 LOG_MESSAGE_TAG = TITLE
-DESCRIPTION = 'Visualization of multi-sensor Earth observation time series data.'
 HOMEPAGE = 'https://eo-time-series-viewer.readthedocs.io'
 DOCUMENTATION = 'http://eo-time-series-viewer.readthedocs.io/en/latest/'
-REPOSITORY = 'https://github.com/jakimowb/eo-time-series-viewer'
-AUTHOR = 'Benjamin Jakimow'
-MAIL = 'benjamin.jakimow@geo.hu-berlin.de'
 ISSUE_TRACKER = 'https://github.com/jakimowb/eo-time-series-viewer/issues'
-CREATE_ISSUE = 'https://github.com/jakimowb/eo-time-series-viewer/issues/new'
 DEPENDENCIES = ['numpy', 'osgeo.gdal']
-URL_TESTDATA = r''
-QGIS_MIN_VERSION = '3.40'
 
 DEBUG: bool = str(os.environ.get('DEBUG', '1')).lower() in ['true', '1', 'yes']
 

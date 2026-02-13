@@ -120,7 +120,7 @@ def create_plugin(include_testdata: bool = False,
 
     MD = QGISMetadataFileWriter()
     MD.mName = eotimeseriesviewer.TITLE
-    MD.mDescription = eotimeseriesviewer.DESCRIPTION
+    MD.mDescription = config.get('eotsv:metadata', 'description')
     MD.mTags = config.get('eotsv:metadata', 'tags')
     MD.mCategory = 'Analysis'
     MD.mAuthor = config.get('eotsv:metadata', 'author')
@@ -128,11 +128,11 @@ def create_plugin(include_testdata: bool = False,
     MD.mHomepage = eotimeseriesviewer.HOMEPAGE
     MD.mAbout = config.get('eotsv:metadata', 'about').splitlines()
     MD.mTracker = eotimeseriesviewer.ISSUE_TRACKER
-    MD.mRepository = eotimeseriesviewer.REPOSITORY
-    MD.mQgisMinimumVersion = eotimeseriesviewer.QGIS_MIN_VERSION
-    MD.mEmail = eotimeseriesviewer.MAIL
-    MD.mIsExperimental = False
-    MD.mVersion = VERSION
+    MD.mRepository = config.get('eotsv:metadata', 'repository')
+    MD.mQgisMinimumVersion = config.get('eotsv:metadata', 'qgis_min_version')
+    MD.mQgisMaximumVersion = config.get('eotsv:metadata', 'qgis_max_version')
+    MD.mEmail = config.get('eotsv:metadata', 'mail')
+    MD.mVersion = BUILD_NAME
     MD.mIsExperimental = experimental is True
     MD.writeMetadataTxt(PATH_METADATAFILE)
 
