@@ -32,6 +32,7 @@ Install QGIS & Python Dependencies
       different QGIS releases installed in parallel.
 
       3. If python-packages are missing:
+
         *  try installing them using the OSGeo4W installer first.
         *  If unavailable in the OSGeo4W installer, install them by running ``pip install <package>`` from the
            OSGeo4W shell
