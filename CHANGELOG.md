@@ -5,6 +5,8 @@
 * update logo HU-Berlin
 * fixed naming of release packages to follow PEP 440 [55](https://github.com/jakimowb/eo-time-series-viewer/issues/55)
 * fixed changelog formatting
+* fixed text color formatting in temporal profile plot settings
+* fixed a bug that could occur when removing a vector layer that was used as a source for a temporal profile plot
 
 ## EOTSV 2.3.1 (2026-02-04)
 
