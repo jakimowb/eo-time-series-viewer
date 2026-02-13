@@ -7,6 +7,7 @@
 * fixed changelog formatting
 * fixed text color formatting in temporal profile plot settings
 * fixed a bug that could occur when removing a vector layer that was used as a source for a temporal profile plot
+* fixed layer name of example_profiles.geojson
 
 ## EOTSV 2.3.1 (2026-02-04)
 
