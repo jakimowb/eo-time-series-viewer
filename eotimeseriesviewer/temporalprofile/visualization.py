@@ -220,7 +220,7 @@ class TemporalProfileVisualization(QObject):
             lid = lid.id()
 
         if lid in self.mLayerConnectionSignalProxys:
-            print(f'Remove {len(self.mLayerConnectionSignalProxys[lid])} connections to {lid}')
+            # print(f'Remove {len(self.mLayerConnectionSignalProxys[lid])} connections to {lid}')
             for proxy in self.mLayerConnectionSignalProxys[lid]:
                 if isinstance(proxy, pg.SignalProxy):
                     proxy.disconnect()
@@ -268,9 +268,11 @@ class TemporalProfileVisualization(QObject):
                     SignalProxyUndecorated(lyr.featureAdded, rateLimit=rl, slot=lambda: self.updatePlot()),
                     SignalProxyUndecorated(lyr.featureDeleted, rateLimit=rl, slot=lambda: self.updatePlot()),
                     SignalProxyUndecorated(lyr.rendererChanged, rateLimit=rl, slot=lambda: self.updatePlot()),
-                ]
 
+                ]
                 self.mLayerConnectionSignalProxys[lid] = proxies
+                lyr.willBeDeleted.connect(lambda *args, fid=lyr.id(): self.removeLayerConnection(fid))
+
         for lid in old_lids:
             if lid not in new_lids:
                 self.removeLayerConnection(lid)

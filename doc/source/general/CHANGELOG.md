@@ -5,6 +5,20 @@ hide-toc: false
 
 # Changelog
 
+## EOTSV 2.3.2 (2026-02-13)
+
+* update logo HU-Berlin
+* fixed naming of release packages to follow PEP 440 [55](https://github.com/jakimowb/eo-time-series-viewer/issues/55)
+* fixed changelog formatting
+* fixed text color in temporal profile plot settings, e.g. for dark theme modes
+
+## EOTSV 2.3.1 (2026-02-04)
+
+* fixed world-to-pixel coordinate conversion for temporal profile
+  extraction [52](https://github.com/jakimowb/eo-time-series-viewer/issues/52)
+* smaller updates to Spectral Library Viewer
+* image sources can be added to the TimeSeries by dropping them onto the empty Map View area
+
 ## EOTSV 2.3 (2025-11-09)
 
 * revision of TimeSeries model. Source images are now loaded and removed much faster (
@@ -224,8 +238,8 @@ _Stability Update_
 * labeling dock allows iterating over vector features. the spatial map extent will be centered to each feature (#26)
 * added several convenience functions to the TimeSeriesViewer object
 * fixed a bug that did not allow creating new polygon features
-* temporal profile visualization: fixed icons to preview selected plot style, coordinate described by "<fid> <name>",
-  e.g. "42 Deforested" fixed plot style preview
+* temporal profile visualization: fixed icons to preview selected plot style, coordinate described by `<fid> <name>`,
+  e.g. `42 Deforested` fixed plot style preview
 * updated SpectralLibraryViewer
 * fixed a spelling error in the stacked band input dialog
 * MapViews can add raster layers that have been opened in QGIS, e.g., XYZ Tile with OpenStreetMap data

@@ -26,7 +26,10 @@ from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import PlotDat
 from qgis.PyQt.QtGui import QIcon
 from qgis.core import Qgis, QgsApplication
 
-__version__ = '2.3.1'
+# the version and commit hash this version refers to.
+# will be replaced during the plugin build process
+__version__ = '<version>'
+__version_sha__ = '<sha>'
 
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
