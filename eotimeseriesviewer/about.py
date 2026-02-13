@@ -2,11 +2,10 @@ import os
 import re
 import webbrowser
 
-from PyQt5.QtGui import QPixmap
-
 from eotimeseriesviewer import DIR_UI, PATH_CONTRIBUTORS
 from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi
 from qgis.PyQt.QtCore import Qt, QUrl
+from qgis.PyQt.QtGui import QPixmap
 from qgis.PyQt.QtWidgets import QDialog
 
 
