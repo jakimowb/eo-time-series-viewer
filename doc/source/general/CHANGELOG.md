@@ -5,7 +5,7 @@ hide-toc: false
 
 # Changelog
 
-## EOTSV 2.3.2 (2026-02-13)
+## EOTSV 2.4 (2026-02-13)
 
 * update logo HU-Berlin
 * fixed naming of release packages to follow PEP 440 [55](https://github.com/jakimowb/eo-time-series-viewer/issues/55)
