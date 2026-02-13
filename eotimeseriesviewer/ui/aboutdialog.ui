@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>840</width>
-    <height>364</height>
+    <width>807</width>
+    <height>483</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -194,7 +194,7 @@
           <enum>QFrame::NoFrame</enum>
          </property>
          <property name="currentIndex">
-          <number>2</number>
+          <number>0</number>
          </property>
          <widget class="QWidget" name="pageAbout">
           <property name="sizePolicy">
@@ -231,7 +231,7 @@
               <number>6</number>
              </property>
              <item>
-              <widget class="QLabel" name="label">
+              <widget class="QLabel" name="labelLogoEOTSV">
                <property name="sizePolicy">
                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                  <horstretch>0</horstretch>
@@ -254,7 +254,7 @@
                 <string/>
                </property>
                <property name="pixmap">
-                <pixmap resource="eotsv_resources.qrc">:/eotimeseriesviewer/icons/IconTimeSeries.svg</pixmap>
+                <pixmap>icons/icon.svg</pixmap>
                </property>
                <property name="scaledContents">
                 <bool>true</bool>
@@ -296,7 +296,7 @@
                    </font>
                   </property>
                   <property name="styleSheet">
-                   <string notr="true">background-color: rgb(255, 255, 255,0);</string>
+                   <string notr="true">background-color: rgba(255, 255, 255, 0);</string>
                   </property>
                   <property name="text">
                    <string>EO Time Series Viewer</string>
@@ -332,7 +332,7 @@
               </widget>
              </item>
              <item>
-              <widget class="QLabel" name="label_2">
+              <widget class="QLabel" name="labelLogoHUB">
                <property name="sizePolicy">
                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                  <horstretch>0</horstretch>
@@ -355,7 +355,7 @@
                 <string/>
                </property>
                <property name="pixmap">
-                <pixmap resource="eotsv_resources.qrc">:/eotimeseriesviewer/icons/logo_hub.svg</pixmap>
+                <pixmap>icons/logo_hub.svg</pixmap>
                </property>
                <property name="scaledContents">
                 <bool>true</bool>
@@ -370,7 +370,7 @@
            <item>
             <widget class="QTextBrowser" name="tbAbout">
              <property name="styleSheet">
-              <string notr="true">background-color: rgb(0, 0, 0,0);</string>
+              <string notr="true">background-color: rgba(0, 0, 0, 0);</string>
              </property>
              <property name="frameShape">
               <enum>QFrame::NoFrame</enum>
@@ -388,16 +388,11 @@
               <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:7.8pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'B612'; font-size:11pt; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
              <property name="placeholderText">
               <string>About text</string>
-             </property>
-             <property name="source">
-              <url>
-               <string>qrc:/eotimeseriesviewer/ABOUT.txt</string>
-              </url>
              </property>
              <property name="openExternalLinks">
               <bool>false</bool>
@@ -426,14 +421,14 @@ p, li { white-space: pre-wrap; }
            <item>
             <widget class="QTextBrowser" name="tbChanges">
              <property name="styleSheet">
-              <string notr="true">background-color: rgb(0, 0, 0,0);</string>
+              <string notr="true">background-color: rgba(0, 0, 0, 0);</string>
              </property>
              <property name="html">
               <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:7.8pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Changelog.md&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'B612'; font-size:11pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'MS Shell Dlg 2'; font-size:7.8pt;&quot;&gt;Changelog.md&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
              <property name="openExternalLinks">
               <bool>false</bool>
@@ -476,7 +471,7 @@ p, li { white-space: pre-wrap; }
            <item>
             <widget class="QTextBrowser" name="tbLicense">
              <property name="styleSheet">
-              <string notr="true">background-color: rgb(0, 0, 0,0);</string>
+              <string notr="true">background-color: rgba(0, 0, 0, 0);</string>
              </property>
              <property name="openExternalLinks">
               <bool>false</bool>
@@ -518,7 +513,6 @@ p, li { white-space: pre-wrap; }
  <resources>
   <include location="eotsv_resources.qrc"/>
   <include location="../../../qgispluginsupport/qps/qpsresources.qrc"/>
-  <include location="../../../../cpp/QGIS/images/images.qrc"/>
  </resources>
  <connections>
   <connection>
