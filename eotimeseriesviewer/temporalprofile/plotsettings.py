@@ -1299,6 +1299,7 @@ class PlotSettingsTreeViewDelegate(QStyledItemDelegate):
                 # if not item.isComplete():
                 #    to_paint.append(QIcon(r':/images/themes/default/mIconWarning.svg'))
                 data = item.data(Qt.DisplayRole)
+                foreground_color = item.data(Qt.ForegroundRole)
                 if data:
                     to_paint.append(data)
 
@@ -1338,9 +1339,18 @@ class PlotSettingsTreeViewDelegate(QStyledItemDelegate):
                         font_metrics = QFontMetrics(self.mTreeView.font())
                         w = font_metrics.horizontalAdvance(p)
                         o.rect = QRect(x0 + margin, y0, x0 + margin + w, h)
-                        palette = style.standardPalette()
-                        enabled = True
-                        textRole = QPalette.Foreground
+                        # Use the palette from option to get correct colors
+                        palette = option.palette
+                        # Determine the appropriate text role based on selection state
+                        if option.state & QStyle.State_Selected:
+                            textRole = QPalette.HighlightedText
+                        elif isinstance(foreground_color, QColor):
+                            # If item has custom foreground color, use it
+                            palette.setColor(QPalette.Text, foreground_color)
+                            textRole = QPalette.Text
+                        else:
+                            textRole = QPalette.Text
+                        enabled = option.state & QStyle.State_Enabled
                         style.drawItemText(painter, o.rect, Qt.AlignLeft, palette, enabled, p, textRole=textRole)
 
                     else:

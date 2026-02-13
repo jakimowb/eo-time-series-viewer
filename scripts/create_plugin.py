@@ -42,24 +42,11 @@ from eotimeseriesviewer import DIR_REPO, PATH_CHANGELOG
 print('DIR_REPO={}'.format(DIR_REPO))
 CHECK_COMMITS = False
 
-########## Config Section
-config = ConfigParser()
-config.read(DIR_REPO / 'tox.ini')
 
-MD = QGISMetadataFileWriter()
-MD.mName = eotimeseriesviewer.TITLE
-MD.mDescription = eotimeseriesviewer.DESCRIPTION
-MD.mTags = config.get('qgisplugin', 'tags')
-MD.mCategory = 'Analysis'
-MD.mAuthor = config.get('qgisplugin', 'author')
-MD.mIcon = 'eotimeseriesviewer/icon.png'
-MD.mHomepage = eotimeseriesviewer.HOMEPAGE
-MD.mAbout = config.get('qgisplugin', 'about').splitlines()
-MD.mTracker = eotimeseriesviewer.ISSUE_TRACKER
-MD.mRepository = eotimeseriesviewer.REPOSITORY
-MD.mQgisMinimumVersion = eotimeseriesviewer.QGIS_MIN_VERSION
-MD.mEmail = eotimeseriesviewer.MAIL
-MD.mIsExperimental = False
+def is_canonical(version):
+    return re.match(
+        r'^([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*((a|b|rc)(0|[1-9][0-9]*))?(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$',
+        version) is not None
 
 
 ########## End of config section
@@ -94,9 +81,19 @@ def create_plugin(include_testdata: bool = False,
 
     DIR_DEPLOY_LOCAL = DIR_REPO / 'deploy'
 
+    config = ConfigParser()
+    config.read(DIR_REPO / 'tox.ini')
+
     REPO = git.Repo(DIR_REPO)
     active_branch = REPO.active_branch.name
-    from eotimeseriesviewer import __version__ as VERSION
+    VERSION = config['eotsv:metadata']['version']
+
+    # check if the version string follows PEP440
+    assert is_canonical(VERSION), f'Invalid version string: {VERSION}'
+    #  write a version number like 2.3.0 instead of 2.3 to ensure proper ordering
+    while len(VERSION.split('.')) < 3:
+        VERSION += '.0'
+
     VERSION_SHA = REPO.active_branch.commit.hexsha
     lastCommitDate = REPO.active_branch.commit.authored_datetime
     timestamp = re.split(r'[.+]', lastCommitDate.isoformat())[0]
@@ -113,14 +110,29 @@ def create_plugin(include_testdata: bool = False,
         BUILD_NAME = build_name
 
     PLUGIN_DIR = DIR_DEPLOY_LOCAL / 'timeseriesviewerplugin'
-    PLUGIN_ZIP = DIR_DEPLOY_LOCAL / 'timeseriesviewerplugin.{}.zip'.format(BUILD_NAME)
+    PLUGIN_ZIP = DIR_DEPLOY_LOCAL / f'timeseriesviewerplugin.{BUILD_NAME}.zip'
 
     if PLUGIN_DIR.is_dir():
         shutil.rmtree(PLUGIN_DIR)
     os.makedirs(PLUGIN_DIR, exist_ok=True)
 
     PATH_METADATAFILE = PLUGIN_DIR / 'metadata.txt'
-    MD.mVersion = BUILD_NAME
+
+    MD = QGISMetadataFileWriter()
+    MD.mName = eotimeseriesviewer.TITLE
+    MD.mDescription = eotimeseriesviewer.DESCRIPTION
+    MD.mTags = config.get('eotsv:metadata', 'tags')
+    MD.mCategory = 'Analysis'
+    MD.mAuthor = config.get('eotsv:metadata', 'author')
+    MD.mIcon = 'eotimeseriesviewer/icon.png'
+    MD.mHomepage = eotimeseriesviewer.HOMEPAGE
+    MD.mAbout = config.get('eotsv:metadata', 'about').splitlines()
+    MD.mTracker = eotimeseriesviewer.ISSUE_TRACKER
+    MD.mRepository = eotimeseriesviewer.REPOSITORY
+    MD.mQgisMinimumVersion = eotimeseriesviewer.QGIS_MIN_VERSION
+    MD.mEmail = eotimeseriesviewer.MAIL
+    MD.mIsExperimental = False
+    MD.mVersion = VERSION
     MD.mIsExperimental = experimental is True
     MD.writeMetadataTxt(PATH_METADATAFILE)
 
@@ -161,14 +173,13 @@ def create_plugin(include_testdata: bool = False,
 
     # update metadata version
 
-    f = open(DIR_REPO / 'eotimeseriesviewer' / '__init__.py')
-    lines = f.read()
-    f.close()
+    with open(DIR_REPO / 'eotimeseriesviewer' / '__init__.py', encoding='utf-8') as f:
+        lines = f.read()
+
     lines = re.sub(r'(__version__\W*=\W*)([^\n]+)', r'__version__ = "{}"\n'.format(BUILD_NAME), lines)
-    f = open(PLUGIN_DIR / 'eotimeseriesviewer' / '__init__.py', 'w')
-    f.write(lines)
-    f.flush()
-    f.close()
+    lines = re.sub(r'(__version_sha__\W*=\W*)([^\n]+)', r'__version_sha__ = "{}"\n'.format(VERSION_SHA), lines)
+    with open(PLUGIN_DIR / 'eotimeseriesviewer' / '__init__.py', 'w') as f:
+        f.write(lines)
 
     # include test data into test versions
     if include_testdata and not re.search(active_branch, 'master', re.I):

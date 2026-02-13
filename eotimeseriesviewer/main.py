@@ -1615,12 +1615,12 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     def initTemporalProfileLayer(self) -> Optional[QgsVectorLayer]:
         """
-        Create a new temporal profile layer if none exists in the project..
-        Returns the 1st temporal profile layer found in the EOTSV project
+        Create a new temporal profile layer if none exists in the project.
+        Returns the 1st temporal profile memory layer found in the EOTSV project.
         """
         has_tl_lyr = False
         for lid, lyr in self.project().mapLayers().items():
-            if TemporalProfileUtils.isProfileLayer(lyr):
+            if TemporalProfileUtils.isProfileLayer(lyr) and lyr.dataProvider().name() == 'memory':
                 self.mTemporalProfileLayerInitialized = True
                 return lyr
         if not has_tl_lyr:
