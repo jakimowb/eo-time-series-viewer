@@ -1,15 +1,3 @@
-.. DEFINE ICONS AND IMAGE HERE
-
-.. include:: /icon_links.rst
-
-.. |cbc| image:: /img/checkbox_checked.png
-.. |cbu| image:: /img/checkbox_unchecked.png
-
-.. |timeseriesdock| image:: /img/timeseriespanel.png
-.. |mapviewbutton| image:: /img/mapviewbutton.png
-.. |questionmark| image:: /img/questionmark.png
-
-
 .. _quick_start:
 
 ===========

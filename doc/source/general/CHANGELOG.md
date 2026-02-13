@@ -5,12 +5,14 @@ hide-toc: false
 
 # Changelog
 
-## EOTSV 2.3.2 (2026-02-13)
+## EOTSV 2.4 (2026-02-13)
 
 * update logo HU-Berlin
 * fixed naming of release packages to follow PEP 440 [55](https://github.com/jakimowb/eo-time-series-viewer/issues/55)
 * fixed changelog formatting
-* fixed text color in temporal profile plot settings, e.g. for dark theme modes
+* fixed text color formatting in temporal profile plot settings
+* fixed a bug that could occur when removing a vector layer that was used as a source for a temporal profile plot
+* fixed layer name of example_profiles.geojson
 
 ## EOTSV 2.3.1 (2026-02-04)
 
